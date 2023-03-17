@@ -1,20 +1,23 @@
-use crate::cmdlib::{CParserResult, CSpan};
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds};
 use crate::index::Words;
+use crate::proc::update_index;
 use kparse::prelude::*;
 use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
+use std::path::Path;
 
 mod cmdlib;
 mod cmds;
 mod index;
+mod proc;
 
 fn main() -> Result<(), anyhow::Error> {
     let mut data = Words::new();
 
     let mut rl = Editor::<Cmds, FileHistory>::new()?;
+    rl.set_helper(Some(Cmds));
     let _ = rl.load_history("history.txt");
 
     let mut break_flag = false;
@@ -61,15 +64,25 @@ fn parse_cmd(
 
     match parse_cmds(span) {
         Ok((_, BCommand::Index(v))) => {
-            dbg!(v);
+            let path = Path::new(".");
+            update_index(path)?;
         }
         Ok((_, BCommand::Find(v))) => {
             dbg!(v);
         }
         Ok((_, BCommand::None)) => {
-            dbg!(());
+            //
         }
         Ok((_, BCommand::Help(v))) => {
+            eprintln!(
+                "
+index
+
+find text <txt>
+
+?
+"
+            );
             dbg!(v);
         }
         Err(e) => {

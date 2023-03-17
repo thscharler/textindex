@@ -1,7 +1,4 @@
-use crate::cmdlib::{
-    nom_empty, nom_ws, nom_ws_span, CParserResult, CSpan, Parse1LayerCommand, Parse1Layers,
-    Parse2LayerCommand, Parse2Layers, SubCmd,
-};
+use crate::cmdlib::{nom_empty, nom_ws, nom_ws_span, CParserResult, CSpan, ParseCmd, SubCmd};
 use kparse::prelude::*;
 use kparse::source::SourceStr;
 use kparse::{define_span, Code, ParserError, TokenizerResult, Track};
@@ -13,7 +10,7 @@ use rustyline::{Context, Helper};
 use std::fmt::{Display, Formatter};
 use CCode::*;
 
-pub struct Cmds {}
+pub struct Cmds;
 
 impl Helper for Cmds {}
 
@@ -50,7 +47,7 @@ fn hint_command(_ctx: &Cmds, line: &str, pos: usize) -> (Option<String>, usize, 
     let txt = Track::source_str(line);
 
     match parse_cmds(span) {
-        Ok((_, _)) => hint_none(txt.len()),
+        Ok((rest, cmd)) => hint_none(txt.len()),
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => eval_hint_tokens(&txt, e),
         Err(nom::Err::Incomplete(_e)) => hint_none(txt.len()),
     }
@@ -225,40 +222,39 @@ pub fn parse_cmds(rest: CSpan<'_>) -> CParserResult<'_, BCommand> {
     }
 }
 
-const PARSE_INDEX: Parse1LayerCommand = Parse1LayerCommand {
-    cmd: BCommand::Index(Index::Index),
-    layers: Parse1Layers {
+const PARSE_INDEX: ParseCmd<Index, BCommand> = ParseCmd {
+    to_cmd: BCommand::Index,
+    sub: SubCmd {
         token: "index",
         code: CIndex,
+        to_out: |v| Ok((v, Index::Index)),
     },
 };
 
-const PARSE_FIND: Parse2LayerCommand<Find, 1> = Parse2LayerCommand {
-    layers: Parse2Layers {
+const PARSE_FIND: ParseCmd<Find, BCommand> = ParseCmd {
+    to_cmd: BCommand::Find,
+    sub: SubCmd {
         token: "find",
         code: CFind,
-        list: [SubCmd {
-            token: "text",
-            code: CText,
-            output: parse_text,
-        }],
+        to_out: parse_text,
     },
-    map_cmd: BCommand::Find,
 };
 
-const PARSE_HELP_1: Parse1LayerCommand = Parse1LayerCommand {
-    cmd: BCommand::Help(Help::Help),
-    layers: Parse1Layers {
+const PARSE_HELP_1: ParseCmd<Help, BCommand> = ParseCmd {
+    to_cmd: BCommand::Help,
+    sub: SubCmd {
         token: "help",
         code: CHelp,
+        to_out: |v| Ok((v, Help::Help)),
     },
 };
 
-const PARSE_HELP_2: Parse1LayerCommand = Parse1LayerCommand {
-    cmd: BCommand::Help(Help::Help),
-    layers: Parse1Layers {
+const PARSE_HELP_2: ParseCmd<Help, BCommand> = ParseCmd {
+    to_cmd: BCommand::Help,
+    sub: SubCmd {
         token: "?",
         code: CHelp,
+        to_out: |v| Ok((v, Help::Help)),
     },
 };
 

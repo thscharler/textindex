@@ -7,3 +7,6 @@ help
 index
 ?
 help
+a
+asdf
+aaaa

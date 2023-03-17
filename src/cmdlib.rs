@@ -1,5 +1,5 @@
+use crate::cmds::CCode;
 use crate::cmds::CCode::{CIgnore, CNomError, CWhitespace};
-use crate::cmds::{BCommand, CCode};
 use kparse::prelude::*;
 use kparse::{ParserError, ParserResult, TokenizerError, TokenizerResult};
 use nom::bytes::complete::{tag, take_till1, take_while1};
@@ -7,7 +7,6 @@ use nom::combinator::{consumed, recognize};
 use nom::InputTake;
 use nom::{AsChar, InputTakeAtPosition};
 use nom_locate::LocatedSpan;
-use std::fmt::Debug;
 
 // define_span!(pub CSpan = CCode, str);
 pub type CSpan<'a> = LocatedSpan<&'a str, &'a (dyn TrackProvider<CCode, &'a str>)>;
@@ -16,112 +15,84 @@ pub type CTokenizerResult<'s, O> = TokenizerResult<CCode, CSpan<'s>, O>;
 pub type CParserError<'s> = ParserError<CCode, CSpan<'s>>;
 pub type CTokenizerError<'s> = TokenizerError<CCode, CSpan<'s>>;
 
-// Generic parsers -------------------------------------------------------
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
-pub struct Parse1LayerCommand {
-    pub cmd: BCommand,
-    pub layers: Parse1Layers,
+pub struct ParseCmd<O, T> {
+    pub to_cmd: fn(O) -> T,
+    pub sub: SubCmd<O>,
 }
 
-impl Parse1LayerCommand {
-    fn id(&self) -> CCode {
-        self.layers.code
-    }
-
-    pub(crate) fn lah(&self, span: CSpan<'_>) -> bool {
-        lah_command(self.layers.token, span)
-    }
-
-    pub(crate) fn parse<'s>(&self, rest: CSpan<'s>) -> CParserResult<'s, BCommand> {
-        Track.enter(self.id(), rest);
-
-        let (rest, sub) = self.layers.parse(rest).track()?;
-
-        let rest = nom_ws_span(rest);
-
-        if !rest.is_empty() {
-            return Track.err(CParserError::new(self.id(), rest));
-        }
-
-        Track.ok(rest, sub, self.cmd.clone())
-    }
-}
-
-pub struct Parse1Layers {
-    pub token: &'static str,
-    pub code: CCode,
-}
-
-impl Parse1Layers {
-    fn id(&self) -> CCode {
-        self.code
-    }
-
-    fn parse<'s>(&self, rest: CSpan<'s>) -> CParserResult<'s, CSpan<'s>> {
-        Track.enter(self.id(), rest);
-
-        let (rest, token) = token_command(self.token, self.code, rest)
-            .err_into()
-            .track()?;
-
-        Track.ok(rest, token, token)
-    }
-}
-
-pub struct Parse2LayerCommand<O: Clone + Debug, const N: usize> {
-    pub map_cmd: fn(O) -> BCommand,
-    pub layers: Parse2Layers<O, N>,
-}
-
-impl<O: Clone + Debug, const N: usize> Parse2LayerCommand<O, N> {
-    pub(crate) fn lah(&self, span: CSpan<'_>) -> bool {
-        lah_command(self.layers.token, span)
-    }
-
-    pub(crate) fn parse<'s>(&self, rest: CSpan<'s>) -> CParserResult<'s, BCommand> {
-        Track.enter(self.layers.code, rest);
-
-        let (rest, (span, sub)) = self.layers.parse(rest).track()?;
-
-        let rest = nom_ws_span(rest);
-
-        if !rest.is_empty() {
-            return Track.err(CParserError::new(self.layers.code, rest));
-        }
-
-        Track.ok(rest, span, (self.map_cmd)(sub))
-    }
-}
-
-pub struct Parse2Layers<O: Clone, const N: usize> {
+pub struct ParseCmd2<O, T, const N: usize> {
+    pub to_cmd: fn(O) -> T,
     pub token: &'static str,
     pub code: CCode,
     pub list: [SubCmd<O>; N],
 }
 
-pub struct SubCmd<O: Clone> {
+pub struct SubCmd<O> {
     pub token: &'static str,
     pub code: CCode,
-    pub output: fn(CSpan<'_>) -> CParserResult<'_, O>,
+    pub to_out: fn(CSpan<'_>) -> CParserResult<'_, O>,
 }
 
-impl<O: Clone, const N: usize> Parse2Layers<O, N> {
-    fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, (CSpan<'s>, O)> {
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
+
+impl<O, T> ParseCmd<O, T>
+where
+    O: Clone,
+{
+    pub fn lah(&self, input: CSpan<'_>) -> bool {
+        lah_command(self.sub.token, input)
+    }
+
+    pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, T> {
+        Track.enter(self.sub.code, input);
+
+        match token_command(self.sub.token, self.sub.code, input) {
+            Ok((rest, _)) => match (self.sub.to_out)(rest) {
+                Ok((rest, sub)) => {
+                    consumed_all(rest, self.sub.code)?;
+                    return Track.ok(rest, input, (self.to_cmd)(sub));
+                }
+                Err(e) => {
+                    return Track.err(e.with_code(self.sub.code));
+                }
+            },
+            Err(e) => {
+                return Track.err(e.with_code(self.sub.code));
+            }
+        }
+    }
+}
+
+impl<O, T, const N: usize> ParseCmd2<O, T, N>
+where
+    O: Clone,
+{
+    pub fn lah(&self, input: CSpan<'_>) -> bool {
+        lah_command(self.token, input)
+    }
+
+    pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, T> {
         Track.enter(self.code, input);
 
-        let (rest, _token) = token_command(self.token, self.code, input)
-            .err_into()
-            .track()?;
-
+        let (rest, _token) = token_command(self.token, self.code, input).track()?;
         let (rest, _) = nom_ws1(rest).err_into().track()?;
 
         let mut err: Option<CParserError<'_>> = None;
         for sub in &self.list {
             match token_command(sub.token, sub.code, rest) {
                 Ok((rest, _span)) => {
-                    return match consumed(sub.output)(rest) {
-                        Ok((rest, (span_o, sub_o))) => Track.ok(rest, input, (span_o, sub_o)),
-                        Err(e) => Track.err(e.with_code(sub.code).with_code(self.code)),
+                    match (sub.to_out)(rest) {
+                        Ok((rest, sub_o)) => {
+                            consumed_all(rest, sub.code)?;
+                            return Track.ok(rest, input, (self.to_cmd)(sub_o));
+                        }
+                        Err(e) => {
+                            return Track.err(e.with_code(sub.code).with_code(self.code));
+                        }
                     };
                 }
                 Err(nom::Err::Error(e)) => {
@@ -148,6 +119,27 @@ impl<O: Clone, const N: usize> Parse2Layers<O, N> {
         }
     }
 }
+
+impl<O> SubCmd<O>
+where
+    O: Clone,
+{
+    pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, (CSpan<'s>, O)> {
+        match token_command(self.token, self.code, input) {
+            Ok((rest, _span)) => {
+                //
+                match consumed(self.to_out)(rest) {
+                    Ok((rest, (span_o, sub_o))) => Track.ok(rest, input, (span_o, sub_o)),
+                    Err(e) => Track.err(e.with_code(self.code)),
+                }
+            }
+            Err(e) => Track.err(e.with_code(self.code)),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 fn lah_command(tok: &'_ str, rest: CSpan<'_>) -> bool {
     match tag::<_, _, CParserError<'_>>(tok)(rest) {
@@ -224,4 +216,13 @@ pub fn nom_ws(i: CSpan<'_>) -> CTokenizerResult<'_, CSpan<'_>> {
 fn nom_ws1(i: CSpan<'_>) -> CTokenizerResult<'_, CSpan<'_>> {
     take_while1::<_, _, CTokenizerError<'_>>(|c: char| c == ' ' || c == '\t')(i)
         .with_code(CWhitespace)
+}
+
+fn consumed_all(i: CSpan<'_>, c: CCode) -> CParserResult<'_, ()> {
+    let rest = nom_ws_span(i);
+    if !rest.is_empty() {
+        return Err(nom::Err::Error(CParserError::new(c, rest)));
+    } else {
+        return Ok((rest, ()));
+    }
 }
