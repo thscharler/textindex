@@ -112,6 +112,7 @@ pub enum CCode {
     CIndex,
     CFind,
     CText,
+    CHelp,
 
     CFileName,
 }
@@ -133,6 +134,7 @@ impl Display for CCode {
 
             CWhitespace => "Whitespace1",
             CFileName => "FileName",
+            CHelp => "Help",
         };
         write!(f, "{}", name)
     }
@@ -149,6 +151,7 @@ impl CCode {
             CFind => "find",
             CFileName => "",
             CText => "text",
+            CHelp => "?",
         }
     }
 }
@@ -157,6 +160,7 @@ impl CCode {
 pub enum BCommand {
     Index(Index),
     Find(Find),
+    Help(Help),
     None,
 }
 
@@ -168,6 +172,11 @@ pub enum Index {
 #[derive(Debug, Clone)]
 pub enum Find {
     Find(String),
+}
+
+#[derive(Debug, Clone)]
+pub enum Help {
+    Help,
 }
 
 pub fn parse_cmds(rest: CSpan<'_>) -> CParserResult<'_, BCommand> {
@@ -183,6 +192,18 @@ pub fn parse_cmds(rest: CSpan<'_>) -> CParserResult<'_, BCommand> {
     }
     if PARSE_FIND.lah(rest) {
         match PARSE_FIND.parse(rest) {
+            Ok((_, cmd)) => command = Some(cmd),
+            Err(e) => err.append(e)?,
+        }
+    }
+    if PARSE_HELP_1.lah(rest) {
+        match PARSE_HELP_1.parse(rest) {
+            Ok((_, cmd)) => command = Some(cmd),
+            Err(e) => err.append(e)?,
+        }
+    }
+    if PARSE_HELP_2.lah(rest) {
+        match PARSE_HELP_2.parse(rest) {
             Ok((_, cmd)) => command = Some(cmd),
             Err(e) => err.append(e)?,
         }
@@ -223,6 +244,22 @@ const PARSE_FIND: Parse2LayerCommand<Find, 1> = Parse2LayerCommand {
         }],
     },
     map_cmd: BCommand::Find,
+};
+
+const PARSE_HELP_1: Parse1LayerCommand = Parse1LayerCommand {
+    cmd: BCommand::Help(Help::Help),
+    layers: Parse1Layers {
+        token: "help",
+        code: CHelp,
+    },
+};
+
+const PARSE_HELP_2: Parse1LayerCommand = Parse1LayerCommand {
+    cmd: BCommand::Help(Help::Help),
+    layers: Parse1Layers {
+        token: "?",
+        code: CHelp,
+    },
 };
 
 fn parse_text(input: CSpan<'_>) -> CParserResult<'_, Find> {
