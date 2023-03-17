@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/TextIndex.iml" filepath="$PROJECT_DIR$/TextIndex.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../StableProjects/biosys/biosys.iml" filepath="$PROJECT_DIR$/../../StableProjects/biosys/biosys.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../kparse/kparse.iml" filepath="$PROJECT_DIR$/../kparse/kparse.iml" />
+    </modules>
+  </component>
+</project>
