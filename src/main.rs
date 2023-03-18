@@ -1,7 +1,6 @@
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds};
 use crate::index::Words;
 use crate::proc::update_index;
-use kparse::prelude::*;
 use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
@@ -69,7 +68,7 @@ fn parse_cmd(
     let span = Track::new_span(&trk, txt);
 
     match parse_cmds(span) {
-        Ok((_, BCommand::Index(v))) => {
+        Ok((_, BCommand::Index(_))) => {
             let path = Path::new(".");
             update_index(data, path)?;
         }

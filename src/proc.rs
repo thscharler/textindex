@@ -1,27 +1,15 @@
-use crate::index::{index_txt, Words};
+use crate::index::{index_html, index_txt, Words};
 use crate::AppState;
-use crossbeam::channel::bounded;
-use crossbeam::channel::internal::SelectHandle;
+use crossbeam::channel::{bounded, TryRecvError};
+use std::borrow::Cow;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
 use std::thread;
-use std::thread::scope;
+use std::thread::{scope, sleep};
+use std::time::Duration;
 use walkdir::WalkDir;
-
-// let (s, r) = bounded(0);
-//
-// scope(|scope| {
-// // Spawn a thread that receives a message and then sends one.
-// scope.spawn(|_| {
-// r.recv().unwrap();
-// s.send(2).unwrap();
-// });
-//
-// // Send a message and then receive one.
-// s.send(1).unwrap();
-// r.recv().unwrap();
-// }).unwrap();
 
 pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> {
     let mut words = Words::new();
@@ -33,83 +21,154 @@ pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> 
     }
 
     scope(|scope| {
-        let t = thread::available_parallelism()?.get();
+        let t = thread::available_parallelism()
+            .map(|v| v.get())
+            .unwrap_or(2);
 
         let (send_job, recv_job) = bounded::<Msg>(1024);
-        let (send_res, recv_res) = bounded::<Msg>(1024);
+        let (send_res, recv_res) = bounded::<Msg>(t);
 
+        let mut handles = Vec::new();
         for _ in 0..t {
-            scope.spawn(|| {
-                let recv = recv_job.clone();
-                let send = send_res.clone();
+            let recv = recv_job.clone();
+            let send = send_res.clone();
 
+            let handle = scope.spawn(move || {
+                let recv = recv;
+                let send = send;
+
+                let mut words = Words::new();
                 let mut buf = Vec::new();
                 while let Ok(msg) = recv.recv() {
                     match msg {
                         Msg::Quit() => {
+                            if let Err(e) = send.send(Msg::Words(words)) {
+                                eprintln!("ERR1 {:?}", e)
+                            }
                             return;
                         }
                         Msg::Path(absolute, relative) => {
-                            println!("Index {:?}", relative);
+                            // println!("Index {:?}", relative);
+
                             buf.clear();
+                            let mut f = match File::open(&absolute) {
+                                Ok(v) => v,
+                                Err(e) => {
+                                    eprintln!("ERR2 {:?}", e);
+                                    continue;
+                                }
+                            };
+                            match f.read_to_end(&mut buf) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    eprintln!("ERR3 {:?}", e);
+                                    continue;
+                                }
+                            }
+                            let str = match from_utf8(buf.as_slice()) {
+                                Ok(v) => v,
+                                Err(_) => {
+                                    let _ = buf.iter_mut().map(|v| {
+                                        if *v > 127 {
+                                            *v = b'_';
+                                        }
+                                    });
 
-                            File::open(absolute)?.read_to_end(&mut buf)?;
+                                    match from_utf8(buf.as_slice()) {
+                                        Ok(v) => v,
+                                        Err(e) => {
+                                            eprintln!("ERR9 {:?}: {:?}", absolute, e);
+                                            continue;
+                                        }
+                                    }
+                                }
+                            };
 
-                            let w = index_txt(&absolute, &buf);
+                            let file_idx = words.add_file(relative);
 
-                            send.send(Msg::Words(w))?;
+                            let ext = absolute
+                                .extension()
+                                .map(|v| v.to_string_lossy())
+                                .unwrap_or(Cow::Borrowed(""));
+                            if ext == "html"
+                                || str.starts_with("<?xml")
+                                || str.starts_with("<!DOCTYPE")
+                                || str.starts_with("<html")
+                            {
+                                match index_html(&mut words, file_idx, &str) {
+                                    Ok(v) => v,
+                                    Err(e) => {
+                                        eprintln!("ERR4 {:?}", e);
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                index_txt(&mut words, file_idx, &str)
+                            };
                         }
-                        Msg::Words(_) => {
-                            panic!();
-                        }
+                        _ => {}
                     }
                 }
-                panic!();
-            })
-        }
+                panic!("recv failed");
+            });
 
-        scope.spawn(|| {
-            let recv = recv_res.clone();
-            while let Ok(msg) = recv.recv() {
-                match msg {}
-            }
-        });
+            handles.push(handle);
+        }
 
         if p.exists() && p.is_dir() {
             for entry in WalkDir::new(p).into_iter().flatten() {
-                if entry.metadata()?.is_file() {
-                    let absolute = entry.path();
-                    let relative = entry.path().strip_prefix(p)?;
+                match entry.metadata() {
+                    Ok(v) if v.is_file() => {
+                        let absolute = entry.path();
+                        let relative = entry.path().strip_prefix(p).unwrap_or(absolute);
 
-                    send_job.send(Msg::Path(absolute.into(), relative.into()));
-
-                    let w = index_txt(absolute)?;
-                    data.words.merge(w);
+                        if let Err(e) = send_job.send(Msg::Path(absolute.into(), relative.into())) {
+                            eprintln!("ERR5 {:?}", e);
+                        };
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!("ERR6 {:?}", e);
+                    }
                 }
             }
         }
 
-        send_job.is_empty()
-    });
-
-    if p.exists() && p.is_dir() {
-        for entry in WalkDir::new(p).into_iter().flatten() {
-            if entry.metadata()?.is_dir() {
-                // let absolute = entry.path();
-                // let relative = entry.path().strip_prefix(p)?;
-            } else {
-                let absolute = entry.path();
-                let relative = entry.path().strip_prefix(p)?;
-
-                println!("Index {:?}", relative);
-                buf.clear();
-                File::open(absolute)?.read_to_end(&mut buf)?;
-
-                let w = index_txt(absolute)?;
-                data.words.merge(w);
+        for _ in 0..t {
+            if let Err(e) = send_job.send(Msg::Quit()) {
+                eprintln!("ERR7 {:?}", e);
             }
         }
-    }
+
+        'collect: loop {
+            sleep(Duration::from_millis(1000));
+
+            match recv_res.try_recv() {
+                Ok(v) => match v {
+                    Msg::Words(v) => {
+                        words.merge(v);
+                    }
+                    _ => {}
+                },
+                Err(e) => match e {
+                    TryRecvError::Empty => {}
+                    TryRecvError::Disconnected => {
+                        eprintln!("ERR8 {:?}", e);
+                    }
+                },
+            }
+
+            for h in &handles {
+                if !h.is_finished() {
+                    continue 'collect;
+                }
+            }
+
+            break 'collect;
+        }
+    });
+
+    data.words = words;
 
     println!("{} files", data.words.files.len());
     println!("{} words", data.words.words.len());
@@ -118,6 +177,7 @@ pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> 
         .words
         .word_count
         .iter()
+        .filter(|v| **v > 1000)
         .enumerate()
         .map(|v| (*v.1, v.0))
         .collect::<Vec<_>>();

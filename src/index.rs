@@ -1,9 +1,16 @@
+use std::cell::RefCell;
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
-use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::mem;
+use std::path::PathBuf;
+use tl::ParserOptions;
 
-static STOPWORDS: [&str; 1] = ["a"];
+const STOP_WORDS: [&str; 35] = [
+    "a", "all", "and", "as", "at", "but", "could", "for", "from", "had", "he", "her", "him", "his",
+    "hot", "i", "in", "into", "it", "me", "my", "of", "on", "she", "so", "that", "the", "then",
+    "to", "up", "was", "were", "with", "you", "your",
+];
 
 ///
 ///
@@ -37,6 +44,13 @@ impl Words {
         }
     }
 
+    pub fn reserve(&mut self, n_words: usize, n_files: usize) {
+        self.words.reserve(n_words);
+        self.word_count.reserve(n_words);
+        self.file_idx.reserve(n_words);
+        self.files.reserve(n_files);
+    }
+
     pub fn add_file(&mut self, file: PathBuf) -> usize {
         let file = file.to_path_buf();
         match self.files.binary_search(&file) {
@@ -48,80 +62,194 @@ impl Words {
         }
     }
 
-    pub fn add_single<S: AsRef<str> + Into<String>>(&mut self, word: S, file_idx: usize) -> usize {
-        self.add_word(word, 1, &[file_idx])
-    }
+    pub fn add_word<S: AsRef<str> + Into<String>>(&mut self, word: S, file_idx: usize) {
+        if let Ok(_) = STOP_WORDS.binary_search_by(|probe| (*probe).cmp(word.as_ref())) {
+            return;
+        }
 
-    pub fn add_word<S: AsRef<str> + Into<String>>(
-        &mut self,
-        word: S,
-        count: usize,
-        file_idx: &[usize],
-    ) -> usize {
         match self
             .words
             .binary_search_by(|probe| probe.as_str().cmp(word.as_ref()))
         {
             Ok(idx) => {
-                self.word_count[idx] += count;
-                self.file_idx[idx].extend(file_idx);
-                idx
+                self.word_count.get_mut(idx).map(|v| {
+                    *v += 1;
+                });
+                self.file_idx.get_mut(idx).map(|v| {
+                    v.insert(file_idx);
+                });
             }
             Err(idx) => {
                 self.words.insert(idx, word.into());
-                self.word_count.insert(idx, count);
+                self.word_count.insert(idx, 1);
                 self.file_idx.insert(idx, HashSet::new());
-                self.file_idx[idx].extend(file_idx);
-                idx
+                self.file_idx[idx].insert(file_idx);
             }
         }
     }
 
-    pub fn merge(&mut self, words: Words) {
-        let mut map_fileidx = Vec::new();
+    pub fn merge(&mut self, other: Words) {
+        let one = mem::replace(self, Words::new());
 
-        let add = words.words.len();
-        self.words.reserve(add);
-        self.word_count.reserve(add);
-        self.file_idx.reserve(add);
-        self.files.reserve(words.files.len());
+        let len_w = one.words.len() + other.words.len();
+        let len_f = one.files.len() + other.files.len();
+        self.reserve(len_w, len_f);
 
-        for file in words.files.into_iter() {
-            let idx = self.add_file(file);
-            map_fileidx.push(idx);
+        let words = RefCell::new(Words::new());
+        let file_i = RefCell::new(Vec::new());
+        let file_j = RefCell::new(Vec::new());
+
+        iter_merge(
+            one.files.into_iter(),
+            other.files.into_iter(),
+            |i| {
+                let idx = words.borrow_mut().add_file(i);
+                file_i.borrow_mut().push(idx);
+            },
+            |j| {
+                let idx = words.borrow_mut().add_file(j);
+                file_j.borrow_mut().push(idx);
+            },
+            |i, _j| {
+                let idx = words.borrow_mut().add_file(i);
+                file_i.borrow_mut().push(idx);
+                file_j.borrow_mut().push(idx);
+            },
+        );
+
+        iter_merge(
+            one.words.into_iter().enumerate(),
+            other.words.into_iter().enumerate(),
+            |(i_idx, i)| {
+                let mut words = words.borrow_mut();
+                words.words.push(i);
+                words.word_count.push(one.word_count[i_idx]);
+                words.file_idx.push(
+                    one.file_idx[i_idx]
+                        .iter()
+                        .map(|idx| file_i.borrow()[*idx])
+                        .collect(),
+                );
+            },
+            |(j_idx, j)| {
+                let mut words = words.borrow_mut();
+                words.words.push(j);
+                words.word_count.push(other.word_count[j_idx]);
+                words.file_idx.push(
+                    other.file_idx[j_idx]
+                        .iter()
+                        .map(|idx| file_j.borrow()[*idx])
+                        .collect(),
+                );
+            },
+            |(i_idx, i), (j_idx, _j)| {
+                let mut words = words.borrow_mut();
+                words.words.push(i);
+                words
+                    .word_count
+                    .push(one.word_count[i_idx] + other.word_count[j_idx]);
+
+                words.file_idx.push(
+                    (one.file_idx[i_idx].iter().map(|idx| file_i.borrow()[*idx]))
+                        .chain(
+                            other.file_idx[j_idx]
+                                .iter()
+                                .map(|idx| file_j.borrow()[*idx]),
+                        )
+                        .collect(),
+                );
+            },
+        );
+
+        let _ = mem::replace(self, words.into_inner());
+    }
+}
+
+fn iter_merge<T: Ord>(
+    mut it: impl Iterator<Item = T>,
+    mut jt: impl Iterator<Item = T>,
+    merge_i: impl Fn(T),
+    merge_j: impl Fn(T),
+    both: impl Fn(T, T),
+) {
+    let mut i = None;
+    let mut j = None;
+    loop {
+        if i.is_none() {
+            i = it.next();
+        }
+        if j.is_none() {
+            j = jt.next();
         }
 
-        for (word_idx, word) in words.words.into_iter().enumerate() {
-            let files = words.file_idx[word_idx]
-                .iter()
-                .map(|v| map_fileidx[*v])
-                .collect::<Vec<_>>();
-            let count = words.word_count[word_idx];
-
-            self.add_word(word, count, &files);
+        if i.is_none() && j.is_none() {
+            break;
+        } else if i.is_some() && j.is_some() {
+            match i.cmp(&j) {
+                Ordering::Less => {
+                    let Some(i_val) = i else {
+                        unreachable!();
+                    };
+                    merge_i(i_val);
+                    i = None;
+                }
+                Ordering::Greater => {
+                    let Some(j_val) = j else {
+                        unreachable!();
+                    };
+                    merge_j(j_val);
+                    j = None;
+                }
+                Ordering::Equal => {
+                    let Some(i_val) = i else {
+                        unreachable!();
+                    };
+                    let Some(j_val) = j else {
+                        unreachable!();
+                    };
+                    both(i_val, j_val);
+                    i = None;
+                    j = None;
+                }
+            }
+        } else if let Some(i_val) = i {
+            merge_i(i_val);
+            i = None;
+        } else if let Some(j_val) = j {
+            merge_j(j_val);
+            j = None;
         }
     }
 }
 
-pub fn index_txt(path: &Path, buf: &Vec<u8>) -> Result<Words, io::Error> {
-    let mut words = Words::new();
-
-    let file_idx = words.add_file(path.into());
-    let buf = fs::read_to_string(path)?;
-
+pub fn index_txt(words: &mut Words, file_idx: usize, buf: &str) {
     // split at white
     for w in buf.split_whitespace() {
         let w = w.trim_end_matches('"');
         let w = w.trim_end_matches('\'');
         let w = w.trim_end_matches('?');
+        let w = w.trim_end_matches('!');
+        let w = w.trim_end_matches(';');
         let w = w.trim_end_matches('.');
         let w = w.trim_end_matches(',');
         let w = w.trim_start_matches('"');
+        let w = w.trim_start_matches('\'');
 
         let w = w.to_lowercase();
 
-        words.add_single(w, file_idx);
+        words.add_word(w, file_idx);
     }
+}
 
-    Ok(words)
+pub fn index_html(words: &mut Words, file_idx: usize, buf: &str) -> Result<(), tl::ParseError> {
+    let dom = tl::parse(buf, ParserOptions::new())?;
+    for node in dom.nodes() {
+        if let Some(tag) = node.as_tag() {
+            if tag.name() != "style" && tag.name() != "script" {
+                let txt = node.inner_text(dom.parser());
+                index_txt(words, file_idx, txt.as_ref());
+            }
+        }
+    }
+    Ok(())
 }

@@ -10,8 +10,7 @@ use nom::InputTake;
 use nom::{AsChar, InputTakeAtPosition};
 use nom_locate::LocatedSpan;
 
-// define_span!(pub CSpan = CCode, str);
-pub type CSpan<'a> = LocatedSpan<&'a str, &'a (dyn TrackProvider<CCode, &'a str>)>;
+define_span!(pub CSpan = CCode, str);
 pub type CParserResult<'s, O> = ParserResult<CCode, CSpan<'s>, O>;
 pub type CTokenizerResult<'s, O> = TokenizerResult<CCode, CSpan<'s>, O>;
 pub type CParserError<'s> = ParserError<CCode, CSpan<'s>>;
