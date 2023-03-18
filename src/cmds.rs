@@ -1,7 +1,7 @@
 use crate::cmdlib::{nom_empty, nom_ws, nom_ws_span, CParserResult, CSpan, ParseCmd, SubCmd};
 use kparse::prelude::*;
 use kparse::source::SourceStr;
-use kparse::{define_span, Code, ParserError, TokenizerResult, Track};
+use kparse::{Code, ParserError, Track};
 use rustyline::completion::Completer;
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
@@ -47,7 +47,7 @@ fn hint_command(_ctx: &Cmds, line: &str, pos: usize) -> (Option<String>, usize, 
     let txt = Track::source_str(line);
 
     match parse_cmds(span) {
-        Ok((rest, cmd)) => hint_none(txt.len()),
+        Ok((_rest, _cmd)) => hint_none(txt.len()),
         Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => eval_hint_tokens(&txt, e),
         Err(nom::Err::Incomplete(_e)) => hint_none(txt.len()),
     }
@@ -108,10 +108,7 @@ pub enum CCode {
     CCommand,
     CIndex,
     CFind,
-    CText,
     CHelp,
-
-    CFileName,
 }
 
 impl Code for CCode {
@@ -127,10 +124,8 @@ impl Display for CCode {
             CCommand => "Command",
             CIndex => "Index",
             CFind => "Find",
-            CText => "Text",
 
             CWhitespace => "Whitespace1",
-            CFileName => "FileName",
             CHelp => "Help",
         };
         write!(f, "{}", name)
@@ -146,8 +141,6 @@ impl CCode {
             CCommand => "",
             CIndex => "index",
             CFind => "find",
-            CFileName => "",
-            CText => "text",
             CHelp => "?",
         }
     }

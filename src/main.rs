@@ -13,8 +13,14 @@ mod cmds;
 mod index;
 mod proc;
 
+pub struct AppState {
+    pub words: Words,
+}
+
 fn main() -> Result<(), anyhow::Error> {
-    let mut data = Words::new();
+    let mut data = AppState {
+        words: Words::new(),
+    };
 
     let mut rl = Editor::<Cmds, FileHistory>::new()?;
     rl.set_helper(Some(Cmds));
@@ -55,7 +61,7 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn parse_cmd(
-    _data: &mut Words,
+    data: &mut AppState,
     txt: &str,
     _rl: &mut Editor<Cmds, FileHistory>,
 ) -> Result<(), anyhow::Error> {
@@ -65,7 +71,7 @@ fn parse_cmd(
     match parse_cmds(span) {
         Ok((_, BCommand::Index(v))) => {
             let path = Path::new(".");
-            update_index(path)?;
+            update_index(data, path)?;
         }
         Ok((_, BCommand::Find(v))) => {
             dbg!(v);

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::cmds::CCode;
 use crate::cmds::CCode::{CIgnore, CNomError, CWhitespace};
 use kparse::prelude::*;
