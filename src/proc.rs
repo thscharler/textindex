@@ -1,5 +1,4 @@
 use crate::index::{index_html, index_txt, Words};
-use crate::AppState;
 use crossbeam::channel::{bounded, TryRecvError};
 use std::borrow::Cow;
 use std::fs::File;

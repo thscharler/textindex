@@ -8,7 +8,6 @@ use nom::bytes::complete::{tag, take_till1, take_while1};
 use nom::combinator::{consumed, recognize};
 use nom::InputTake;
 use nom::{AsChar, InputTakeAtPosition};
-use nom_locate::LocatedSpan;
 
 define_span!(pub CSpan = CCode, str);
 pub type CParserResult<'s, O> = ParserResult<CCode, CSpan<'s>, O>;
