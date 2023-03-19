@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::str::{from_utf8, from_utf8_unchecked, Utf8Error};
 use std::thread;
 use std::thread::{scope, sleep};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use walkdir::WalkDir;
 
 pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> {
@@ -20,10 +20,13 @@ pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> 
         Words(Words),
     }
 
+    let startt = Instant::now();
+
     scope(|scope| {
         let t = thread::available_parallelism()
             .map(|v| v.get())
-            .unwrap_or(2);
+            .unwrap_or(2)
+            * 2;
 
         let (send_job, recv_job) = bounded::<Msg>(1024);
         let (send_res, recv_res) = bounded::<Msg>(t);
@@ -48,7 +51,7 @@ pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> 
                             return;
                         }
                         Msg::Path(absolute, relative) => {
-                            // println!("Index {:?}", relative);
+                            println!("Index {:?}", relative);
 
                             buf.clear();
                             let mut f = match File::open(&absolute) {
@@ -65,24 +68,7 @@ pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> 
                                     continue;
                                 }
                             }
-                            let str = match from_utf8(buf.as_slice()) {
-                                Ok(v) => v,
-                                Err(_) => {
-                                    let _ = buf.iter_mut().map(|v| {
-                                        if *v > 127 {
-                                            *v = b'_';
-                                        }
-                                    });
-
-                                    match from_utf8(buf.as_slice()) {
-                                        Ok(v) => v,
-                                        Err(e) => {
-                                            eprintln!("ERR9 {:?}: {:?}", absolute, e);
-                                            continue;
-                                        }
-                                    }
-                                }
-                            };
+                            let str = String::from_utf8_lossy(buf.as_slice());
 
                             let file_idx = words.add_file(relative);
 
@@ -167,6 +153,8 @@ pub fn update_index(data: &mut AppState, p: &Path) -> Result<(), anyhow::Error> 
             break 'collect;
         }
     });
+
+    println!("{:?}", Instant::now().duration_since(startt));
 
     data.words = words;
 

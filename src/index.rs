@@ -232,8 +232,10 @@ pub fn index_txt(words: &mut Words, file_idx: usize, buf: &str) {
         let w = w.trim_end_matches(';');
         let w = w.trim_end_matches('.');
         let w = w.trim_end_matches(',');
+        let w = w.trim_end_matches(')');
         let w = w.trim_start_matches('"');
         let w = w.trim_start_matches('\'');
+        let w = w.trim_start_matches('(');
 
         let w = w.to_lowercase();
 
