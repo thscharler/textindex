@@ -181,10 +181,10 @@ fn token_command<'a>(tok: &'_ str, code: CCode, rest: CSpan<'a>) -> CParserResul
 }
 
 /// Returns a token, but only if it ends the line.
-fn nom_last_token(i: CSpan<'_>) -> CTokenizerResult<'_, CSpan<'_>> {
+pub fn nom_last_token(i: CSpan<'_>) -> CTokenizerResult<'_, CSpan<'_>> {
     match recognize::<_, _, CTokenizerError<'_>, _>(take_till1(|c: char| c == ' ' || c == '\t'))(i)
     {
-        Ok((rest, tok)) if rest.is_empty() => Ok((rest, tok)),
+        Ok((rest, tok)) => Ok((rest, tok)),
         _ => Err(nom::Err::Error(CTokenizerError::new(CNomError, i))),
     }
 }

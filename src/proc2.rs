@@ -3,7 +3,7 @@ use crate::index::{index_html, index_txt, Words};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
@@ -19,6 +19,7 @@ use walkdir::WalkDir;
 pub enum Msg {
     Quit(),
     Index(PathBuf, String),
+    DeleteFile(String),
     Walk(PathBuf),
     Words(Words),
     AutoSave(),
@@ -26,6 +27,7 @@ pub enum Msg {
 
 pub struct Data {
     pub words: RwLock<Words>,
+    pub modified: Mutex<bool>,
 }
 
 impl Data {
@@ -61,6 +63,7 @@ impl Data {
     pub fn read(path: &Path) -> Result<&'static Data, AppError> {
         let data: &'static Data = Box::leak(Box::new(Data {
             words: RwLock::new(Words::new()),
+            modified: Mutex::new(false),
         }));
         let mut write = data.words.write()?;
 
@@ -211,6 +214,35 @@ fn proc_msg(msg: Msg, data: &'static Data, send: &Sender<Msg>) -> Result<(), App
         Msg::AutoSave() => {
             autosave(data)?;
         }
+        Msg::DeleteFile(file) => {
+            deleting(data, file)?;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn deleting(data: &'static Data, file: String) -> Result<(), AppError> {
+    println!("deleting {}", file);
+
+    let mut write = data.words.write()?;
+
+    let Some((f_idx, _)) = write.files.iter().enumerate().find(|(idx, val)| **val == file) else {
+        println!("no such file {}", file);
+        return Ok(());
+    };
+    write.files.remove(f_idx);
+
+    for set in write.file_idx.iter_mut() {
+        set.remove(&f_idx);
+    }
+
+    for w_idx in (0usize..write.words.len()).rev() {
+        if write.file_idx[w_idx].is_empty() {
+            write.file_idx.remove(w_idx);
+            write.word_count.remove(w_idx);
+            write.words.remove(w_idx);
+        }
     }
 
     Ok(())
@@ -239,18 +271,18 @@ fn merging(words: Words, data: &'static Data, send: &Sender<Msg>) -> Result<(), 
     let n = write.words.len();
     let m = words.words.len();
 
-    let inst = Instant::now();
+    // let inst = Instant::now();
 
     let (upd, ins) = write.append(words);
 
-    println!(
-        "{:?} data {}/add {}  up {}/in {}",
-        Instant::now().duration_since(inst),
-        n,
-        m,
-        upd,
-        ins
-    );
+    // println!(
+    //     "{:?} data {}/add {}  up {}/in {}",
+    //     Instant::now().duration_since(inst),
+    //     n,
+    //     m,
+    //     upd,
+    //     ins
+    // );
 
     let now = Instant::now();
     if now.duration_since(write.age) > Duration::from_secs(60) {
@@ -306,17 +338,40 @@ fn indexing(abs_path: PathBuf, rel_path: String, send: &Sender<Msg>) -> Result<(
     let ext = abs_path
         .extension()
         .map(|v| v.to_string_lossy())
-        .unwrap_or(Cow::Borrowed(""));
-    if ext == "jpg" {
+        .unwrap_or(Cow::Borrowed(""))
+        .to_lowercase();
+    let name = abs_path
+        .file_name()
+        .map(|v| v.to_string_lossy())
+        .unwrap_or(Cow::Borrowed(""))
+        .to_lowercase();
+
+    if name == ".message.ftp.txt"
+        || name == "history.txt"
+        || name == ".stored"
+        || name == ".tmp_stored"
+    {
+        println!("ignore {:?}", abs_path);
+    } else if ext == "jpg" || ext == "pdf" || ext == "gif" || ext == "css" || ext == "png" {
+        println!("ignore {:?}", abs_path);
+    } else if ext == "doc" {
+        println!("ignore {:?}", abs_path);
+    } else if ext == "rtf" {
+        println!("ignore {:?}", abs_path);
     } else if ext == "html"
+        || ext == "htm"
         || str.starts_with("<?xml")
         || str.starts_with("<!DOCTYPE")
         || str.starts_with("<html")
     {
+        // println!("index {:?}", abs_path);
         index_html(&mut words, file_idx, &str)?;
-    } else {
+    } else if ext == "txt" {
+        // println!("index {:?}", abs_path);
         index_txt(&mut words, file_idx, &str);
-    };
+    } else {
+        println!("ignore {:?}", abs_path);
+    }
 
     send.send(Msg::Words(words))?;
 

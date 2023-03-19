@@ -1,15 +1,16 @@
-use crate::cmds::Find;
-use crate::cmds::{parse_cmds, BCommand, CCode, Cmds};
+use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
+use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::index::Words;
 use crate::proc2::{autosave, init_work, shut_down, spin_up, Data, Msg, Work};
+use kparse::prelude::*;
 use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 mod cmdlib;
 mod cmds;
@@ -32,6 +33,7 @@ fn main() -> Result<(), AppError> {
             println!("start with empty index");
             Box::leak(Box::new(Data {
                 words: RwLock::new(Words::new()),
+                modified: Mutex::new(false),
             }))
         }
     };
@@ -52,7 +54,9 @@ fn main() -> Result<(), AppError> {
                 rl.add_history_entry(txt_input.as_str())?;
                 match parse_cmd(data, work, &txt_input, &mut rl) {
                     Ok(_) => {}
-                    Err(e) => eprintln!("parse_cmd {:?}", e),
+                    Err(e) => {
+                        eprintln!("parse_cmd {:?}", e);
+                    }
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -74,7 +78,11 @@ fn main() -> Result<(), AppError> {
     }
 
     shut_down(work);
-    let _ = autosave(data);
+
+    if *data.modified.lock()? {
+        let _ = autosave(data);
+    }
+
     rl.save_history("history.txt")?;
 
     Ok(())
@@ -90,57 +98,84 @@ fn parse_cmd(
     let span = Track::new_span(&trk, txt);
 
     match parse_cmds(span) {
-        Ok((_, BCommand::Index(_))) => {
+        Ok((_, BCommand::Index())) => {
+            *data.modified.lock()? = true;
+
             let path = PathBuf::from(".");
             work.send.send(Msg::Walk(path))?;
         }
         Ok((_, BCommand::Find(Find::Find(fval)))) => {
-            println!("sendq {}", work.send.len());
+            let rd = data.words.read()?;
+
+            for (idx, str) in rd.words.iter().enumerate().filter(|v| v.1.contains(&fval)) {
+                println!("    {} {}", str, rd.word_count[idx]);
+                for f_idx in &rd.file_idx[idx] {
+                    println!("         {}", rd.files[*f_idx]);
+                }
+            }
+        }
+        Ok((_, BCommand::Files(Files::Files(fval)))) => {
+            let rd = data.words.read()?;
+
+            for file in rd.files.iter().filter(|v| v.contains(&fval)) {
+                println!("    {}", file);
+            }
+        }
+        Ok((_, BCommand::Delete(Delete::Delete(fval)))) => {
+            *data.modified.lock()? = true;
 
             let rd = data.words.read()?;
 
-            println!("{} files", rd.files.len());
-            println!("{} words", rd.words.len());
-
-            for (val, count) in rd
-                .words
-                .iter()
-                .enumerate()
-                .filter(|(_idx, val)| val.starts_with(&fval))
-                .map(|(idx, val)| (val, rd.word_count[idx]))
-            {
-                println!("{} | {}", val, count);
+            for file in rd.files.iter().filter(|v| v.contains(&fval)) {
+                work.send.send(Msg::DeleteFile(file.clone()))?;
             }
-
-            // let mut wcnt = rd
-            //     .word_count
-            //     .iter()
-            //     .filter(|v| **v < 2)
-            //     .enumerate()
-            //     .map(|(idx, count)| (rd.words[idx].as_str(), count))
-            //     .filter(|(txt, count)| txt.chars().find(|c| !c.is_alphanumeric()).is_some())
-            //     .collect::<Vec<_>>();
-            // wcnt.sort();
-            // for (word, count) in wcnt {
-            //     println!("{} | {}", word, count);
-            // }
         }
+        Ok((_, BCommand::Stats(Stats::Base))) => {
+            let rd = data.words.read()?;
+
+            println!("send queue: {}", work.send.len());
+            println!("files: {}", rd.files.len());
+            println!("words: {}", rd.words.len());
+        }
+
+        // let mut top_ten: Vec<(&str, usize)> = Vec::new();
+        // for (idx, count) in rd.word_count.iter().enumerate() {
+        //     let mut ins = false;
+        //     for i in 0..top_ten.len() {
+        //         let t10_count = top_ten[i].1;
+        //         if *count > t10_count {
+        //             let str = rd.words[idx].as_str();
+        //             top_ten.insert(i, (str, *count));
+        //             ins = true;
+        //             break;
+        //         }
+        //     }
+        //     if !ins && top_ten.len() < 10 {
+        //         let str = rd.words[idx].as_str();
+        //         top_ten.push((str, *count));
+        //     }
+        // }
+        // println!("top ten:");
+        // for (t10_str, t10_count) in top_ten.iter() {
+        //     println!("    {} : {}", t10_str, t10_count);
+        // }
         Ok((_, BCommand::None)) => {
             //
         }
-        Ok((_, BCommand::Help(v))) => {
+        Ok((_, BCommand::Help())) => {
             eprintln!(
                 "
 index
-
-find text <txt>
-
-?
+stats
+find <match>
+files <match>
+delete <file-match>
+help | ?
 "
             );
-            dbg!(v);
         }
         Err(e) => {
+            eprintln!("{:?}", trk.results());
             eprintln!("parse_cmds {:?}", e);
         }
     }

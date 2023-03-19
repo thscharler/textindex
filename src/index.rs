@@ -283,7 +283,13 @@ fn iter_merge<T: Ord + Debug>(
 pub fn index_txt(words: &mut Words, file_idx: usize, buf: &str) {
     // split at white
     for w in buf.split(|c: char| {
-        c as usize <= 32 || c == '_' || c == '.' || c == '=' || c == '\u{FFFD}' || c.is_whitespace()
+        c as usize <= 32
+            || c == '_'
+            || c == ','
+            || c == '.'
+            || c == '='
+            || c == '\u{FFFD}'
+            || c.is_whitespace()
     }) {
         let w = w.trim_end_matches(|c: char| {
             c == '"'
