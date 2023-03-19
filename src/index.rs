@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::mem;
+use std::time::Instant;
 use tl::ParserOptions;
 
 const STOP_WORDS: [&str; 35] = [
@@ -18,7 +19,7 @@ pub struct Words {
     pub word_count: Vec<usize>,
     pub file_idx: Vec<HashSet<usize>>,
     pub files: Vec<String>,
-    pub age: u8,
+    pub age: Instant,
 }
 
 impl Debug for Words {
@@ -41,7 +42,7 @@ impl Words {
             word_count: vec![],
             file_idx: vec![],
             files: vec![],
-            age: 0,
+            age: Instant::now(),
         }
     }
 

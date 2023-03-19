@@ -19,7 +19,9 @@ mod proc2;
 
 fn main() -> Result<(), AppError> {
     let tmp = PathBuf::from(".tmp_stored");
-    fs::remove_file(tmp)?;
+    if tmp.exists() {
+        fs::remove_file(tmp)?;
+    }
 
     println!("loading");
     let stored = PathBuf::from(".stored");
@@ -27,6 +29,7 @@ fn main() -> Result<(), AppError> {
         Ok(v) => v,
         Err(e) => {
             println!("{:?}", e);
+            println!("start with empty index");
             Box::leak(Box::new(Data {
                 words: RwLock::new(Words::new()),
             }))

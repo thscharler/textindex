@@ -220,11 +220,15 @@ pub fn autosave(data: &'static Data) -> Result<(), AppError> {
     let tmp = PathBuf::from(".tmp_stored");
     let stored = PathBuf::from(".stored");
 
+    let inst = Instant::now();
+
     if tmp.exists() {
         return Ok(());
     }
     data.write(&tmp)?;
     fs::rename(&tmp, &stored)?;
+
+    println!("autosave in {:?}", Instant::now().duration_since(inst),);
 
     Ok(())
 }
@@ -238,7 +242,6 @@ fn merging(words: Words, data: &'static Data, send: &Sender<Msg>) -> Result<(), 
     let inst = Instant::now();
 
     let (upd, ins) = write.append(words);
-    write.age += 1;
 
     println!(
         "{:?} data {}/add {}  up {}/in {}",
@@ -249,7 +252,9 @@ fn merging(words: Words, data: &'static Data, send: &Sender<Msg>) -> Result<(), 
         ins
     );
 
-    if write.age > 20 {
+    let now = Instant::now();
+    if now.duration_since(write.age) > Duration::from_secs(60) {
+        write.age = now;
         send.send(Msg::AutoSave())?;
     }
 
