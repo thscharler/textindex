@@ -1,4 +1,9 @@
+use crate::error::AppError;
 use std::fmt::{Debug, Formatter};
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::path::Path;
+use std::str::from_utf8;
 use std::time::Instant;
 use tl::ParserOptions;
 
@@ -39,6 +44,79 @@ impl Words {
             files: vec![],
             age: Instant::now(),
         }
+    }
+
+    pub fn write(&self, path: &Path) -> Result<(), AppError> {
+        let mut f = BufWriter::new(File::create(path)?);
+
+        f.write_all(&(self.files.len() as u32).to_ne_bytes())?;
+        for file in self.files.iter() {
+            f.write_all(file.as_bytes())?;
+            f.write_all(&[0])?;
+        }
+
+        f.write_all(&(self.words.len() as u32).to_ne_bytes())?;
+        for ((word, count), idx) in (self.words.iter())
+            .zip(self.word_count.iter())
+            .zip(self.file_idx.iter())
+        {
+            f.write_all(word.as_bytes())?;
+            f.write_all(&[0])?;
+            f.write_all(&(*count as u32).to_ne_bytes())?;
+
+            f.write_all(&(idx.len() as u32).to_ne_bytes())?;
+            for u in idx {
+                f.write_all(&(*u as u32).to_ne_bytes())?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn read(path: &Path) -> Result<Words, AppError> {
+        let mut words = Words::new();
+
+        let mut f = BufReader::new(File::open(path)?);
+        let mut buf = Vec::new();
+        let mut u = [0u8; 4];
+
+        f.read_exact(&mut u)?;
+        let n = u32::from_ne_bytes(u) as usize;
+        for _ in 0..n {
+            buf.clear();
+
+            f.read_until(b'\0', &mut buf)?;
+            buf.pop();
+            let file = from_utf8(&buf)?.to_string();
+            words.files.push(file);
+        }
+
+        f.read_exact(&mut u)?;
+        let n = u32::from_ne_bytes(u) as usize;
+        for _ in 0..n {
+            buf.clear();
+
+            f.read_until(b'\0', &mut buf)?;
+            buf.pop();
+            let word = from_utf8(&buf)?.to_string();
+            words.words.push(word);
+
+            f.read_exact(&mut u)?;
+            let count = u32::from_ne_bytes(u);
+            words.word_count.push(count);
+
+            let mut file_idx = Vec::new();
+            f.read_exact(&mut u)?;
+            let n = u32::from_ne_bytes(u);
+            for _ in 0..n {
+                f.read_exact(&mut u)?;
+                let idx = u32::from_ne_bytes(u);
+                file_idx.push(idx);
+            }
+            words.file_idx.push(file_idx);
+        }
+
+        Ok(words)
     }
 
     pub fn add_file(&mut self, file: String) -> u32 {

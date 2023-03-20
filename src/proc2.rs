@@ -6,9 +6,8 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::str::from_utf8;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
@@ -41,80 +40,17 @@ pub struct Data {
 
 impl Data {
     pub fn write(&'static self, path: &Path) -> Result<(), AppError> {
-        let read = self.words.read()?;
-
-        let mut f = BufWriter::new(File::create(path)?);
-
-        f.write_all(&(read.files.len() as u32).to_ne_bytes())?;
-        for file in read.files.iter() {
-            f.write_all(file.as_bytes())?;
-            f.write_all(&[0])?;
-        }
-
-        f.write_all(&(read.words.len() as u32).to_ne_bytes())?;
-        for ((word, count), idx) in (read.words.iter())
-            .zip(read.word_count.iter())
-            .zip(read.file_idx.iter())
-        {
-            f.write_all(word.as_bytes())?;
-            f.write_all(&[0])?;
-            f.write_all(&(*count as u32).to_ne_bytes())?;
-
-            f.write_all(&(idx.len() as u32).to_ne_bytes())?;
-            for u in idx {
-                f.write_all(&(*u as u32).to_ne_bytes())?;
-            }
-        }
-
-        Ok(())
+        let rdl = self.words.read()?;
+        rdl.write(path)
     }
 
     pub fn read(path: &Path) -> Result<&'static Data, AppError> {
+        let words = Words::read(path)?;
+
         let data: &'static Data = Box::leak(Box::new(Data {
-            words: RwLock::new(Words::new()),
+            words: RwLock::new(words),
             modified: Mutex::new(false),
         }));
-        let mut write = data.words.write()?;
-
-        let mut f = BufReader::new(File::open(path)?);
-        let mut buf = Vec::new();
-        let mut u = [0u8; 4];
-
-        f.read_exact(&mut u)?;
-        let n = u32::from_ne_bytes(u) as usize;
-        for _ in 0..n {
-            buf.clear();
-
-            f.read_until(b'\0', &mut buf)?;
-            buf.pop();
-            let file = from_utf8(&buf)?.to_string();
-            write.files.push(file);
-        }
-
-        f.read_exact(&mut u)?;
-        let n = u32::from_ne_bytes(u) as usize;
-        for _ in 0..n {
-            buf.clear();
-
-            f.read_until(b'\0', &mut buf)?;
-            buf.pop();
-            let word = from_utf8(&buf)?.to_string();
-            write.words.push(word);
-
-            f.read_exact(&mut u)?;
-            let count = u32::from_ne_bytes(u);
-            write.word_count.push(count);
-
-            let mut file_idx = Vec::new();
-            f.read_exact(&mut u)?;
-            let n = u32::from_ne_bytes(u);
-            for _ in 0..n {
-                f.read_exact(&mut u)?;
-                let idx = u32::from_ne_bytes(u);
-                file_idx.push(idx);
-            }
-            write.file_idx.push(file_idx);
-        }
 
         Ok(data)
     }
