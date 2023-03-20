@@ -107,9 +107,9 @@ fn parse_cmd(
         Ok((_, BCommand::Find(Find::Find(fval)))) => {
             let rd = data.words.read()?;
 
-            for (idx, str) in rd.words.iter().enumerate().filter(|v| v.1.contains(&fval)) {
-                println!("    {} {}", str, rd.word_count[idx]);
-                for f_idx in &rd.file_idx[idx] {
+            for (txt, word) in rd.words.iter().filter(|(txt, word)| txt.contains(&fval)) {
+                println!("    {} {}", txt, word.count);
+                for f_idx in &word.file_idx {
                     println!("         {}", rd.files[*f_idx as usize]);
                 }
             }

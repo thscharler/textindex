@@ -6,7 +6,7 @@ use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{sleep, JoinHandle};
@@ -352,7 +352,7 @@ fn name_filter(path: &Path) -> FileFilter {
     }
 }
 
-pub fn timing<R>(name: &str, mut fun: impl FnOnce() -> R) -> R {
+pub fn timing<R>(name: &str, fun: impl FnOnce() -> R) -> R {
     let now = Instant::now();
     let result = fun();
     println!("{} {:?}", name, now.elapsed());

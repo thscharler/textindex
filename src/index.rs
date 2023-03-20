@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
@@ -15,18 +16,21 @@ const STOP_WORDS: [&str; 35] = [
 
 ///
 pub struct Words {
-    pub words: Vec<String>,
-    pub word_count: Vec<u32>,
-    pub file_idx: Vec<Vec<u32>>,
+    pub words: BTreeMap<String, Word>,
     pub files: Vec<String>,
     pub age: Instant,
 }
 
+pub struct Word {
+    pub count: u32,
+    pub file_idx: BTreeSet<u32>,
+}
+
 impl Debug for Words {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        for (word_idx, word) in self.words.iter().enumerate() {
-            write!(f, "{}|{}|", word, self.word_count[word_idx])?;
-            for file_idx in self.file_idx[word_idx].iter() {
+        for (txt, word) in self.words.iter() {
+            write!(f, "{}|{}|", txt, word.count)?;
+            for file_idx in word.file_idx.iter() {
                 write!(f, "{}/", file_idx)?;
             }
             writeln!(f)?;
@@ -35,13 +39,17 @@ impl Debug for Words {
     }
 }
 
+impl Word {
+    pub fn add_file_idx(&mut self, f_idx: u32) {
+        self.file_idx.insert(f_idx);
+    }
+}
+
 impl Words {
     pub fn new() -> Self {
         Words {
-            words: vec![],
-            word_count: vec![],
-            file_idx: vec![],
-            files: vec![],
+            words: Default::default(),
+            files: Default::default(),
             age: Instant::now(),
         }
     }
@@ -56,17 +64,14 @@ impl Words {
         }
 
         f.write_all(&(self.words.len() as u32).to_ne_bytes())?;
-        for ((word, count), idx) in (self.words.iter())
-            .zip(self.word_count.iter())
-            .zip(self.file_idx.iter())
-        {
-            f.write_all(word.as_bytes())?;
+        for (txt, word) in self.words.iter() {
+            f.write_all(txt.as_bytes())?;
             f.write_all(&[0])?;
-            f.write_all(&(*count as u32).to_ne_bytes())?;
+            f.write_all(&word.count.to_ne_bytes())?;
 
-            f.write_all(&(idx.len() as u32).to_ne_bytes())?;
-            for u in idx {
-                f.write_all(&(*u as u32).to_ne_bytes())?;
+            f.write_all(&(word.file_idx.len() as u32).to_ne_bytes())?;
+            for u in &word.file_idx {
+                f.write_all(&u.to_ne_bytes())?;
             }
         }
 
@@ -99,21 +104,20 @@ impl Words {
             f.read_until(b'\0', &mut buf)?;
             buf.pop();
             let word = from_utf8(&buf)?.to_string();
-            words.words.push(word);
 
             f.read_exact(&mut u)?;
             let count = u32::from_ne_bytes(u);
-            words.word_count.push(count);
 
-            let mut file_idx = Vec::new();
+            let mut file_idx = BTreeSet::new();
             f.read_exact(&mut u)?;
             let n = u32::from_ne_bytes(u);
             for _ in 0..n {
                 f.read_exact(&mut u)?;
                 let idx = u32::from_ne_bytes(u);
-                file_idx.push(idx);
+                file_idx.insert(idx);
             }
-            words.file_idx.push(file_idx);
+
+            words.words.insert(word, Word { count, file_idx });
         }
 
         Ok(words)
@@ -129,43 +133,15 @@ impl Words {
         }
     }
 
-    pub fn remove_file(&mut self, file: String) -> Option<u32> {
-        match self.files.binary_search(&file) {
-            Ok(idx) => {
-                self.files.remove(idx);
+    pub fn remove_file(&mut self, file: String) {
+        if let Ok(idx) = self.files.binary_search(&file) {
+            self.files.remove(idx);
 
-                for file_idx in self.file_idx.iter_mut() {
-                    match file_idx.binary_search(&(idx as u32)) {
-                        Ok(idx) => {
-                            file_idx.remove(idx);
-                        }
-                        Err(_) => {}
-                    }
-                }
-
-                for w_idx in (0usize..self.words.len()).rev() {
-                    if self.file_idx[w_idx].is_empty() {
-                        self.file_idx.remove(w_idx);
-                        self.word_count.remove(w_idx);
-                        self.words.remove(w_idx);
-                    }
-                }
-
-                Some(idx as u32)
+            for word in self.words.values_mut() {
+                word.file_idx.remove(&(idx as u32));
             }
-            Err(_) => None,
-        }
-    }
 
-    fn add_file_idx(&mut self, w_idx: usize, f_idx: u32) {
-        let file_idx = &mut self.file_idx[w_idx];
-        match file_idx.binary_search(&f_idx) {
-            Ok(_) => {
-                // noop
-            }
-            Err(i) => {
-                file_idx.insert(i, f_idx);
-            }
+            self.words.retain(|txt, word| !word.file_idx.is_empty());
         }
     }
 
@@ -174,57 +150,40 @@ impl Words {
             return;
         }
 
-        match self
-            .words
-            .binary_search_by(|probe| probe.as_str().cmp(word.as_ref()))
-        {
-            Ok(idx) => {
-                self.word_count.get_mut(idx).map(|v| {
-                    *v += 1;
-                });
-                self.add_file_idx(idx, file_idx);
-            }
-            Err(idx) => {
-                self.words.insert(idx, word.into());
-                self.word_count.insert(idx, 1);
-                self.file_idx.insert(idx, Vec::new());
-                self.add_file_idx(idx, file_idx);
-            }
-        }
+        self.words
+            .entry(word.into())
+            .and_modify(|v| {
+                v.count += 1;
+                v.add_file_idx(file_idx)
+            })
+            .or_insert_with(|| Word {
+                count: 1,
+                file_idx: {
+                    let mut v = BTreeSet::new();
+                    v.insert(file_idx);
+                    v
+                },
+            });
     }
 
-    pub fn append(&mut self, other: Words) -> (u32, u32) {
-        let mut upd = 0;
-        let mut ins = 0;
-
+    pub fn append(&mut self, other: Words) {
         let mut map_fileidx = Vec::new();
         for file in other.files.into_iter() {
             let idx = self.add_file(file);
             map_fileidx.push(idx);
         }
 
-        for ((a_word, a_count), a_file_idx) in (other.words.into_iter().rev())
-            .zip(other.word_count.into_iter().rev())
-            .zip(other.file_idx.into_iter().rev())
-        {
-            match self.words.binary_search(&a_word) {
-                Ok(s_idx) => {
-                    upd += 1;
-                    self.word_count[s_idx] += a_count;
-                    for f_idx in a_file_idx {
-                        self.add_file_idx(s_idx, f_idx);
+        for (a_txt, a_word) in other.words.into_iter() {
+            self.words
+                .entry(a_txt)
+                .and_modify(|v| {
+                    v.count += a_word.count;
+                    for f_idx in &a_word.file_idx {
+                        v.add_file_idx(*f_idx);
                     }
-                }
-                Err(s_idx) => {
-                    ins += 1;
-                    self.words.insert(s_idx, a_word);
-                    self.word_count.insert(s_idx, a_count);
-                    self.file_idx.insert(s_idx, a_file_idx);
-                }
-            }
+                })
+                .or_insert(a_word);
         }
-
-        (upd, ins)
     }
 }
 
