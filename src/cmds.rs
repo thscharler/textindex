@@ -117,7 +117,11 @@ pub enum CCode {
     CHelp,
     CFiles,
     CStats,
+    CBase,
     CDelete,
+    CFindMatch,
+    CFilesMatch,
+    CDeleteMatch,
 }
 
 impl Code for CCode {
@@ -140,7 +144,14 @@ impl CCode {
             CIndex => "index",
             CFind => "find",
             CHelp => "?",
-            _ => "todo",
+
+            CFiles => "files",
+            CStats => "stats",
+            CDelete => "delete",
+            CFindMatch => "<substr>",
+            CFilesMatch => "<substr>",
+            CDeleteMatch => "<substr>",
+            CBase => "base",
         }
     }
 }
@@ -242,7 +253,7 @@ pub fn parse_cmds(rest: CSpan<'_>) -> CParserResult<'_, BCommand> {
 }
 
 const PARSE_INDEX: ParseCmd<(), BCommand> = ParseCmd {
-    to_cmd: |v| BCommand::Index(),
+    to_cmd: |_| BCommand::Index(),
     sub: SubCmd {
         token: "index",
         code: CIndex,
@@ -256,7 +267,7 @@ const PARSE_STATS: ParseCmd2<Stats, BCommand, 1> = ParseCmd2 {
     code: CStats,
     list: [SubCmd {
         token: "base",
-        code: CStats,
+        code: CBase,
         to_out: |v| Ok((v, Stats::Base)),
     }],
 };
@@ -289,7 +300,7 @@ const PARSE_FILES: ParseCmd<Files, BCommand> = ParseCmd {
 };
 
 const PARSE_HELP_1: ParseCmd<(), BCommand> = ParseCmd {
-    to_cmd: |v| BCommand::Help(),
+    to_cmd: |_| BCommand::Help(),
     sub: SubCmd {
         token: "help",
         code: CHelp,
@@ -298,7 +309,7 @@ const PARSE_HELP_1: ParseCmd<(), BCommand> = ParseCmd {
 };
 
 const PARSE_HELP_2: ParseCmd<(), BCommand> = ParseCmd {
-    to_cmd: |v| BCommand::Help(),
+    to_cmd: |_| BCommand::Help(),
     sub: SubCmd {
         token: "?",
         code: CHelp,
@@ -309,6 +320,7 @@ const PARSE_HELP_2: ParseCmd<(), BCommand> = ParseCmd {
 fn parse_find(input: CSpan<'_>) -> CParserResult<'_, Find> {
     track(CFind, preceded(nom_ws, nom_last_token))
         .map(|v| Find::Find(v.fragment().to_string()))
+        .with_code(CFindMatch)
         .err_into()
         .parse(input)
 }
@@ -316,6 +328,7 @@ fn parse_find(input: CSpan<'_>) -> CParserResult<'_, Find> {
 fn parse_files(input: CSpan<'_>) -> CParserResult<'_, Files> {
     track(CFiles, preceded(nom_ws, nom_last_token))
         .map(|v| Files::Files(v.fragment().to_string()))
+        .with_code(CFilesMatch)
         .err_into()
         .parse(input)
 }
@@ -323,6 +336,7 @@ fn parse_files(input: CSpan<'_>) -> CParserResult<'_, Files> {
 fn parse_delete(input: CSpan<'_>) -> CParserResult<'_, Delete> {
     track(CDelete, preceded(nom_ws, nom_last_token))
         .map(|v| Delete::Delete(v.fragment().to_string()))
+        .with_code(CDeleteMatch)
         .err_into()
         .parse(input)
 }

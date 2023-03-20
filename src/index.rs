@@ -1,8 +1,4 @@
-use std::cell::RefCell;
-use std::cmp::Ordering;
-use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
-use std::mem;
 use std::time::Instant;
 use tl::ParserOptions;
 
@@ -13,11 +9,10 @@ const STOP_WORDS: [&str; 35] = [
 ];
 
 ///
-///
 pub struct Words {
     pub words: Vec<String>,
-    pub word_count: Vec<usize>,
-    pub file_idx: Vec<HashSet<usize>>,
+    pub word_count: Vec<u32>,
+    pub file_idx: Vec<Vec<u32>>,
     pub files: Vec<String>,
     pub age: Instant,
 }
@@ -46,24 +41,57 @@ impl Words {
         }
     }
 
-    pub fn reserve(&mut self, n_words: usize, n_files: usize) {
-        self.words.reserve(n_words);
-        self.word_count.reserve(n_words);
-        self.file_idx.reserve(n_words);
-        self.files.reserve(n_files);
-    }
-
-    pub fn add_file(&mut self, file: String) -> usize {
+    pub fn add_file(&mut self, file: String) -> u32 {
         match self.files.binary_search(&file) {
-            Ok(idx) => idx,
+            Ok(idx) => idx as u32,
             Err(idx) => {
                 self.files.insert(idx, file);
-                idx
+                idx as u32
             }
         }
     }
 
-    pub fn add_word<S: AsRef<str> + Into<String>>(&mut self, word: S, file_idx: usize) {
+    pub fn remove_file(&mut self, file: String) -> Option<u32> {
+        match self.files.binary_search(&file) {
+            Ok(idx) => {
+                self.files.remove(idx);
+
+                for file_idx in self.file_idx.iter_mut() {
+                    match file_idx.binary_search(&(idx as u32)) {
+                        Ok(idx) => {
+                            file_idx.remove(idx);
+                        }
+                        Err(_) => {}
+                    }
+                }
+
+                for w_idx in (0usize..self.words.len()).rev() {
+                    if self.file_idx[w_idx].is_empty() {
+                        self.file_idx.remove(w_idx);
+                        self.word_count.remove(w_idx);
+                        self.words.remove(w_idx);
+                    }
+                }
+
+                Some(idx as u32)
+            }
+            Err(_) => None,
+        }
+    }
+
+    fn add_file_idx(&mut self, w_idx: usize, f_idx: u32) {
+        let file_idx = &mut self.file_idx[w_idx];
+        match file_idx.binary_search(&f_idx) {
+            Ok(_) => {
+                // noop
+            }
+            Err(i) => {
+                file_idx.insert(i, f_idx);
+            }
+        }
+    }
+
+    pub fn add_word<S: AsRef<str> + Into<String>>(&mut self, word: S, file_idx: u32) {
         if let Ok(_) = STOP_WORDS.binary_search_by(|probe| (*probe).cmp(word.as_ref())) {
             return;
         }
@@ -76,38 +104,18 @@ impl Words {
                 self.word_count.get_mut(idx).map(|v| {
                     *v += 1;
                 });
-                self.file_idx.get_mut(idx).map(|v| {
-                    v.insert(file_idx);
-                });
+                self.add_file_idx(idx, file_idx);
             }
             Err(idx) => {
                 self.words.insert(idx, word.into());
                 self.word_count.insert(idx, 1);
-                self.file_idx.insert(idx, HashSet::new());
-                self.file_idx[idx].insert(file_idx);
+                self.file_idx.insert(idx, Vec::new());
+                self.add_file_idx(idx, file_idx);
             }
         }
     }
 
-    fn check_sorted(what: &str, vec: &Vec<String>) {
-        let mut it = vec.iter();
-        let mut v0 = it.next();
-        while v0.is_some() {
-            let v1 = it.next();
-
-            if v1.is_none() {
-                break;
-            }
-            if v0 >= v1 {
-                println!("not sorted {} {:?} >= {:?}", what, v0, v1);
-                break;
-            }
-
-            v0 = v1;
-        }
-    }
-
-    pub fn append(&mut self, other: Words) -> (usize, usize) {
+    pub fn append(&mut self, other: Words) -> (u32, u32) {
         let mut upd = 0;
         let mut ins = 0;
 
@@ -125,7 +133,9 @@ impl Words {
                 Ok(s_idx) => {
                     upd += 1;
                     self.word_count[s_idx] += a_count;
-                    self.file_idx[s_idx].extend(a_file_idx.into_iter())
+                    for f_idx in a_file_idx {
+                        self.add_file_idx(s_idx, f_idx);
+                    }
                 }
                 Err(s_idx) => {
                     ins += 1;
@@ -138,152 +148,12 @@ impl Words {
 
         (upd, ins)
     }
-
-    pub fn merge(&mut self, other: Words) {
-        let one = mem::replace(self, Words::new());
-
-        let len_w = one.words.len() + other.words.len();
-        let len_f = one.files.len() + other.files.len();
-        self.reserve(len_w, len_f);
-
-        let words = RefCell::new(Words::new());
-        let file_i = RefCell::new(Vec::new());
-        let file_j = RefCell::new(Vec::new());
-
-        iter_merge(
-            one.files.into_iter().enumerate(),
-            other.files.into_iter().enumerate(),
-            |(_i_idx, i)| {
-                let idx = words.borrow_mut().add_file(i);
-                file_i.borrow_mut().push(idx);
-            },
-            |(_j_idx, j)| {
-                let idx = words.borrow_mut().add_file(j);
-                file_j.borrow_mut().push(idx);
-            },
-            |(_i_idx, i), _| {
-                let idx = words.borrow_mut().add_file(i);
-                file_i.borrow_mut().push(idx);
-                file_j.borrow_mut().push(idx);
-            },
-        );
-
-        iter_merge(
-            one.words.into_iter().enumerate(),
-            other.words.into_iter().enumerate(),
-            |(i_idx, i)| {
-                let mut words = words.borrow_mut();
-                words.words.push(i);
-                words.word_count.push(one.word_count[i_idx]);
-                words.file_idx.push(
-                    one.file_idx[i_idx]
-                        .iter()
-                        .map(|idx| file_i.borrow()[*idx])
-                        .collect(),
-                );
-            },
-            |(j_idx, j)| {
-                let mut words = words.borrow_mut();
-                words.words.push(j);
-                words.word_count.push(other.word_count[j_idx]);
-                words.file_idx.push(
-                    other.file_idx[j_idx]
-                        .iter()
-                        .map(|idx| file_j.borrow()[*idx])
-                        .collect(),
-                );
-            },
-            |(i_idx, i), (j_idx, _j)| {
-                let mut words = words.borrow_mut();
-                words.words.push(i);
-                words
-                    .word_count
-                    .push(one.word_count[i_idx] + other.word_count[j_idx]);
-
-                words.file_idx.push(
-                    (one.file_idx[i_idx].iter().map(|idx| file_i.borrow()[*idx]))
-                        .chain(
-                            other.file_idx[j_idx]
-                                .iter()
-                                .map(|idx| file_j.borrow()[*idx]),
-                        )
-                        .collect(),
-                );
-            },
-        );
-
-        let _ = mem::replace(self, words.into_inner());
-    }
 }
 
-fn iter_merge<T: Ord + Debug>(
-    mut it: impl Iterator<Item = (usize, T)>,
-    mut jt: impl Iterator<Item = (usize, T)>,
-    merge_i: impl Fn((usize, T)),
-    merge_j: impl Fn((usize, T)),
-    both: impl Fn((usize, T), (usize, T)),
-) {
-    let mut i = None;
-    let mut j = None;
-    loop {
-        if i.is_none() {
-            i = it.next();
-        }
-        if j.is_none() {
-            j = jt.next();
-        }
-
-        if i.is_none() && j.is_none() {
-            break;
-        } else if i.is_some() && j.is_some() {
-            let Some((_, i_test)) = &i else {
-                unreachable!()
-            };
-            let Some((_, j_test)) = &j else {
-                unreachable!()
-            };
-
-            match i_test.cmp(&j_test) {
-                Ordering::Less => {
-                    let Some(i_val) = i else {
-                        unreachable!();
-                    };
-                    merge_i(i_val);
-                    i = None;
-                }
-                Ordering::Greater => {
-                    let Some(j_val) = j else {
-                        unreachable!();
-                    };
-                    merge_j(j_val);
-                    j = None;
-                }
-                Ordering::Equal => {
-                    let Some(i_val) = i else {
-                        unreachable!();
-                    };
-                    let Some(j_val) = j else {
-                        unreachable!();
-                    };
-                    both(i_val, j_val);
-                    i = None;
-                    j = None;
-                }
-            }
-        } else if let Some(i_val) = i {
-            merge_i(i_val);
-            i = None;
-        } else if let Some(j_val) = j {
-            merge_j(j_val);
-            j = None;
-        }
-    }
-}
-
-pub fn index_txt(words: &mut Words, file_idx: usize, buf: &str) {
+pub fn index_txt(words: &mut Words, file_idx: u32, buf: &str) {
     // split at white
     for w in buf.split(|c: char| {
-        c as usize <= 32
+        c as u32 <= 32
             || c == '_'
             || c == ','
             || c == '.'
@@ -356,7 +226,7 @@ pub fn index_txt(words: &mut Words, file_idx: usize, buf: &str) {
     }
 }
 
-pub fn index_html(words: &mut Words, file_idx: usize, buf: &str) -> Result<(), tl::ParseError> {
+pub fn index_html(words: &mut Words, file_idx: u32, buf: &str) -> Result<(), tl::ParseError> {
     let dom = tl::parse(buf, ParserOptions::new())?;
     for node in dom.nodes() {
         if let Some(tag) = node.as_tag() {
