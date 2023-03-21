@@ -148,18 +148,16 @@ fn proc_msg(msg: Msg, data: &'static Data, send: &Sender<Msg>) -> Result<(), App
     match msg {
         Msg::Quit() => {}
         Msg::Index(filter, absolute, relative, txt) => {
-            timing("indexing", move || {
-                indexing(filter, absolute, relative, txt, send)
-            })?;
+            indexing(filter, absolute, relative, txt, send)?;
         }
         Msg::Load(filter, absolute, relative) => {
-            timing("loading", move || loading(filter, absolute, relative, send))?;
+            loading(filter, absolute, relative, send)?;
         }
         Msg::Walk(path) => {
             timing("walking", move || walking(&path, data, &send))?;
         }
         Msg::Words(words) => {
-            timing("merging", move || merging(words, data, &send))?;
+            merging(words, data, &send)?;
         }
         Msg::AutoSave() => {
             timing("autosave", || autosave(data))?;
@@ -262,7 +260,7 @@ fn walking(path: &Path, data: &'static Data, send: &Sender<Msg>) -> Result<(), A
             }
 
             // avoid flooding
-            while send.len() > 128 {
+            while send.len() > 1024 {
                 sleep(Duration::from_secs(1))
             }
 
@@ -273,6 +271,11 @@ fn walking(path: &Path, data: &'static Data, send: &Sender<Msg>) -> Result<(), A
             }
         }
     }
+
+    while send.len() > 0 {
+        sleep(Duration::from_secs(1))
+    }
+    send.send(Msg::AutoSave())?;
 
     Ok(())
 }
@@ -296,7 +299,7 @@ fn indexing(
         FileFilter::Html => {
             println!("index {:?}", abs_path);
             let file_idx = words.add_file(rel_path);
-            index_html(&mut words, file_idx, &txt)?;
+            index_html(&mut words, file_idx, &txt);
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
