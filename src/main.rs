@@ -1,3 +1,4 @@
+use crate::cmdlib::CParserResult;
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
@@ -11,6 +12,7 @@ use rustyline::Editor;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock};
+use wildmatch::WildMatch;
 
 mod cmdlib;
 mod cmds;
@@ -99,16 +101,28 @@ fn parse_cmd(
 
     match parse_cmds(span) {
         Ok((_, BCommand::Index())) => {
-            *data.modified.lock()? = true;
-
             let path = PathBuf::from(".");
             work.send.send(Msg::Walk(path))?;
         }
         Ok((_, BCommand::Find(Find::Find(fval)))) => {
             let rd = data.words.read()?;
 
-            for (txt, word) in rd.words.iter().filter(|(txt, _word)| txt.contains(&fval)) {
-                println!("    {} {}", txt, word.count);
+            let fmatch = fval
+                .into_iter()
+                .map(|v| WildMatch::new(v.as_str()))
+                .collect::<Vec<_>>();
+
+            let find_match = move |txt: &&String| {
+                for f in &fmatch {
+                    if !f.matches(txt.as_str()) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            for (txt, word) in rd.words.iter().filter(|(txt, _)| find_match(txt)) {
+                println!("    {} {} {:?}", txt, word.count, word.file_idx);
                 for f_idx in &word.file_idx {
                     println!("         {}", rd.files[*f_idx as usize]);
                 }
@@ -117,7 +131,9 @@ fn parse_cmd(
         Ok((_, BCommand::Files(Files::Files(fval)))) => {
             let rd = data.words.read()?;
 
-            for file in rd.files.iter().filter(|v| v.contains(&fval)) {
+            let find = WildMatch::new(fval.as_str());
+
+            for file in rd.files.iter().filter(|v| find.matches(v.as_str())) {
                 println!("    {}", file);
             }
         }
@@ -126,7 +142,9 @@ fn parse_cmd(
 
             let rd = data.words.read()?;
 
-            for file in rd.files.iter().filter(|v| v.contains(&fval)) {
+            let find = WildMatch::new(fval.as_str());
+
+            for file in rd.files.iter().filter(|v| find.matches(v.as_str())) {
                 work.send.send(Msg::DeleteFile(file.clone()))?;
             }
         }
@@ -134,31 +152,29 @@ fn parse_cmd(
             let rd = data.words.read()?;
 
             println!("send queue: {}", work.send.len());
+            let mut t_cnt = 0;
+            let mut t_fine = 0;
+            for h in work.handles.borrow().iter() {
+                if !h.is_finished() {
+                    t_fine += 1;
+                }
+                t_cnt += 1;
+            }
+            println!("threads: {}/{}", t_fine, t_cnt);
+
             println!("files: {}", rd.files.len());
             println!("words: {}", rd.words.len());
         }
+        Ok((_, BCommand::Stats(Stats::Debug))) => {
+            let rd = data.words.read()?;
 
-        // let mut top_ten: Vec<(&str, usize)> = Vec::new();
-        // for (idx, count) in rd.word_count.iter().enumerate() {
-        //     let mut ins = false;
-        //     for i in 0..top_ten.len() {
-        //         let t10_count = top_ten[i].1;
-        //         if *count > t10_count {
-        //             let str = rd.words[idx].as_str();
-        //             top_ten.insert(i, (str, *count));
-        //             ins = true;
-        //             break;
-        //         }
-        //     }
-        //     if !ins && top_ten.len() < 10 {
-        //         let str = rd.words[idx].as_str();
-        //         top_ten.push((str, *count));
-        //     }
-        // }
-        // println!("top ten:");
-        // for (t10_str, t10_count) in top_ten.iter() {
-        //     println!("    {} : {}", t10_str, t10_count);
-        // }
+            println!("{:?}", *rd);
+        }
+
+        Ok((_, BCommand::Store())) => {
+            work.send.send(Msg::AutoSave())?;
+        }
+
         Ok((_, BCommand::None)) => {
             //
         }
@@ -166,7 +182,7 @@ fn parse_cmd(
             eprintln!(
                 "
 index
-stats
+stats base | debug
 find <match>
 files <match>
 delete <file-match>

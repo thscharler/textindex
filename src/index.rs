@@ -185,7 +185,7 @@ impl Words {
                 .and_modify(|v| {
                     v.count += a_word.count;
                     for f_idx in &a_word.file_idx {
-                        v.add_file_idx(*f_idx);
+                        v.add_file_idx(map_fileidx[*f_idx as usize]);
                     }
                 })
                 .or_insert(a_word);

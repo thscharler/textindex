@@ -14,6 +14,7 @@ rustyline = "11.0.0"
 walkdir = "2.3"
 crossbeam = "0.8.2"
 html5ever = "0.26.0"
+wildmatch = "2.1.1"
 
 [dependencies.nom]
 version = "7.1"

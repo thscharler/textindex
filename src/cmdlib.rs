@@ -43,10 +43,6 @@ impl<O, T> ParseCmd<O, T>
 where
     O: Clone,
 {
-    pub fn lah(&self, input: CSpan<'_>) -> bool {
-        lah_command(self.sub.token, input)
-    }
-
     pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, T> {
         Track.enter(self.sub.code, input);
 
@@ -60,6 +56,9 @@ where
                     return Track.err(e.with_code(self.sub.code));
                 }
             },
+            Err(nom::Err::Error(e)) if e.code == CIgnore => {
+                return Track.err(e);
+            }
             Err(e) => {
                 return Track.err(e.with_code(self.sub.code));
             }
@@ -71,10 +70,6 @@ impl<O, T, const N: usize> ParseCmd2<O, T, N>
 where
     O: Clone,
 {
-    pub fn lah(&self, input: CSpan<'_>) -> bool {
-        lah_command(self.token, input)
-    }
-
     pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, T> {
         Track.enter(self.code, input);
 
@@ -116,24 +111,6 @@ where
                 }
                 Track.err(err)
             }
-        }
-    }
-}
-
-impl<O> SubCmd<O>
-where
-    O: Clone,
-{
-    pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, (CSpan<'s>, O)> {
-        match token_command(self.token, self.code, input) {
-            Ok((rest, _span)) => {
-                //
-                match consumed(self.to_out)(rest) {
-                    Ok((rest, (span_o, sub_o))) => Track.ok(rest, input, (span_o, sub_o)),
-                    Err(e) => Track.err(e.with_code(self.code)),
-                }
-            }
-            Err(e) => Track.err(e.with_code(self.code)),
         }
     }
 }

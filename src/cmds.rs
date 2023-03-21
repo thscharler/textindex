@@ -1,11 +1,12 @@
 use crate::cmdlib::{
-    nom_empty, nom_last_token, nom_ws, nom_ws_span, CParserResult, CSpan, ParseCmd, ParseCmd2,
+    nom_empty, nom_last_token, nom_ws, CParserError, CParserResult, CSpan, ParseCmd, ParseCmd2,
     SubCmd,
 };
 use kparse::combinators::track;
 use kparse::prelude::*;
 use kparse::source::SourceStr;
 use kparse::{Code, ParserError, Track};
+use nom::multi::many1;
 use nom::sequence::preceded;
 use nom::Parser;
 use rustyline::completion::Completer;
@@ -118,7 +119,9 @@ pub enum CCode {
     CFiles,
     CStats,
     CBase,
+    CDebug,
     CDelete,
+    CStore,
     CFindMatch,
     CFilesMatch,
     CDeleteMatch,
@@ -152,6 +155,8 @@ impl CCode {
             CFilesMatch => "<substr>",
             CDeleteMatch => "<substr>",
             CBase => "base",
+            CDebug => "debug",
+            CStore => "store",
         }
     }
 }
@@ -163,6 +168,7 @@ pub enum BCommand {
     Files(Files),
     Delete(Delete),
     Stats(Stats),
+    Store(),
     Help(),
     None,
 }
@@ -175,6 +181,7 @@ pub enum Delete {
 #[derive(Debug, Clone)]
 pub enum Stats {
     Base,
+    Debug,
 }
 
 #[derive(Debug, Clone)]
@@ -184,71 +191,63 @@ pub enum Files {
 
 #[derive(Debug, Clone)]
 pub enum Find {
-    Find(String),
+    Find(Vec<String>),
 }
 
-pub fn parse_cmds(rest: CSpan<'_>) -> CParserResult<'_, BCommand> {
-    Track.enter(CCommand, rest);
+fn parse_loop(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
+    let mut err: Option<CParserError<'_>> = None;
 
-    let mut command = None;
-    let mut err = None;
+    match PARSE_INDEX.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_FIND.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_FILES.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_DELETE.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_STATS.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_STORE.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_HELP_1.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
+    match PARSE_HELP_2.parse(input) {
+        Ok(v) => return Ok(v),
+        Err(e) => err.append(e),
+    };
 
-    if PARSE_INDEX.lah(rest) {
-        match PARSE_INDEX.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
+    match err {
+        Some(err) => Err(nom::Err::Error(err)),
+        None => Err(nom::Err::Error(CParserError::new(CCommand, input))),
     }
-    if PARSE_FIND.lah(rest) {
-        match PARSE_FIND.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
-    }
-    if PARSE_FILES.lah(rest) {
-        match PARSE_FILES.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
-    }
-    if PARSE_DELETE.lah(rest) {
-        match PARSE_DELETE.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
-    }
-    if PARSE_STATS.lah(rest) {
-        match PARSE_STATS.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
-    }
-    if PARSE_HELP_1.lah(rest) {
-        match PARSE_HELP_1.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
-    }
-    if PARSE_HELP_2.lah(rest) {
-        match PARSE_HELP_2.parse(rest) {
-            Ok((_, cmd)) => command = Some(cmd),
-            Err(e) => err.append(e)?,
-        }
-    }
+}
 
-    if let Some(command) = command {
-        Track.ok(rest, nom_empty(rest), command)
-    } else {
-        let rest = nom_ws_span(rest);
-        if !rest.is_empty() {
-            if let Some(err) = err {
+pub fn parse_cmds(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
+    Track.enter(CCommand, input);
+    match parse_loop(input) {
+        Ok((rest, cmd)) => Track.ok(rest, input, cmd),
+        Err(nom::Err::Error(err)) => {
+            if !input.is_empty() {
                 Track.err(err)
             } else {
-                Track.err(ParserError::new(CCommand, rest))
+                Track.ok(input, nom_empty(input), BCommand::None)
             }
-        } else {
-            Track.ok(rest, nom_empty(rest), BCommand::None)
         }
+        Err(e) => Track.err(e),
     }
 }
 
@@ -261,15 +260,22 @@ const PARSE_INDEX: ParseCmd<(), BCommand> = ParseCmd {
     },
 };
 
-const PARSE_STATS: ParseCmd2<Stats, BCommand, 1> = ParseCmd2 {
+const PARSE_STATS: ParseCmd2<Stats, BCommand, 2> = ParseCmd2 {
     to_cmd: BCommand::Stats,
     token: "stats",
     code: CStats,
-    list: [SubCmd {
-        token: "base",
-        code: CBase,
-        to_out: |v| Ok((v, Stats::Base)),
-    }],
+    list: [
+        SubCmd {
+            token: "base",
+            code: CBase,
+            to_out: |v| Ok((v, Stats::Base)),
+        },
+        SubCmd {
+            token: "debug",
+            code: CDebug,
+            to_out: |v| Ok((v, Stats::Debug)),
+        },
+    ],
 };
 
 const PARSE_DELETE: ParseCmd<Delete, BCommand> = ParseCmd {
@@ -299,6 +305,15 @@ const PARSE_FILES: ParseCmd<Files, BCommand> = ParseCmd {
     },
 };
 
+const PARSE_STORE: ParseCmd<(), BCommand> = ParseCmd {
+    to_cmd: |_| BCommand::Store(),
+    sub: SubCmd {
+        token: "store",
+        code: CStore,
+        to_out: |v| Ok((v, ())),
+    },
+};
+
 const PARSE_HELP_1: ParseCmd<(), BCommand> = ParseCmd {
     to_cmd: |_| BCommand::Help(),
     sub: SubCmd {
@@ -318,8 +333,15 @@ const PARSE_HELP_2: ParseCmd<(), BCommand> = ParseCmd {
 };
 
 fn parse_find(input: CSpan<'_>) -> CParserResult<'_, Find> {
-    track(CFind, preceded(nom_ws, nom_last_token))
-        .map(|v| Find::Find(v.fragment().to_string()))
+    track(CFind, many1(preceded(nom_ws, nom_last_token)))
+        .map(|spans| {
+            Find::Find(
+                spans
+                    .into_iter()
+                    .map(|v| v.fragment().to_string())
+                    .collect::<Vec<_>>(),
+            )
+        })
         .with_code(CFindMatch)
         .err_into()
         .parse(input)
