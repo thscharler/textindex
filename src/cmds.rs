@@ -199,35 +199,51 @@ fn parse_loop(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
 
     match PARSE_INDEX.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
-    };
+        Err(e) => {
+            err.append(e);
+        }
+    }
     match PARSE_FIND.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
     match PARSE_FILES.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
     match PARSE_DELETE.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
     match PARSE_STATS.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
     match PARSE_STORE.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
     match PARSE_HELP_1.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
     match PARSE_HELP_2.parse(input) {
         Ok(v) => return Ok(v),
-        Err(e) => err.append(e),
+        Err(e) => {
+            err.append(e);
+        }
     };
 
     match err {

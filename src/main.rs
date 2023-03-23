@@ -1,4 +1,3 @@
-use crate::cmdlib::CParserResult;
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
