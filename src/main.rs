@@ -51,7 +51,7 @@ fn main() -> Result<(), AppError> {
     let mut break_flag = false;
     loop {
         match rl.readline("> ") {
-            Ok(txt_input) => {
+            Ok(txt_input) if txt_input.len() > 0 => {
                 break_flag = false;
                 rl.add_history_entry(txt_input.as_str())?;
                 match parse_cmd(data, work, &txt_input, &mut rl) {
@@ -61,6 +61,7 @@ fn main() -> Result<(), AppError> {
                     }
                 }
             }
+            Ok(_) => {}
             Err(ReadlineError::Interrupted) => {
                 eprintln!("CTRL-C");
                 if break_flag {
