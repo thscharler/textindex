@@ -125,6 +125,7 @@ fn parse_cmd(
                     }
                 }
 
+                first = false;
                 collect_idx = f_idx;
             }
 
@@ -182,7 +183,7 @@ fn parse_cmd(
         Ok((_, BCommand::None)) => {
             //
         }
-        Ok((_, BCommand::Help())) => {
+        Ok((_, BCommand::Help)) => {
             eprintln!(
                 "
 index

@@ -25,4 +25,4 @@ version = "4.0"
 
 [dependencies.kparse]
 #version = "3.0.2"
-path = "../kparse"
+path = "../../StableProjects/kparse"

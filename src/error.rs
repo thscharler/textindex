@@ -18,9 +18,3 @@ impl<E: Error + 'static> From<E> for AppError {
         }
     }
 }
-
-impl AppError {
-    pub fn into_err(self) -> Box<dyn Error> {
-        self.err
-    }
-}
