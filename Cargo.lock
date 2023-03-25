@@ -3,22 +3,6 @@
 version = 3
 
 [[package]]
-name = "TextIndex"
-version = "0.1.0"
-dependencies = [
- "crossbeam",
- "glob",
- "html5ever",
- "kparse",
- "nom",
- "nom_locate",
- "rustyline",
- "toml",
- "walkdir",
- "wildmatch",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -693,6 +677,22 @@ dependencies = [
  "futf",
  "mac",
  "utf-8",
+]
+
+[[package]]
+name = "textindex"
+version = "0.1.0"
+dependencies = [
+ "crossbeam",
+ "glob",
+ "html5ever",
+ "kparse",
+ "nom",
+ "nom_locate",
+ "rustyline",
+ "toml",
+ "walkdir",
+ "wildmatch",
 ]
 
 [[package]]

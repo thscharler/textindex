@@ -8,6 +8,7 @@ use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock};
@@ -106,25 +107,29 @@ fn parse_cmd(
         Ok((_, BCommand::Find(Find::Find(fval)))) => {
             let rd = data.words.read()?;
 
-            let fmatch = fval
-                .into_iter()
-                .map(|v| WildMatch::new(v.as_str()))
-                .collect::<Vec<_>>();
+            let mut first = true;
+            let mut collect_idx = BTreeSet::new();
+            for fval in fval {
+                let find = WildMatch::new(fval.as_str());
 
-            let find_match = move |txt: &&String| {
-                for f in &fmatch {
-                    if !f.matches(txt.as_str()) {
-                        return false;
+                let mut f_idx = BTreeSet::new();
+                for (_txt, word) in rd.words.iter().filter(|(txt, _)| find.matches(txt)) {
+                    for ff in word.file_idx.iter() {
+                        if first {
+                            f_idx.insert(*ff);
+                        } else {
+                            if collect_idx.contains(ff) {
+                                f_idx.insert(*ff);
+                            }
+                        }
                     }
                 }
-                return true;
-            };
 
-            for (txt, word) in rd.words.iter().filter(|(txt, _)| find_match(txt)) {
-                println!("    {} {} {:?}", txt, word.count, word.file_idx);
-                for f_idx in &word.file_idx {
-                    println!("         {}", rd.files[*f_idx as usize]);
-                }
+                collect_idx = f_idx;
+            }
+
+            for ff in collect_idx {
+                println!("         {}", rd.files[ff as usize]);
             }
         }
         Ok((_, BCommand::Files(Files::Files(fval)))) => {
