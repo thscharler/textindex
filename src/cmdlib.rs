@@ -44,27 +44,16 @@ where
 
         let (rest, _) = nom_ws(input).err_into().track()?;
 
+        let mut partial = None;
         let mut err: Option<CParserError<'_>> = None;
         for cmd in &self.parse {
             match cmd.parse(rest) {
                 Ok((rest, v)) => {
                     return Track.ok(rest, input, v);
                 }
-                Err(nom::Err::Error(e)) if e.code == CPartMatch => {
-                    let pcode = e.iter_expected().next().expect("expect code").code;
-
-                    // collect alternatives with the same code_1
-                    let mut err = ParserError::new(pcode, e.span);
-                    for cmd in &self.parse {
-                        let sug_code = match cmd {
-                            Cmd::P1(_, c, _) => *c,
-                            Cmd::P2(_, (c, _), _) => *c,
-                            Cmd::P1p(_, c, _) => *c,
-                            Cmd::P2p(_, (c, _), _) => *c,
-                        };
-                        err.suggest(sug_code, e.span);
-                    }
-                    return Track.err(err);
+                Err(nom::Err::Error(e)) if e.is_suggested(CPartMatch) => {
+                    // there should be just on partial match at most.
+                    partial = Some(e);
                 }
                 Err(nom::Err::Error(e)) => {
                     // ignore if there is not even a prefix match
@@ -78,11 +67,26 @@ where
             }
         }
 
-        match err {
-            Some(err) => {
+        match (err, partial) {
+            (Some(err), _) => {
                 return Track.err(err);
             }
-            None => {
+            (None, Some(p)) => {
+                // collect alternatives with the same code_1
+                let mut err = ParserError::new(p.code, p.span);
+                for cmd in &self.parse {
+                    let sug_code = match cmd {
+                        Cmd::P2(_, (t, c), _) if *t == p.code => *c,
+                        Cmd::P2p(_, (t, c), _) if *t == p.code => *c,
+                        _ => CCanIgnore,
+                    };
+                    if sug_code != CCanIgnore {
+                        err.suggest(sug_code, p.span);
+                    }
+                }
+                return Track.err(err);
+            }
+            (None, _) => {
                 // not even one prefix match. list all.
                 let mut err = ParserError::new(CCommand, input);
                 for cmd in &self.parse {
@@ -106,13 +110,18 @@ impl<T> Cmd<T>
 where
     T: Clone,
 {
-    fn parse_p1<'s>(input: CSpan<'s>, tok1: &str, code1: CCode, res: &T) -> CParserResult<'s, T> {
+    fn parse_p1<'s>(
+        input: CSpan<'s>,
+        tok1: &str,
+        code1: CCode,
+        result: &T,
+    ) -> CParserResult<'s, T> {
         Track.enter(code1, input);
 
         match token_command(tok1, code1, input) {
             Ok((rest, _v)) => {
                 consumed_all(rest, code1)?;
-                return Track.ok(rest, input, res.clone());
+                return Track.ok(rest, input, result.clone());
             }
             Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
                 return Track.err(e);
@@ -127,14 +136,15 @@ where
         input: CSpan<'s>,
         tok1: &str,
         code1: CCode,
-        res: PFn<T>,
+        result_fn: PFn<T>,
     ) -> CParserResult<'s, T> {
         Track.enter(code1, input);
 
         match token_command(tok1, code1, input) {
-            Ok((rest, _v)) => {
-                consumed_all(rest, code1)?;
-                return Track.ok(rest, input, res(rest)?.1);
+            Ok((rest, _)) => {
+                consumed_all(rest, code1).track()?;
+                let (_, v) = result_fn(rest).track()?;
+                return Track.ok(rest, input, v);
             }
             Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
                 return Track.err(e);
@@ -151,27 +161,15 @@ where
         tok2: &str,
         code1: CCode,
         code2: CCode,
-        res: &T,
+        result: &T,
     ) -> CParserResult<'s, T> {
         Track.enter(code1, input);
 
         match token_command(tok1, code1, input) {
-            Ok((rest, _v)) => {
+            Ok((rest, _)) => {
                 let (rest, _) = nom_ws1(rest).err_into().track()?;
-                match token_command(tok2, code2, rest) {
-                    Ok((rest, _v)) => {
-                        consumed_all(rest, code2)?;
-                        return Track.ok(rest, input, res.clone());
-                    }
-                    Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
-                        let mut err = ParserError::new(CPartMatch, e.span);
-                        err.suggest(code1, e.span);
-                        return Track.err(nom::Err::Error(err));
-                    }
-                    Err(e) => {
-                        return Track.err(e.with_code(code2).with_code(code1));
-                    }
-                }
+                let (rest, v) = Self::parse_p2_cont(rest, tok2, code1, code2, result).track()?;
+                return Track.ok(rest, input, v);
             }
             Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
                 return Track.err(e);
@@ -182,39 +180,79 @@ where
         }
     }
 
+    fn parse_p2_cont<'s>(
+        input: CSpan<'s>,
+        tok2: &str,
+        code1: CCode,
+        code2: CCode,
+        result: &T,
+    ) -> CParserResult<'s, T> {
+        Track.enter(code2, input);
+
+        match token_command(tok2, code2, input) {
+            Ok((rest, _v)) => {
+                consumed_all(rest, code2).track()?;
+                return Track.ok(rest, input, result.clone());
+            }
+            Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
+                let mut err = ParserError::new(code1, e.span);
+                err.suggest(CPartMatch, e.span);
+                return Track.err(nom::Err::Error(err));
+            }
+            Err(e) => {
+                return Track.err(e.with_code(code2).with_code(code1));
+            }
+        }
+    }
+
     fn parse_p2p<'s>(
         input: CSpan<'s>,
         tok1: &str,
         tok2: &str,
         code1: CCode,
         code2: CCode,
-        res: PFn<T>,
+        result_fn: PFn<T>,
     ) -> CParserResult<'s, T> {
         Track.enter(code1, input);
 
         match token_command(tok1, code1, input) {
-            Ok((rest, _v)) => {
+            Ok((rest, _)) => {
                 let (rest, _) = nom_ws1(rest).err_into().track()?;
-                match token_command(tok2, code2, rest) {
-                    Ok((rest, _v)) => {
-                        consumed_all(rest, code2)?;
-                        return Track.ok(rest, input, res(rest)?.1);
-                    }
-                    Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
-                        let mut err = ParserError::new(CPartMatch, e.span);
-                        err.suggest(code1, e.span);
-                        return Track.err(nom::Err::Error(err));
-                    }
-                    Err(e) => {
-                        return Track.err(e.with_code(code2).with_code(code1));
-                    }
-                }
+                let (rest, v) =
+                    Self::parse_p2p_cont(rest, tok2, code1, code2, result_fn).track()?;
+                return Track.ok(rest, input, v);
             }
             Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
                 return Track.err(e);
             }
             Err(e) => {
                 return Track.err(e.with_code(code1));
+            }
+        }
+    }
+
+    fn parse_p2p_cont<'s>(
+        input: CSpan<'s>,
+        tok2: &str,
+        code1: CCode,
+        code2: CCode,
+        result_fn: PFn<T>,
+    ) -> CParserResult<'s, T> {
+        Track.enter(code2, input);
+
+        match token_command(tok2, code2, input) {
+            Ok((rest, _v)) => {
+                let (rest, v) = result_fn(rest).track()?;
+                consumed_all(rest, code2).track()?;
+                return Track.ok(rest, input, v);
+            }
+            Err(nom::Err::Error(e)) if e.code == CCanIgnore => {
+                let mut err = ParserError::new(code1, e.span);
+                err.suggest(CPartMatch, e.span);
+                return Track.err(nom::Err::Error(err));
+            }
+            Err(e) => {
+                return Track.err(e.with_code(code2).with_code(code1));
             }
         }
     }
@@ -247,7 +285,7 @@ fn token_command<'a>(tok: &'_ str, code: CCode, rest: CSpan<'a>) -> CParserResul
         Err(nom::Err::Error(_) | nom::Err::Failure(_)) => {
             //
             match nom_last_token(rest) {
-                Ok((rest, last)) => {
+                Ok((_, last)) => {
                     let err = if tok.starts_with(&last.to_lowercase()) {
                         let mut err = CParserError::new(code, last);
                         err.suggest(code, last);
