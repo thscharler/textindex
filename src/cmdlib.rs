@@ -142,8 +142,9 @@ where
 
         match token_command(tok1, code1, input) {
             Ok((rest, _)) => {
+                let (rest, _) = nom_ws1(rest).err_into().track()?;
+                let (rest, v) = result_fn(rest).track()?;
                 consumed_all(rest, code1).track()?;
-                let (_, v) = result_fn(rest).track()?;
                 return Track.ok(rest, input, v);
             }
             Err(nom::Err::Error(e)) if e.code == CCanIgnore => {

@@ -2,6 +2,7 @@ use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::index::Words;
+use crate::log::dump_diagnostics;
 use crate::proc2::{autosave, init_work, shut_down, spin_up, Data, Msg, Work};
 use kparse::prelude::*;
 use kparse::Track;
@@ -18,6 +19,7 @@ mod cmdlib;
 mod cmds;
 mod error;
 mod index;
+mod log;
 mod proc2;
 
 fn main() -> Result<(), AppError> {
@@ -100,12 +102,25 @@ fn parse_cmd(
     let trk = Track::new_tracker::<CCode, _>();
     let span = Track::new_span(&trk, txt);
 
-    match parse_cmds(span) {
-        Ok((_, BCommand::Index())) => {
+    let bcmd = match parse_cmds(span) {
+        Ok((_, bcmd)) => bcmd,
+        Err(nom::Err::Error(e)) => {
+            println!("{:?}", trk.results());
+            dump_diagnostics(txt, &e, "", true);
+            return Ok(());
+        }
+        Err(e) => {
+            println!("{:?}", e);
+            return Ok(());
+        }
+    };
+
+    match bcmd {
+        BCommand::Index() => {
             let path = PathBuf::from(".");
             work.send.send(Msg::Walk(path))?;
         }
-        Ok((_, BCommand::Find(Find::Find(fval)))) => {
+        BCommand::Find(Find::Find(fval)) => {
             let rd = data.words.read()?;
 
             let mut first = true;
@@ -134,27 +149,25 @@ fn parse_cmd(
                 println!("         {}", rd.files[ff as usize]);
             }
         }
-        Ok((_, BCommand::Files(Files::Files(fval)))) => {
+        BCommand::Files(Files::Files(fval)) => {
             let rd = data.words.read()?;
 
             let find = WildMatch::new(fval.as_str());
-
             for file in rd.files.iter().filter(|v| find.matches(v.as_str())) {
                 println!("    {}", file);
             }
         }
-        Ok((_, BCommand::Delete(Delete::Delete(fval)))) => {
+        BCommand::Delete(Delete::Delete(fval)) => {
             *data.modified.lock()? = true;
 
             let rd = data.words.read()?;
 
             let find = WildMatch::new(fval.as_str());
-
             for file in rd.files.iter().filter(|v| find.matches(v.as_str())) {
                 work.send.send(Msg::DeleteFile(file.clone()))?;
             }
         }
-        Ok((_, BCommand::Stats(Stats::Base))) => {
+        BCommand::Stats(Stats::Base) => {
             let rd = data.words.read()?;
 
             println!("send queue: {}", work.send.len());
@@ -171,20 +184,17 @@ fn parse_cmd(
             println!("files: {}", rd.files.len());
             println!("words: {}", rd.words.len());
         }
-        Ok((_, BCommand::Stats(Stats::Debug))) => {
+        BCommand::Stats(Stats::Debug) => {
             let rd = data.words.read()?;
-
             println!("{:?}", *rd);
         }
-
-        Ok((_, BCommand::Store())) => {
+        BCommand::Store() => {
             work.send.send(Msg::AutoSave())?;
         }
-
-        Ok((_, BCommand::None)) => {
+        BCommand::None => {
             //
         }
-        Ok((_, BCommand::Help)) => {
+        BCommand::Help => {
             eprintln!(
                 "
 index
@@ -195,10 +205,6 @@ delete <file-match>
 help | ?
 "
             );
-        }
-        Err(e) => {
-            eprintln!("{:?}", trk.results());
-            eprintln!("parse_cmds {:?}", e);
         }
     }
 

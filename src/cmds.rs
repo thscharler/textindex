@@ -1,4 +1,4 @@
-use crate::cmdlib::{nom_empty, nom_last_token, nom_ws, CParserResult, CSpan, Cmd, CmdParse};
+use crate::cmdlib::{nom_last_token, nom_ws, CParserResult, CSpan, Cmd, CmdParse};
 use kparse::combinators::track;
 use kparse::prelude::*;
 use kparse::source::SourceStr;
@@ -68,6 +68,16 @@ fn eval_hint_tokens(
     let hint = if txt.len() == 0 {
         // don't hint for the empty input
         None
+    } else if let Some(sug) = err.iter_expected().next() {
+        // trim the hint to remove the prefix already entered.
+        let eat = txt.len() - txt.offset(sug.span);
+
+        let token = sug.code.token();
+        if eat < token.len() {
+            Some(token.split_at(eat).1.to_string())
+        } else {
+            None
+        }
     } else if let Some(sug) = err.iter_suggested().next() {
         // cut already existing text from the suggestion.
         let eat = txt.len() - txt.offset(sug.span);
@@ -124,7 +134,6 @@ pub enum CCode {
     CFind,
     CHelp,
     CIndex,
-    CNone,
     CStats,
     CStore,
     CWhitespace,
@@ -167,7 +176,6 @@ impl CCode {
             CBase => "base",
             CDebug => "debug",
             CStore => "store",
-            CNone => "",
         }
     }
 }
