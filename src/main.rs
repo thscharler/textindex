@@ -16,6 +16,7 @@ use std::sync::{Mutex, RwLock};
 use wildmatch::WildMatch;
 
 mod cmdlib;
+mod cmdlib2;
 mod cmds;
 mod error;
 mod index;
