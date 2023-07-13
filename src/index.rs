@@ -130,12 +130,13 @@ impl Words {
     }
 
     pub fn add_file(&mut self, file: String) -> u32 {
-        match self.files.binary_search(&file) {
-            Ok(idx) => idx as u32,
-            Err(idx) => {
-                self.files.insert(idx, file);
+        match self.files.iter().position(|v| &file == v) {
+            None => {
+                let idx = self.files.len();
+                self.files.push(file);
                 idx as u32
             }
+            Some(idx) => idx as u32,
         }
     }
 

@@ -315,7 +315,11 @@ fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
         return filter;
     }
 
-    if txt.starts_with("<?xml") || txt.starts_with("<!DOCTYPE") || txt.starts_with("<html") {
+    if txt.starts_with("<?xml")
+        || txt.starts_with("<!DOCTYPE")
+        || txt.starts_with("<html")
+        || txt.starts_with("<!--")
+    {
         FileFilter::Html
     } else {
         FileFilter::Ignore
