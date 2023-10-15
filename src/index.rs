@@ -204,6 +204,7 @@ pub fn index_txt(words: &mut Words, file_idx: u32, buf: &str) {
             || c == ','
             || c == '.'
             || c == '='
+            || c == '/'
             || c == '\u{FFFD}'
             || c.is_whitespace()
     }) {
@@ -276,9 +277,11 @@ pub fn index_txt(words: &mut Words, file_idx: u32, buf: &str) {
             continue;
         }
 
-        let w = w.to_lowercase();
-
-        words.add_word(w, file_idx);
+        let c = w.chars().next().expect("char");
+        if c.is_ascii_alphanumeric() {
+            let w = w.to_lowercase();
+            words.add_word(w, file_idx);
+        }
     }
 }
 
