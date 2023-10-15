@@ -3,7 +3,7 @@ use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::index::Words;
 use crate::log::dump_diagnostics;
-use crate::proc2::{autosave, init_work, shut_down, spin_up, Data, Msg, Work};
+use crate::proc3::{auto_save, init_work, shut_down, Data, Msg, Work};
 use kparse::prelude::*;
 use kparse::Track;
 use rustyline::error::ReadlineError;
@@ -12,7 +12,7 @@ use rustyline::Editor;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Mutex, RwLock, TryLockResult};
 use wildmatch::WildMatch;
 
 mod cmdlib;
@@ -20,7 +20,7 @@ mod cmds;
 mod error;
 mod index;
 mod log;
-mod proc2;
+mod proc3;
 
 fn main() -> Result<(), AppError> {
     let tmp = PathBuf::from(".tmp_stored");
@@ -47,8 +47,7 @@ fn main() -> Result<(), AppError> {
     let _ = rl.load_history("history.txt");
 
     println!("spinup");
-    let work: &'static Work = Box::leak(Box::new(init_work(rl.create_external_printer()?)));
-    spin_up(work, data);
+    let work: &'static Work = Box::leak(Box::new(init_work(rl.create_external_printer()?, data)));
 
     let mut break_flag = false;
     loop {
@@ -85,7 +84,7 @@ fn main() -> Result<(), AppError> {
     shut_down(work);
 
     if *data.modified.lock()? {
-        let _ = autosave(data);
+        let _ = auto_save(&work.printer.clone(), data);
     }
 
     rl.save_history("history.txt")?;
@@ -118,7 +117,7 @@ fn parse_cmd(
     match bcmd {
         BCommand::Index() => {
             let path = PathBuf::from(".");
-            work.send.send(Msg::Walk(path))?;
+            work.send.send(Msg::WalkTree(path))?;
         }
         BCommand::Find(Find::Find(fval)) => {
             let rd = data.words.read()?;
@@ -168,12 +167,32 @@ fn parse_cmd(
             }
         }
         BCommand::Stats(Stats::Base) => {
-            let rd = data.words.read()?;
-
             println!("send queue: {}", work.send.len());
+            println!(
+                "recv/send walking: {}/{}",
+                work.recv_send[0].0.len(),
+                work.recv_send[0].1.len()
+            );
+            println!(
+                "recv/send loading: {}/{}",
+                work.recv_send[1].0.len(),
+                work.recv_send[1].1.len()
+            );
+            println!(
+                "recv/send indexing: {}/{}",
+                work.recv_send[2].0.len(),
+                work.recv_send[2].1.len()
+            );
+            println!(
+                "recv/send merge words: {}/{}",
+                work.recv_send[3].0.len(),
+                work.recv_send[3].1.len()
+            );
+            println!("recv terminal: {}", work.recv.len());
+
             let mut t_cnt = 0;
             let mut t_fine = 0;
-            for h in work.handles.borrow().iter() {
+            for h in work.handles.iter() {
                 if !h.is_finished() {
                     t_fine += 1;
                 }
@@ -181,15 +200,19 @@ fn parse_cmd(
             }
             println!("threads: {}/{}", t_fine, t_cnt);
 
-            println!("files: {}", rd.files.len());
-            println!("words: {}", rd.words.len());
+            if let TryLockResult::Ok(rd) = data.words.try_read() {
+                println!("files: {}", rd.files.len());
+                println!("words: {}", rd.words.len());
+            }
+
+            work.send.send(Msg::Debug)?;
         }
         BCommand::Stats(Stats::Debug) => {
             let rd = data.words.read()?;
             println!("{:?}", *rd);
         }
         BCommand::Store() => {
-            work.send.send(Msg::AutoSave())?;
+            work.send.send(Msg::AutoSave)?;
         }
         BCommand::None => {
             //

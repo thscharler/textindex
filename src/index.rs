@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 use std::str::from_utf8;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 const STOP_WORDS: [&str; 35] = [
     "a", "all", "and", "as", "at", "but", "could", "for", "from", "had", "he", "her", "him", "his",
@@ -22,6 +22,7 @@ pub struct Words {
     pub words: BTreeMap<String, Word>,
     pub files: Vec<String>,
     pub age: Instant,
+    pub auto_save: Duration,
 }
 
 pub struct Word {
@@ -33,9 +34,9 @@ impl Debug for Words {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         for (txt, word) in self.words.iter() {
             write!(f, "{}|{}|", txt, word.count)?;
-            for file_idx in word.file_idx.iter() {
-                write!(f, "{}/", file_idx)?;
-            }
+            // for file_idx in word.file_idx.iter() {
+            //     write!(f, "{}/", file_idx)?;
+            // }
             writeln!(f)?;
         }
         Ok(())
@@ -54,6 +55,7 @@ impl Words {
             words: Default::default(),
             files: Default::default(),
             age: Instant::now(),
+            auto_save: Duration::from_secs(60),
         }
     }
 
@@ -221,10 +223,15 @@ pub fn index_txt(words: &mut Words, file_idx: u32, buf: &str) {
                 || c == '+'
                 || c == '*'
                 || c == '~'
+                || c == '^'
                 || c == '('
                 || c == ')'
                 || c == '['
                 || c == ']'
+                || c == '{'
+                || c == '}'
+                || c == '|'
+                || c == '\\'
         });
         let w = w.trim_start_matches(|c: char| {
             c == '"'
@@ -242,10 +249,15 @@ pub fn index_txt(words: &mut Words, file_idx: u32, buf: &str) {
                 || c == '+'
                 || c == '*'
                 || c == '~'
+                || c == '^'
                 || c == '('
                 || c == ')'
                 || c == '['
                 || c == ']'
+                || c == '{'
+                || c == '}'
+                || c == '|'
+                || c == '\\'
         });
 
         if let Some(c) = w.chars().next() {

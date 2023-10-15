@@ -16,13 +16,13 @@ use walkdir::WalkDir;
 
 #[derive(Debug)]
 pub enum Msg {
-    Quit(),
+    Quit,
     Load(FileFilter, PathBuf, String),
     Index(FileFilter, PathBuf, String, String),
     DeleteFile(String),
-    Walk(PathBuf),
+    WalkTree(PathBuf),
     Words(Words),
-    AutoSave(),
+    AutoSave,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -87,7 +87,7 @@ pub fn init_work<P: ExternalPrinter + Send + Sync + 'static>(print: P) -> Work {
 pub fn shut_down(work: &Work) {
     println!("sending shutdown");
     for _ in 0..work.nthreads {
-        if let Err(e) = work.send.send(Msg::Quit()) {
+        if let Err(e) = work.send.send(Msg::Quit) {
             if let Ok(mut print) = work.printer.lock() {
                 let _ = print.print(format!("shutdown {:?}", e));
             }
@@ -125,7 +125,7 @@ pub fn spin_up(work: &'static Work, data: &'static Data) {
 
             while let Ok(msg) = recv.recv() {
                 match msg {
-                    Msg::Quit() => {
+                    Msg::Quit => {
                         break;
                     }
                     msg => {
@@ -146,21 +146,21 @@ pub fn spin_up(work: &'static Work, data: &'static Data) {
 
 fn proc_msg(msg: Msg, data: &'static Data, send: &Sender<Msg>) -> Result<(), AppError> {
     match msg {
-        Msg::Quit() => {}
+        Msg::Quit => {}
         Msg::Index(filter, absolute, relative, txt) => {
             indexing(filter, absolute, relative, txt, send)?;
         }
         Msg::Load(filter, absolute, relative) => {
             loading(filter, absolute, relative, send)?;
         }
-        Msg::Walk(path) => {
+        Msg::WalkTree(path) => {
             timing("walking", move || walking(&path, data, &send))?;
         }
         Msg::Words(words) => {
             merging(words, data, &send)?;
         }
-        Msg::AutoSave() => {
-            timing("autosave", || autosave(data))?;
+        Msg::AutoSave => {
+            timing("autosave", || auto_save(data))?;
         }
         Msg::DeleteFile(file) => {
             timing("deleting", move || deleting(data, file))?;
@@ -197,7 +197,7 @@ pub fn deleting(data: &'static Data, file: String) -> Result<(), AppError> {
     Ok(())
 }
 
-pub fn autosave(data: &'static Data) -> Result<(), AppError> {
+pub fn auto_save(data: &'static Data) -> Result<(), AppError> {
     let tmp = Path::new(".tmp_stored");
     if tmp.exists() {
         return Ok(());
@@ -224,7 +224,7 @@ fn merging(words: Words, data: &'static Data, send: &Sender<Msg>) -> Result<(), 
     }
 
     if auto_save {
-        send.send(Msg::AutoSave())?;
+        send.send(Msg::AutoSave)?;
     }
 
     Ok(())
@@ -275,7 +275,7 @@ fn walking(path: &Path, data: &'static Data, send: &Sender<Msg>) -> Result<(), A
     while send.len() > 0 {
         sleep(Duration::from_secs(1))
     }
-    send.send(Msg::AutoSave())?;
+    send.send(Msg::AutoSave)?;
 
     Ok(())
 }
