@@ -10,6 +10,7 @@ use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 use std::str::from_utf8;
 use std::time::{Duration, Instant};
+use wildmatch::WildMatch;
 
 const STOP_WORDS: [&str; 35] = [
     "a", "all", "and", "as", "at", "but", "could", "for", "from", "had", "he", "her", "him", "his",
@@ -19,15 +20,15 @@ const STOP_WORDS: [&str; 35] = [
 
 ///
 pub struct Words {
-    pub words: BTreeMap<String, Word>,
-    pub files: Vec<String>,
-    pub age: Instant,
-    pub auto_save: Duration,
+    words: BTreeMap<String, Word>,
+    files: Vec<String>,
+    age: Instant,
+    auto_save: Duration,
 }
 
 pub struct Word {
-    pub count: u32,
-    pub file_idx: BTreeSet<u32>,
+    count: u32,
+    file_idx: BTreeSet<u32>,
 }
 
 impl Debug for Words {
@@ -193,6 +194,61 @@ impl Words {
                 })
                 .or_insert(a_word);
         }
+    }
+
+    pub fn have_file(&self, txt: &String) -> bool {
+        self.files.contains(txt)
+    }
+
+    pub fn find_file(&self, txt: &str) -> BTreeSet<&String> {
+        let find = WildMatch::new(txt);
+        self.files
+            .iter()
+            .filter(|v| find.matches(v.as_str()))
+            .collect()
+    }
+
+    pub fn find(&self, txt: &[&str]) -> BTreeSet<&String> {
+        let mut collect_idx = BTreeSet::new();
+
+        let mut first = true;
+        for t in txt {
+            let match_find = WildMatch::new(t);
+
+            let mut f_idx = BTreeSet::new();
+            for (_, word) in self.words.iter().filter(|(txt, _)| match_find.matches(txt)) {
+                for ff in word.file_idx.iter() {
+                    if first {
+                        f_idx.insert(*ff);
+                    } else {
+                        if collect_idx.contains(ff) {
+                            f_idx.insert(*ff);
+                        }
+                    }
+                }
+            }
+
+            first = false;
+            collect_idx = f_idx;
+        }
+
+        collect_idx
+            .iter()
+            .map(|v| self.files.get(*v as usize).expect("file"))
+            .collect()
+    }
+
+    pub fn should_auto_save(&mut self) -> bool {
+        if self.age.elapsed() > self.auto_save {
+            self.age = Instant::now();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_auto_save_interval(&mut self, auto_save: Duration) {
+        self.auto_save = auto_save;
     }
 }
 

@@ -9,11 +9,9 @@ use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
-use std::collections::BTreeSet;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::sync::{Mutex, RwLock, TryLockResult};
-use wildmatch::WildMatch;
+use std::path::PathBuf;
+use std::sync::{Mutex, RwLock};
 
 mod cmdlib;
 mod cmds;
@@ -119,50 +117,27 @@ fn parse_cmd(
             let path = PathBuf::from(".");
             work.send.send(Msg::WalkTree(path))?;
         }
-        BCommand::Find(Find::Find(fval)) => {
-            let rd = data.words.read()?;
+        BCommand::Find(Find::Find(v)) => {
+            let words = data.words.read()?;
 
-            let mut first = true;
-            let mut collect_idx = BTreeSet::new();
-            for fval in fval {
-                let find = WildMatch::new(fval.as_str());
-
-                let mut f_idx = BTreeSet::new();
-                for (_txt, word) in rd.words.iter().filter(|(txt, _)| find.matches(txt)) {
-                    for ff in word.file_idx.iter() {
-                        if first {
-                            f_idx.insert(*ff);
-                        } else {
-                            if collect_idx.contains(ff) {
-                                f_idx.insert(*ff);
-                            }
-                        }
-                    }
-                }
-
-                first = false;
-                collect_idx = f_idx;
-            }
-
-            for ff in collect_idx {
-                println!("         {}", rd.files[ff as usize]);
+            let v = v.iter().map(|v| v.as_str()).collect::<Vec<_>>();
+            for ff in words.find(v.as_slice()) {
+                println!("         {}", ff);
             }
         }
-        BCommand::Files(Files::Files(fval)) => {
-            let rd = data.words.read()?;
+        BCommand::Files(Files::Files(v)) => {
+            let words = data.words.read()?;
 
-            let find = WildMatch::new(fval.as_str());
-            for file in rd.files.iter().filter(|v| find.matches(v.as_str())) {
+            for file in words.find_file(v.as_str()) {
                 println!("    {}", file);
             }
         }
-        BCommand::Delete(Delete::Delete(fval)) => {
+        BCommand::Delete(Delete::Delete(v)) => {
             *data.modified.lock()? = true;
 
-            let rd = data.words.read()?;
+            let words = data.words.read()?;
 
-            let find = WildMatch::new(fval.as_str());
-            for file in rd.files.iter().filter(|v| find.matches(v.as_str())) {
+            for file in words.find_file(v.as_str()) {
                 work.send.send(Msg::DeleteFile(file.clone()))?;
             }
         }
@@ -200,31 +175,31 @@ fn parse_cmd(
             }
             println!("threads: {}/{}", t_fine, t_cnt);
 
-            let rd = data.words.read()?;
-            let stored_len = Path::new(".stored").metadata().map(|v| v.len()).ok();
-            let file_len = rd
-                .files
-                .iter()
-                .map(|v| v.len())
-                .reduce(|v, w| v + w)
-                .unwrap_or(0);
-            let word_len = rd
-                .words
-                .keys()
-                .map(|v| v.len())
-                .reduce(|v, w| v + w)
-                .unwrap_or(0);
-            let idx_len = rd
-                .words
-                .values()
-                .map(|v| v.file_idx.len())
-                .reduce(|v, w| v + w)
-                .unwrap_or(0);
-
-            println!("stored: {:?}", stored_len);
-            println!("files: {} {}", rd.files.len(), file_len);
-            println!("words: {} {}", rd.words.len(), word_len);
-            println!("idx: {} {}", idx_len, idx_len * 4);
+            // let rd = data.words.read()?;
+            // let stored_len = Path::new(".stored").metadata().map(|v| v.len()).ok();
+            // let file_len = rd
+            //     .files
+            //     .iter()
+            //     .map(|v| v.len())
+            //     .reduce(|v, w| v + w)
+            //     .unwrap_or(0);
+            // let word_len = rd
+            //     .words
+            //     .keys()
+            //     .map(|v| v.len())
+            //     .reduce(|v, w| v + w)
+            //     .unwrap_or(0);
+            // let idx_len = rd
+            //     .words
+            //     .values()
+            //     .map(|v| v.file_idx.len())
+            //     .reduce(|v, w| v + w)
+            //     .unwrap_or(0);
+            //
+            // println!("stored: {:?}", stored_len);
+            // println!("files: {} {}", rd.files.len(), file_len);
+            // println!("words: {} {}", rd.words.len(), word_len);
+            // println!("idx: {} {}", idx_len, idx_len * 4);
 
             work.send.send(Msg::Debug)?;
         }

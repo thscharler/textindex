@@ -3,7 +3,6 @@ use crate::index::{index_html, index_txt, Words};
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
-use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::iter::Flatten;
@@ -136,7 +135,6 @@ fn spawn_walking(
         path: PathBuf,
         tree_iter: Flatten<walkdir::IntoIter>,
         count: u32,
-        files_seen: HashSet<String>,
     }
 
     fn walk_proc(
@@ -167,10 +165,6 @@ fn spawn_walking(
                             path: path.clone(),
                             tree_iter: WalkDir::new(path).into_iter().flatten(),
                             count: 0,
-                            files_seen: {
-                                let read = data.words.read()?;
-                                read.files.iter().cloned().collect::<HashSet<_>>()
-                            },
                         });
                     }
                     msg => {
@@ -228,7 +222,8 @@ fn spawn_walking(
                             continue;
                         }
 
-                        if !sproc.files_seen.contains(&relative) {
+                        let words = data.words.read()?;
+                        if !words.have_file(&relative) {
                             sproc.count += 1;
                             send.send(Msg::Load(sproc.count, filter, absolute.into(), relative))?;
                         } else {
@@ -534,17 +529,11 @@ fn merge_words(
     words: Words,
     data: &'static Data,
 ) -> Result<(), AppError> {
-    let mut do_auto_save = false;
-
-    {
+    let do_auto_save = {
         let mut write = data.words.write()?;
         timing(printer, "merge", 100, || write.append(words));
-
-        if write.age.elapsed() > write.auto_save {
-            write.age = Instant::now();
-            do_auto_save = true;
-        }
-    }
+        write.should_auto_save()
+    };
 
     if do_auto_save {
         let (res, save_time) = timing(printer, "autosave", 100, || auto_save(printer, data));
@@ -553,7 +542,7 @@ fn merge_words(
         // increase the wait for autosave. otherwise the savetime will be longer
         // than the interval at some point.
         let mut write = data.words.write()?;
-        write.auto_save = save_time * 9;
+        write.set_auto_save_interval(save_time * 9);
     }
 
     Ok(())
