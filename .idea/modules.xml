@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/TextIndex.iml" filepath="$PROJECT_DIR$/TextIndex.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../blockfile/blockfile.iml" filepath="$PROJECT_DIR$/../blockfile/blockfile.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../StableProjects/kparse/kparse.iml" filepath="$PROJECT_DIR$/../../StableProjects/kparse/kparse.iml" />
     </modules>
   </component>
