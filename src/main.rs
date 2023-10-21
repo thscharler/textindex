@@ -17,6 +17,7 @@ mod cmdlib;
 mod cmds;
 mod error;
 mod index;
+mod index2;
 mod log;
 mod proc3;
 
