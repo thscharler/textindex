@@ -1,4 +1,5 @@
 use crate::error::AppError;
+use crate::tmp_index::TmpWords;
 use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
 use html5ever::tendril::{StrTendril, TendrilSink};
 use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
@@ -176,23 +177,24 @@ impl Words {
             });
     }
 
-    pub fn append(&mut self, other: Words) {
-        let mut map_fileidx = Vec::new();
-        for file in other.files.into_iter() {
-            let idx = self.add_file(file);
-            map_fileidx.push(idx);
-        }
+    pub fn append(&mut self, other: TmpWords) {
+        let f_idx = self.add_file(other.file);
 
-        for (a_txt, a_word) in other.words.into_iter() {
+        for a_txt in other.words.into_iter() {
             self.words
                 .entry(a_txt)
                 .and_modify(|v| {
-                    v.count += a_word.count;
-                    for f_idx in &a_word.file_idx {
-                        v.add_file_idx(map_fileidx[*f_idx as usize]);
-                    }
+                    v.count += 1;
+                    v.add_file_idx(f_idx);
                 })
-                .or_insert(a_word);
+                .or_insert_with(|| {
+                    let mut w = Word {
+                        count: 1,
+                        file_idx: Default::default(),
+                    };
+                    w.add_file_idx(f_idx);
+                    w
+                });
         }
     }
 

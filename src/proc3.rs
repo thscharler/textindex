@@ -1,5 +1,6 @@
 use crate::error::AppError;
-use crate::index::{index_html, index_txt, Words};
+use crate::index::Words;
+use crate::tmp_index::{index_html, index_txt, TmpWords};
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
@@ -20,7 +21,7 @@ pub enum Msg {
     WalkFinished(PathBuf),
     Load(u32, FileFilter, PathBuf, String),
     Index(u32, FileFilter, PathBuf, String, String),
-    MergeWords(u32, Words),
+    MergeWords(u32, TmpWords),
     DeleteFile(String),
     Debug,
     AutoSave,
@@ -349,7 +350,7 @@ fn spawn_merge_words(
                 }
                 Msg::MergeWords(count, words) => {
                     last_count = count;
-                    print_err_(printer, "merge_words", merge_words(printer, words, data));
+                    print_err_(printer, "merge_words", merge_words(data, words, printer));
 
                     // ...
                     if count % 1000 == 0 {
@@ -435,7 +436,7 @@ fn name_filter(path: &Path) -> FileFilter {
         FileFilter::Ignore
     } else if [
         "apr.html", "aug.html", "dec.html", "feb.html", "jan.html", "jul.html", "jun.html",
-        "may.html", "mar.html", "nov.html", "oct.html", "sep.html",
+        "mar.html", "may.html", "nov.html", "oct.html", "sep.html",
     ]
     .binary_search_by(|v| v.cmp(&name.as_str()))
     .is_ok()
@@ -501,20 +502,20 @@ fn indexing(
     txt: &String,
     send: &Sender<Msg>,
 ) -> Result<(), AppError> {
-    let mut words = Words::new();
+    let mut words = TmpWords::new(relative.clone());
 
     match filter {
         FileFilter::Text => {
-            let file_idx = words.add_file(relative.clone());
             timing(printer, format!("indexing {:?}", relative), 100, || {
-                index_txt(&mut words, file_idx, &txt)
-            });
+                index_txt(&mut words, &txt)
+            })
+            .0;
         }
         FileFilter::Html => {
-            let file_idx = words.add_file(relative.clone());
             timing(printer, format!("indexing {:?}", relative), 100, || {
-                index_html(&mut words, file_idx, &txt)
-            });
+                index_html(&mut words, &txt)
+            })
+            .0;
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
@@ -525,13 +526,13 @@ fn indexing(
 }
 
 fn merge_words(
-    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    words: Words,
     data: &'static Data,
+    words_buffer: TmpWords,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
     let do_auto_save = {
         let mut write = data.words.write()?;
-        timing(printer, "merge", 100, || write.append(words));
+        timing(printer, "merge", 100, || write.append(words_buffer));
         write.should_auto_save()
     };
 

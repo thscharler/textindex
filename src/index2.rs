@@ -3,13 +3,17 @@
 use crate::error::AppError;
 use crate::index2::files::FileList;
 use crate::index2::id::Ids;
-use crate::index2::word_map::{IterFileId, WordMap};
+use crate::index2::word_map::WordMap;
 use crate::index2::words::{WordData, WordList};
+use crate::tmp_index::TmpWords;
 use blockfile::{BlockType, FileBlocks, UserBlockType};
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::io;
 use std::path::Path;
 use std::str::from_utf8;
+use std::time::{Duration, Instant};
+use wildmatch::WildMatch;
 
 type BlkNr = u32;
 type BlkIdx = u32;
@@ -25,6 +29,9 @@ pub struct Words {
     pub words: WordList,
     pub files: FileList,
     pub wordmap: WordMap,
+
+    age: Instant,
+    auto_save: Duration,
 }
 
 pub type WordFileBlocks = FileBlocks<WordBlockType>;
@@ -116,6 +123,8 @@ impl Words {
             words,
             files,
             wordmap,
+            age: Instant::now(),
+            auto_save: Duration::from_secs(60),
         })
     }
 
@@ -152,20 +161,38 @@ impl Words {
         file_id
     }
 
-    pub fn remove_file(&mut self, name: String) {
-        let find = self
-            .files
-            .list
-            .iter()
-            .find(|(_, file)| file.name == name)
-            .map(|v| v.0)
-            .cloned();
-        if let Some(file_id) = find {
-            self.files.list.remove(&file_id);
-        }
+    pub fn have_file(&self, txt: &String) -> bool {
+        self.files.list.values().find(|v| &v.name == txt).is_some()
     }
 
-    pub fn iter_word_files(&mut self, word_data: WordData) -> IterFileId {
+    pub fn find_file(&self, txt: &str) -> BTreeSet<&String> {
+        let find = WildMatch::new(txt);
+        self.files
+            .list
+            .values()
+            .filter(|v| find.matches(v.name.as_str()))
+            .map(|v| &v.name)
+            .collect()
+    }
+
+    pub fn file(&self, file_id: FileId) -> Option<String> {
+        self.files.list.get(&file_id).map(|v| v.name.clone())
+    }
+
+    pub fn remove_file(&mut self, _name: String) {
+        // no removes
+    }
+
+    /// Iterate words.
+    pub fn iter_words(&mut self) -> impl Iterator<Item = (&String, &WordData)> {
+        self.words.list.iter()
+    }
+
+    /// Iterate all files for a word.
+    pub fn iter_word_files(
+        &mut self,
+        word_data: WordData,
+    ) -> impl Iterator<Item = Result<FileId, io::Error>> + '_ {
         WordMap::iter_files(
             &mut self.db,
             word_data.file_map_block_nr,
@@ -208,6 +235,57 @@ impl Words {
         Ok(())
     }
 
+    pub fn append(&mut self, other: TmpWords) {
+        let f_idx = self.add_file(other.file);
+        for a_txt in other.words.into_iter() {
+            self.add_word(a_txt, f_idx)?;
+        }
+    }
+
+    pub fn find(&mut self, txt: &[&str]) -> Result<BTreeSet<String>, io::Error> {
+        let mut collect = BTreeSet::<FileId>::new();
+        let mut first = true;
+
+        for t in txt {
+            let match_find = WildMatch::new(t);
+
+            let words: Vec<_> = self
+                .iter_words()
+                .filter(|(k, _)| match_find.matches(k))
+                .map(|(_, v)| v.clone())
+                .collect();
+
+            let files = words
+                .into_iter()
+                .map(|v| self.iter_word_files(v).flatten().collect::<Vec<FileId>>())
+                .flatten();
+
+            if first {
+                collect = files.collect();
+            } else {
+                collect = files.filter(|v| collect.contains(v)).collect();
+            }
+
+            first = false;
+        }
+
+        let names = collect.iter().map(|v| self.file(*v)).flatten().collect();
+
+        Ok(names)
+    }
+
+    pub fn should_auto_save(&mut self) -> bool {
+        if self.age.elapsed() > self.auto_save {
+            self.age = Instant::now();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn set_auto_save_interval(&mut self, auto_save: Duration) {
+        self.auto_save = auto_save;
+    }
     //
 }
 
@@ -1068,10 +1146,12 @@ mod tests {
         let wdata = w.words.list.get("alpha").cloned().unwrap();
         assert_eq!(wdata.file_map_block_nr, 1);
         assert_eq!(wdata.file_map_block_idx, 0);
-        let mut it = w.iter_word_files(wdata);
-        assert_eq!(it.next().unwrap()?, 1);
-        assert_eq!(it.next().unwrap()?, 2);
-        assert!(it.next().is_none());
+        {
+            let mut it = w.iter_word_files(wdata);
+            assert_eq!(it.next().unwrap()?, 1);
+            assert_eq!(it.next().unwrap()?, 2);
+            assert!(it.next().is_none());
+        }
 
         let wdata = w.words.list.get("beta").cloned().unwrap();
         assert_eq!(wdata.file_map_block_nr, 1);

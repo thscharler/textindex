@@ -20,6 +20,7 @@ mod index;
 mod index2;
 mod log;
 mod proc3;
+mod tmp_index;
 
 fn main() -> Result<(), AppError> {
     let tmp = PathBuf::from(".tmp_stored");
