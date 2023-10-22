@@ -5,7 +5,7 @@ use crate::index2::files::FileList;
 use crate::index2::id::Ids;
 use crate::index2::word_map::{IterFileId, WordMap};
 use crate::index2::words::{WordData, WordList};
-use blockfile::{BlockType, FileBlocks, Length, UserBlockType};
+use blockfile::{BlockType, FileBlocks, UserBlockType};
 use std::fmt::{Debug, Formatter};
 use std::io;
 use std::path::Path;
@@ -96,9 +96,13 @@ impl Words {
         let mut db = FileBlocks::open(file)?;
 
         let mut ids = Ids::load(&mut db)?;
-        ids.create("word");
-        ids.create("file");
         ids.create("wordmap");
+        ids.create("word");
+        ids.create("word_block_nr");
+        ids.create("word_block_idx");
+        ids.create("file");
+        ids.create("file_block_nr");
+        ids.create("file_block_idx");
 
         let words = WordList::load(&mut db)?;
         let files = FileList::load(&mut db)?;
@@ -116,10 +120,23 @@ impl Words {
     }
 
     pub fn write(&mut self) -> Result<(), AppError> {
-        self.words.store(&mut self.db)?;
-        self.files.store(&mut self.db)?;
+        let mut word_nr = self.ids.get("word_block_nr");
+        let mut word_idx = self.ids.get("word_block_idx");
+        self.words
+            .store(&mut self.db, &mut word_nr, &mut word_idx)?;
+        self.ids.set("word_block_nr", word_nr);
+        self.ids.set("word_block_idx", word_idx);
+
+        let mut file_nr = self.ids.get("file_block_nr");
+        let mut file_idx = self.ids.get("file_block_idx");
+        self.files
+            .store(&mut self.db, &mut file_nr, &mut file_idx)?;
+        self.ids.set("file_block_nr", file_nr);
+        self.ids.set("file_block_idx", file_idx);
+
         let last_wordmap_block_nr = self.wordmap.store(&mut self.db)?;
         self.ids.set("wordmap", last_wordmap_block_nr);
+
         self.ids.store(&mut self.db)?;
         dbg!(&self.db);
         self.db.store()?;
@@ -198,8 +215,8 @@ pub mod word_map {
     use crate::index2::{BlkIdx, BlkNr, FIdx, FileId, WordBlockType, WordFileBlocks};
     use blockfile::{Length, BLOCK_SIZE};
     use std::fmt::{Debug, Formatter};
+    use std::io;
     use std::mem::size_of;
-    use std::{io, mem};
 
     pub struct WordMap {
         pub last_block_nr: BlkNr,
@@ -272,7 +289,7 @@ pub mod word_map {
             }
         }
 
-        pub fn store(&mut self, db: &mut WordFileBlocks) -> Result<BlkNr, io::Error> {
+        pub fn store(&mut self, _db: &mut WordFileBlocks) -> Result<BlkNr, io::Error> {
             Ok(self.last_block_nr)
         }
 
@@ -450,7 +467,10 @@ pub mod word_map {
 }
 
 pub mod files {
-    use crate::index2::{byte_to_str, copy_clip_left, FileId, WordBlockType, WordFileBlocks};
+    use crate::index2::{
+        byte_to_str, copy_fix_left, BlkIdx, BlkNr, FileId, WordBlockType, WordFileBlocks,
+    };
+    use blockfile::Length;
     use blockfile::BLOCK_SIZE;
     use std::collections::BTreeMap;
     use std::fmt::{Debug, Formatter};
@@ -466,6 +486,8 @@ pub mod files {
     #[derive(Debug)]
     pub struct FileData {
         pub name: String,
+        pub block_nr: BlkNr,
+        pub block_idx: BlkIdx,
     }
 
     pub type RawFileList = [RawFile; BLOCK_SIZE as usize / size_of::<RawFile>()];
@@ -513,10 +535,17 @@ pub mod files {
             let empty = RawFile::default();
             for block_nr in blocks {
                 let raw = db.get(block_nr)?.cast::<RawFileList>();
-                for r in raw.iter() {
+                for (i, r) in raw.iter().enumerate() {
                     if r.file != empty.file {
                         let file = byte_to_str(&r.file)?;
-                        files.list.insert(r.id, FileData { name: file.into() });
+                        files.list.insert(
+                            r.id,
+                            FileData {
+                                name: file.into(),
+                                block_nr,
+                                block_idx: i as u32,
+                            },
+                        );
                     }
                 }
                 db.discard(block_nr);
@@ -525,38 +554,37 @@ pub mod files {
             Ok(files)
         }
 
-        pub fn store(&self, db: &mut WordFileBlocks) -> Result<(), io::Error> {
-            let mut blocks: Vec<_> = db
-                .iter_metadata()
-                .filter(|v| v.1 == Self::TY)
-                .map(|v| v.0)
-                .collect();
-
-            let empty = RawFile::default();
-
-            let mut it_files = self.list.iter();
-            let mut it_fin = false;
-            loop {
-                let block = if let Some(block_nr) = blocks.pop() {
-                    db.get_mut(block_nr)?
-                } else {
-                    if !it_fin {
-                        db.alloc(Self::TY)
-                    } else {
-                        break;
+        pub fn store(
+            &mut self,
+            db: &mut WordFileBlocks,
+            last_block_nr: &mut u32,
+            last_block_idx: &mut u32,
+        ) -> Result<(), io::Error> {
+            // assume append only
+            for (file_id, file_data) in self.list.iter_mut() {
+                if file_data.block_nr == 0 {
+                    if *last_block_nr == 0 {
+                        *last_block_nr = db.alloc(Self::TY).block_nr();
+                        *last_block_idx = 0;
                     }
-                };
-                block.set_dirty(true);
-                block.discard();
 
-                let file_list = block.cast_mut::<RawFileList>();
-                for file_rec in file_list.iter_mut() {
-                    *file_rec = empty;
-                    if let Some((file_id, file_data)) = it_files.next() {
-                        copy_clip_left(file_data.name.as_bytes(), &mut file_rec.file);
-                        file_rec.id = *file_id;
+                    let w = RawFile {
+                        file: copy_fix_left::<124>(file_data.name.as_bytes()),
+                        id: *file_id,
+                    };
+
+                    let block = db.get_mut(*last_block_nr)?;
+                    block.set_dirty(true);
+                    let file_list = block.cast_mut::<RawFileList>();
+                    file_list[*last_block_idx as usize] = w;
+                    file_data.block_nr = *last_block_nr;
+                    file_data.block_idx = *last_block_idx;
+
+                    if *last_block_idx + 1 == RawFileList::LEN as u32 {
+                        *last_block_nr = db.alloc(Self::TY).block_nr();
+                        *last_block_idx = 0;
                     } else {
-                        it_fin = true;
+                        *last_block_idx += 1;
                     }
                 }
             }
@@ -565,15 +593,23 @@ pub mod files {
         }
 
         pub fn add(&mut self, id: FileId, name: String) {
-            self.list.insert(id, FileData { name });
+            self.list.insert(
+                id,
+                FileData {
+                    name,
+                    block_nr: 0,
+                    block_idx: 0,
+                },
+            );
         }
     }
 }
 
 pub mod words {
     use crate::index2::{
-        byte_to_str, copy_clip, BlkIdx, BlkNr, WordBlockType, WordFileBlocks, WordId,
+        byte_to_str, copy_fix, BlkIdx, BlkNr, WordBlockType, WordFileBlocks, WordId,
     };
+    use blockfile::Length;
     use blockfile::BLOCK_SIZE;
     use std::collections::BTreeMap;
     use std::io;
@@ -652,44 +688,51 @@ pub mod words {
             Ok(words)
         }
 
-        pub fn store(&self, db: &mut WordFileBlocks) -> Result<(), io::Error> {
-            let mut blocks: Vec<_> = db
-                .iter_metadata()
-                .filter(|v| v.1 == Self::TY)
-                .map(|v| v.0)
-                .collect();
-
-            let empty = RawWord::default();
-
-            let mut it_words = self.list.iter();
-            let mut it_fin = false;
-            loop {
-                let block = if let Some(block_nr) = blocks.pop() {
-                    db.get_mut(block_nr)?
-                } else {
-                    if !it_fin {
-                        db.alloc(Self::TY)
-                    } else {
-                        break;
-                    }
+        pub fn store(
+            &mut self,
+            db: &mut WordFileBlocks,
+            last_block_nr: &mut u32,
+            last_block_idx: &mut u32,
+        ) -> Result<(), io::Error> {
+            // assume append only
+            for (word, word_data) in self.list.iter_mut() {
+                let w = RawWord {
+                    word: copy_fix::<20>(word.as_bytes()),
+                    id: word_data.id,
+                    file_map_block_nr: word_data.file_map_block_nr,
+                    file_map_idx: word_data.file_map_block_idx,
                 };
-                block.set_dirty(true);
-                block.discard();
 
-                let word_list = block.cast_mut::<RawWordList>();
-                for word_rec in word_list.iter_mut() {
-                    *word_rec = empty;
+                if word_data.block_nr != 0 {
+                    let block = db.get_mut(word_data.block_nr)?;
+                    let word_list = block.cast_mut::<RawWordList>();
 
-                    if let Some((word, word_data)) = it_words.next() {
-                        copy_clip(word.as_bytes(), &mut word_rec.word);
-                        word_rec.id = word_data.id;
-                        word_rec.file_map_block_nr = word_data.file_map_block_nr;
-                        word_rec.file_map_idx = word_data.file_map_block_idx;
+                    if word_list[word_data.block_idx as usize] != w {
+                        word_list[word_data.block_idx as usize] = w;
+                        block.set_dirty(true);
+                    }
+                } else {
+                    if *last_block_nr == 0 {
+                        *last_block_nr = db.alloc(Self::TY).block_nr();
+                        *last_block_idx = 0;
+                    }
+
+                    let block = db.get_mut(*last_block_nr)?;
+                    block.set_dirty(true);
+                    let word_list = block.cast_mut::<RawWordList>();
+                    word_list[*last_block_idx as usize] = w;
+                    word_data.block_nr = *last_block_nr;
+                    word_data.block_idx = *last_block_idx;
+
+                    if *last_block_idx + 1 == RawWordList::LEN as u32 {
+                        *last_block_nr = db.alloc(Self::TY).block_nr();
+                        *last_block_idx = 0;
                     } else {
-                        it_fin = true;
+                        *last_block_idx += 1;
                     }
                 }
             }
+
             Ok(())
         }
     }
@@ -813,6 +856,27 @@ pub mod id {
             *self.ids.get(name).unwrap_or(&0u32)
         }
     }
+}
+
+fn copy_fix<const LEN: usize>(src: &[u8]) -> [u8; LEN] {
+    let mut dst = [0u8; LEN];
+    if src.len() < LEN {
+        dst[0..src.len()].copy_from_slice(src);
+    } else {
+        dst.copy_from_slice(&src[0..LEN]);
+    }
+    dst
+}
+
+fn copy_fix_left<const LEN: usize>(src: &[u8]) -> [u8; LEN] {
+    let mut dst = [0u8; LEN];
+    if src.len() < LEN {
+        dst[0..src.len()].copy_from_slice(src);
+    } else {
+        let start = src.len() - LEN;
+        dst.copy_from_slice(&src[start..]);
+    }
+    dst
 }
 
 fn copy_clip(src: &[u8], dst: &mut [u8]) {
@@ -1034,20 +1098,20 @@ mod tests {
         w.add_word("delta", fid)?;
         w.add_word("epsilon", fid)?;
 
-        let wdata = w.words.list.get("gamma").cloned().unwrap();
+        let _wdata = w.words.list.get("gamma").cloned().unwrap();
 
         let fid = w.add_file("file1".into());
         w.add_word("alpha", fid)?;
         w.add_word("beta", fid)?;
         w.add_word("gamma", fid)?;
 
-        let wdata = w.words.list.get("gamma").cloned().unwrap();
+        let _wdata = w.words.list.get("gamma").cloned().unwrap();
 
         for i in 0..14 {
             let fid = w.add_file(format!("file-x{}", i));
             w.add_word("gamma", fid)?;
 
-            let wdata = w.words.list.get("gamma").cloned().unwrap();
+            let _wdata = w.words.list.get("gamma").cloned().unwrap();
         }
         w.write()?;
 
@@ -1062,6 +1126,8 @@ mod tests {
             fid.as_slice(),
             &[15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
         );
+
+        dbg!(w.files.list);
 
         Ok(())
     }
