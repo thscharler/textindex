@@ -121,8 +121,8 @@ impl Words {
         let last_wordmap_block_nr = self.wordmap.store(&mut self.db)?;
         self.ids.set("wordmap", last_wordmap_block_nr);
         self.ids.store(&mut self.db)?;
-        self.db.store()?;
         dbg!(&self.db);
+        self.db.store()?;
         Ok(())
     }
 
@@ -181,6 +181,8 @@ impl Words {
                 word.as_ref().into(),
                 WordData {
                     id: word_id,
+                    block_nr: 0,
+                    block_idx: 0,
                     file_map_block_nr: word_block_nr,
                     file_map_block_idx: word_idx,
                 },
@@ -247,7 +249,7 @@ pub mod word_map {
             if last_block_nr > 0 {
                 let empty = RawWordMap::default();
 
-                let last = db.get_as::<RawWordMapList>(last_block_nr)?;
+                let last = db.get(last_block_nr)?.cast::<RawWordMapList>();
                 let mut last_idx = 0u32;
                 for i in 0..last.len() {
                     if last[i] == empty {
@@ -255,7 +257,6 @@ pub mod word_map {
                     }
                     last_idx = i as u32;
                 }
-                assert_ne!(0, last_idx);
 
                 Ok(Self {
                     last_block_nr,
@@ -278,7 +279,7 @@ pub mod word_map {
         // Ensures we can add at least 1 new region.
         fn ensure_add(&mut self, db: &mut WordFileBlocks) -> BlkIdx {
             let res_idx = if self.last_block_nr == 0 {
-                let (new_block_nr, _) = db.alloc_as::<RawWordMapList>(Self::TY);
+                let new_block_nr = db.alloc(Self::TY).block_nr();
 
                 self.last_block_nr = new_block_nr;
                 self.last_idx = 0;
@@ -286,7 +287,7 @@ pub mod word_map {
                 self.last_idx
             } else {
                 if self.last_idx + 1 >= RawWordMapList::LEN as u32 {
-                    let (new_block_nr, _) = db.alloc_as::<RawWordMapList>(Self::TY);
+                    let new_block_nr = db.alloc(Self::TY).block_nr();
 
                     db.discard(self.last_block_nr);
 
@@ -310,8 +311,12 @@ pub mod word_map {
         ) -> Result<(BlkNr, BlkIdx), io::Error> {
             let new_idx = self.ensure_add(db);
 
-            let last = db.get_as_mut::<RawWordMapList>(self.last_block_nr)?;
+            let block = db.get_mut(self.last_block_nr)?;
+            block.set_dirty(true);
+
+            let last = block.cast_mut::<RawWordMapList>();
             last[new_idx as usize].file_id[0] = file_id;
+
             self.last_idx = new_idx;
 
             Ok((self.last_block_nr, self.last_idx))
@@ -328,8 +333,11 @@ pub mod word_map {
             // append to given region list.
             let mut append = true;
             {
-                let block = db.get_as_mut::<RawWordMapList>(blk_nr)?;
-                let word_map = &mut block[blk_idx as usize];
+                let block = db.get_mut(blk_nr)?;
+                block.set_dirty(true);
+
+                let word_map_list = block.cast_mut::<RawWordMapList>();
+                let word_map = &mut word_map_list[blk_idx as usize];
                 for fid in word_map.file_id.iter_mut() {
                     if *fid == 0 {
                         *fid = file_id;
@@ -343,10 +351,15 @@ pub mod word_map {
             if append {
                 // add to new region
                 let new_idx = self.ensure_add(db);
-                let last = db.get_as_mut::<RawWordMapList>(self.last_block_nr)?;
+
+                let block = db.get_mut(self.last_block_nr)?;
+                block.set_dirty(true);
+
+                let last = block.cast_mut::<RawWordMapList>();
                 last[new_idx as usize].file_id[0] = file_id;
                 last[new_idx as usize].next_block_nr = blk_nr;
                 last[new_idx as usize].next_idx = blk_idx;
+
                 self.last_idx = new_idx;
 
                 Ok((self.last_block_nr, self.last_idx))
@@ -398,11 +411,11 @@ pub mod word_map {
 
             let mut discard_block = None;
             let file_id = loop {
-                let block = match self.db.get_as::<RawWordMapList>(self.map_block_nr) {
-                    Ok(block) => block,
+                let map_list = match self.db.get(self.map_block_nr) {
+                    Ok(block) => block.cast::<RawWordMapList>(),
                     Err(err) => return Some(Err(err)),
                 };
-                let map = &block[self.map_idx as usize];
+                let map = &map_list[self.map_idx as usize];
                 let file_id = map.file_id[self.file_idx as usize];
 
                 if file_id != 0 {
@@ -499,7 +512,7 @@ pub mod files {
                 .collect();
             let empty = RawFile::default();
             for block_nr in blocks {
-                let raw: &RawFileList = db.get_as(block_nr)?;
+                let raw = db.get(block_nr)?.cast::<RawFileList>();
                 for r in raw.iter() {
                     if r.file != empty.file {
                         let file = byte_to_str(&r.file)?;
@@ -524,17 +537,20 @@ pub mod files {
             let mut it_files = self.list.iter();
             let mut it_fin = false;
             loop {
-                let (block_nr, block) = if let Some(block_nr) = blocks.pop() {
-                    (block_nr, db.get_as_mut::<RawFileList>(block_nr)?)
+                let block = if let Some(block_nr) = blocks.pop() {
+                    db.get_mut(block_nr)?
                 } else {
                     if !it_fin {
-                        db.alloc_as::<RawFileList>(Self::TY)
+                        db.alloc(Self::TY)
                     } else {
                         break;
                     }
                 };
+                block.set_dirty(true);
+                block.discard();
 
-                for file_rec in block.iter_mut() {
+                let file_list = block.cast_mut::<RawFileList>();
+                for file_rec in file_list.iter_mut() {
                     *file_rec = empty;
                     if let Some((file_id, file_data)) = it_files.next() {
                         copy_clip_left(file_data.name.as_bytes(), &mut file_rec.file);
@@ -543,8 +559,6 @@ pub mod files {
                         it_fin = true;
                     }
                 }
-
-                db.discard(block_nr);
             }
 
             Ok(())
@@ -573,6 +587,8 @@ pub mod words {
     #[derive(Debug, Clone, Copy)]
     pub struct WordData {
         pub id: WordId,
+        pub block_nr: BlkNr,
+        pub block_idx: BlkIdx,
         pub file_map_block_nr: BlkNr,
         pub file_map_block_idx: BlkIdx,
     }
@@ -614,14 +630,16 @@ pub mod words {
                 .collect();
             let empty = RawWord::default();
             for block_nr in blocks {
-                let raw: &RawWordList = db.get_as(block_nr)?;
-                for r in raw.iter() {
+                let raw = db.get(block_nr)?.cast::<RawWordList>();
+                for (i, r) in raw.iter().enumerate() {
                     if r.word != empty.word {
                         let word = byte_to_str(&r.word)?;
                         words.list.insert(
                             word.into(),
                             WordData {
                                 id: r.id,
+                                block_nr,
+                                block_idx: i as u32,
                                 file_map_block_nr: r.file_map_block_nr,
                                 file_map_block_idx: r.file_map_idx,
                             },
@@ -646,17 +664,20 @@ pub mod words {
             let mut it_words = self.list.iter();
             let mut it_fin = false;
             loop {
-                let (block_nr, block) = if let Some(block_nr) = blocks.pop() {
-                    (block_nr, db.get_as_mut::<RawWordList>(block_nr)?)
+                let block = if let Some(block_nr) = blocks.pop() {
+                    db.get_mut(block_nr)?
                 } else {
                     if !it_fin {
-                        db.alloc_as::<RawWordList>(Self::TY)
+                        db.alloc(Self::TY)
                     } else {
                         break;
                     }
                 };
+                block.set_dirty(true);
+                block.discard();
 
-                for word_rec in block.iter_mut() {
+                let word_list = block.cast_mut::<RawWordList>();
+                for word_rec in word_list.iter_mut() {
                     *word_rec = empty;
 
                     if let Some((word, word_data)) = it_words.next() {
@@ -668,8 +689,6 @@ pub mod words {
                         it_fin = true;
                     }
                 }
-
-                db.discard(block_nr);
             }
             Ok(())
         }
@@ -722,7 +741,7 @@ pub mod id {
 
             let empty = RawId::default();
             for block_nr in blocks {
-                let raw: &RawIdMap = db.get_as(block_nr)?;
+                let raw = db.get(block_nr)?.cast::<RawIdMap>();
                 for r in raw.iter() {
                     if r.name != empty.name {
                         let name = byte_to_str(&r.name)?;
@@ -749,13 +768,16 @@ pub mod id {
 
             let mut it_names = self.ids.iter();
             loop {
-                let (block_nr, block) = if let Some(block_nr) = blocks.pop() {
-                    (block_nr, db.get_as_mut::<RawIdMap>(block_nr)?)
+                let block = if let Some(block_nr) = blocks.pop() {
+                    db.get_mut(block_nr)?
                 } else {
-                    db.alloc_as::<RawIdMap>(Self::TY)
+                    db.alloc(Self::TY)
                 };
+                block.set_dirty(true);
+                block.discard();
 
-                for id_rec in block.iter_mut() {
+                let id_list = block.cast_mut::<RawIdMap>();
+                for id_rec in id_list.iter_mut() {
                     *id_rec = empty;
                     if let Some((name, id)) = it_names.next() {
                         copy_clip(name.as_bytes(), &mut id_rec.name);
@@ -763,8 +785,7 @@ pub mod id {
                     }
                 }
 
-                if block[block.len() - 1] == empty {
-                    db.discard(block_nr);
+                if id_list[id_list.len() - 1] == empty {
                     break;
                 }
             }
