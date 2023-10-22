@@ -3,7 +3,7 @@
 use crate::error::AppError;
 use crate::index2::files::FileList;
 use crate::index2::id::Ids;
-use crate::index2::word_map::WordMap;
+use crate::index2::word_map::{IterFileId, WordMap};
 use crate::index2::words::{WordData, WordList};
 use blockfile::FileBlocks;
 use std::io;
@@ -12,6 +12,7 @@ use std::str::from_utf8;
 
 type BlkNr = u32;
 type BlkIdx = u32;
+type FIdx = u32;
 type FileId = u32;
 type WordId = u32;
 type Id = u32;
@@ -24,11 +25,6 @@ pub struct Words {
     pub files: FileList,
     pub wordmap: WordMap,
 }
-
-#[derive(Debug)]
-pub struct WordID(u32);
-#[derive(Debug)]
-pub struct FileID(u32);
 
 impl Words {
     pub fn read(file: &Path) -> Result<Self, AppError> {
@@ -60,7 +56,7 @@ impl Words {
         let last_wordmap_block_nr = self.wordmap.store(&mut self.db)?;
         self.ids.set("wordmap", last_wordmap_block_nr);
         self.ids.store(&mut self.db)?;
-
+        dbg!(&self.db);
         self.db.store()?;
         Ok(())
     }
@@ -82,6 +78,10 @@ impl Words {
         if let Some(file_id) = find {
             self.files.list.remove(&file_id);
         }
+    }
+
+    pub fn iter_word_files(&mut self, block_nr: BlkNr, block_idx: BlkIdx) -> IterFileId {
+        WordMap::iter_files(&mut self.db, block_nr, block_idx)
     }
 
     pub fn add_word<S: AsRef<str> + Into<String>>(
@@ -118,7 +118,7 @@ impl Words {
 }
 
 pub mod word_map {
-    use crate::index2::{BlkIdx, BlkNr, FileId};
+    use crate::index2::{BlkIdx, BlkNr, FIdx, FileId};
     use blockfile::{BlockType, FileBlocks, BLOCK_SIZE};
     use std::fmt::{Debug, Formatter};
     use std::mem::size_of;
@@ -190,27 +190,39 @@ pub mod word_map {
                     last,
                 })
             } else {
-                let (last_block_nr, last) = db.alloc_owned_as::<RawWordMapList>(Self::TY);
-
+                // don't init here, do this with the first add_word.
+                // uses last_block_nr == 0 as sentinel.
                 Ok(Self {
-                    last_block_nr,
+                    last_block_nr: 0,
                     last_idx: 0,
-                    last,
+                    last: Box::new(
+                        [RawWordMap::default(); BLOCK_SIZE as usize / size_of::<RawWordMap>()],
+                    ),
                 })
             }
         }
 
         pub fn store(&mut self, db: &mut FileBlocks) -> Result<BlkNr, io::Error> {
-            db.set_owned_as(self.last_block_nr, self.last.clone());
+            if self.last_block_nr > 0 {
+                db.set_owned_as(self.last_block_nr, self.last.clone());
+            }
             Ok(self.last_block_nr)
         }
 
         /// Add first reference for a new word.
         pub fn add_initial(&mut self, db: &mut FileBlocks, file_id: FileId) -> (BlkNr, BlkIdx) {
-            if self.last_idx + 1 >= self.last.len() as u32 {
+            if self.last_block_nr == 0 {
                 let (new_block_nr, new_block) = db.alloc_owned_as::<RawWordMapList>(Self::TY);
 
-                db.set_owned_as(self.last_block_nr, mem::replace(&mut self.last, new_block));
+                self.last_block_nr = new_block_nr;
+                self.last_idx = 0;
+                self.last = new_block;
+            } else if self.last_idx + 1 >= self.last.len() as u32 {
+                let (new_block_nr, new_block) = db.alloc_owned_as::<RawWordMapList>(Self::TY);
+
+                // forward current block to storage.
+                let last_block = mem::replace(&mut self.last, new_block);
+                db.set_owned_as(self.last_block_nr, last_block);
 
                 self.last_block_nr = new_block_nr;
                 self.last_idx = 0;
@@ -231,6 +243,8 @@ pub mod word_map {
             blk_idx: BlkIdx,
             file_id: FileId,
         ) -> Result<(BlkNr, BlkIdx), io::Error> {
+            assert_ne!(self.last_block_nr, 0);
+
             let mut append = true;
 
             let mut block = db.get_owned_as::<RawWordMapList>(blk_nr)?;
@@ -258,6 +272,82 @@ pub mod word_map {
 
                 Ok((blk_nr, blk_idx))
             }
+        }
+
+        pub fn iter_files(db: &mut FileBlocks, block_nr: BlkNr, block_idx: BlkIdx) -> IterFileId {
+            IterFileId {
+                db,
+                map_block_nr: block_nr,
+                map: None,
+                map_idx: block_idx,
+                file_idx: 0,
+            }
+        }
+    }
+
+    pub struct IterFileId<'a> {
+        db: &'a mut FileBlocks,
+        map_block_nr: u32,
+        map: Option<Box<RawWordMapList>>,
+        map_idx: BlkIdx,
+        file_idx: FIdx,
+    }
+
+    impl<'a> IterFileId<'a> {
+        fn is_clear(&self) -> bool {
+            self.map_block_nr == 0
+        }
+
+        fn clear(&mut self) {
+            self.map_block_nr = 0;
+            self.map = None;
+            self.map_idx = 0;
+            self.file_idx = 0;
+        }
+    }
+
+    impl<'a> Iterator for IterFileId<'a> {
+        type Item = Result<FileId, io::Error>;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.is_clear() {
+                return None;
+            }
+
+            if self.map.is_none() {
+                match self.db.get_owned_as::<RawWordMapList>(self.map_block_nr) {
+                    Ok(v) => self.map = Some(v),
+                    Err(e) => return Some(Err(e)),
+                }
+            }
+            let Some(map) = self.map.as_ref() else {
+                unreachable!()
+            };
+
+            let map_entry = &map[self.map_idx as usize];
+
+            let file_id = map_entry.file_id[self.file_idx as usize];
+            if file_id == 0 {
+                self.clear();
+                return None;
+            }
+
+            // next
+            self.file_idx += 1;
+            // possibly new block alltogether.
+            if self.file_idx > map_entry.file_id.len() as u32 {
+                let next_block_nr = map_entry.next_block_nr;
+                let next_idx = map_entry.next_idx;
+
+                // another word-map within the current block?
+                if self.map_block_nr != next_block_nr {
+                    self.map_block_nr = next_block_nr;
+                    self.map = None;
+                }
+                self.map_idx = next_idx;
+            }
+
+            Some(Ok(file_id))
         }
     }
 }
@@ -467,12 +557,17 @@ pub mod words {
             let empty = RawWord::default();
 
             let mut it_words = self.list.iter();
+            let mut it_fin = false;
             loop {
                 let block = if let Some(block_nr) = blocks.pop() {
                     db.set_dirty(block_nr, true);
                     db.get_as_mut::<RawWordList>(block_nr)?
                 } else {
-                    db.alloc_as::<RawWordList>(Self::TY).1
+                    if !it_fin {
+                        db.alloc_as::<RawWordList>(Self::TY).1
+                    } else {
+                        break;
+                    }
                 };
 
                 for word_rec in block.iter_mut() {
@@ -483,11 +578,9 @@ pub mod words {
                         word_rec.id = word_data.id;
                         word_rec.file_map_block_nr = word_data.file_map_block_nr;
                         word_rec.file_map_idx = word_data.file_map_block_idx;
-                    };
-                }
-
-                if block[block.len() - 1] == empty {
-                    break;
+                    } else {
+                        it_fin = true;
+                    }
                 }
             }
             Ok(())
@@ -675,7 +768,10 @@ mod tests {
 
     #[test]
     fn test_init() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/words.idx")?;
+        let path = PathBuf::from_str("tmp/init.idx")?;
+
+        let _ = fs::remove_file(&path);
+
         let mut w = Words::read(&path)?;
         w.write()?;
         let w = Words::read(&path)?;
@@ -685,16 +781,63 @@ mod tests {
 
     #[test]
     fn test_files() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/words.idx")?;
+        let path = PathBuf::from_str("tmp/files.idx")?;
+
+        let _ = fs::remove_file(&path);
+
+        let mut w = Words::read(&path)?;
+        let _fid = w.add_file("file0".into());
+        w.write()?;
+        let w = Words::read(&path)?;
+
+        assert!(w.files.list.contains_key(&1));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_files2() -> Result<(), AppError> {
+        let path = PathBuf::from_str("tmp/files2.idx")?;
+
+        let _ = fs::remove_file(&path);
+
+        let mut w = Words::read(&path)?;
+        let _fid = w.add_file("file0".into());
+        let _fid = w.add_file("file1".into());
+        let _fid = w.add_file("file2".into());
+        let _fid = w.add_file("file3".into());
+        w.write()?;
+        let w = Words::read(&path)?;
+        dbg!(w);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_word() -> Result<(), AppError> {
+        let path = PathBuf::from_str("tmp/word.idx")?;
 
         let _ = fs::remove_file(&path);
 
         let mut w = Words::read(&path)?;
         let fid = w.add_file("file0".into());
-        // dbg!(&w);
+        w.add_word("alpha", fid)?;
         w.write()?;
-        let w = Words::read(&path)?;
-        dbg!(&w);
+
+        let mut w = Words::read(&path)?;
+
+        assert!(w.words.list.get("alpha").is_some());
+        if let Some(word) = w.words.list.get("alpha") {
+            assert_eq!(word.file_map_block_nr, 1);
+            assert_eq!(word.file_map_block_idx, 0);
+            assert_eq!(word.id, 1);
+
+            for fid in w.iter_word_files(word.file_map_block_nr, word.file_map_block_idx) {
+                let fid = fid?;
+                dbg!(fid);
+            }
+        }
+
         Ok(())
     }
 }
