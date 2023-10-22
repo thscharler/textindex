@@ -1,7 +1,7 @@
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
-use crate::index::Words;
+use crate::index2::Words;
 use crate::log::dump_diagnostics;
 use crate::proc3::{auto_save, init_work, shut_down, Data, Msg, Work};
 use kparse::prelude::*;
@@ -36,7 +36,7 @@ fn main() -> Result<(), AppError> {
             println!("{:?}", e);
             println!("start with empty index");
             Box::leak(Box::new(Data {
-                words: RwLock::new(Words::new()),
+                words: RwLock::new(Words::new(&stored)?),
                 modified: Mutex::new(false),
             }))
         }
@@ -120,10 +120,10 @@ fn parse_cmd(
             work.send.send(Msg::WalkTree(path))?;
         }
         BCommand::Find(Find::Find(v)) => {
-            let words = data.words.read()?;
+            let mut words = data.words.write()?;
 
             let v = v.iter().map(|v| v.as_str()).collect::<Vec<_>>();
-            for ff in words.find(v.as_slice()) {
+            for ff in words.find(v.as_slice())? {
                 println!("         {}", ff);
             }
         }

@@ -9,10 +9,10 @@ use crate::tmp_index::TmpWords;
 use blockfile::{BlockType, FileBlocks, UserBlockType};
 use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
-use std::io;
 use std::path::Path;
 use std::str::from_utf8;
 use std::time::{Duration, Instant};
+use std::{fs, io};
 use wildmatch::WildMatch;
 
 type BlkNr = u32;
@@ -99,6 +99,11 @@ impl UserBlockType for WordBlockType {
 }
 
 impl Words {
+    pub fn new(file: &Path) -> Result<Self, AppError> {
+        let _ = fs::remove_file(file);
+        Self::read(file)
+    }
+
     pub fn read(file: &Path) -> Result<Self, AppError> {
         let mut db = FileBlocks::open(file)?;
 
@@ -235,11 +240,12 @@ impl Words {
         Ok(())
     }
 
-    pub fn append(&mut self, other: TmpWords) {
+    pub fn append(&mut self, other: TmpWords) -> Result<(), AppError> {
         let f_idx = self.add_file(other.file);
         for a_txt in other.words.into_iter() {
             self.add_word(a_txt, f_idx)?;
         }
+        Ok(())
     }
 
     pub fn find(&mut self, txt: &[&str]) -> Result<BTreeSet<String>, io::Error> {

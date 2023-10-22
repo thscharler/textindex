@@ -1,26 +1,18 @@
 use crate::error::AppError;
-use crate::tmp_index::TmpWords;
-use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
-use html5ever::tendril::{StrTendril, TendrilSink};
-use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
-use std::borrow::Cow;
+use crate::tmp_index::{TmpWords, STOP_WORDS};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Formatter};
+use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 use std::time::{Duration, Instant};
 use wildmatch::WildMatch;
 
-const STOP_WORDS: [&str; 35] = [
-    "a", "all", "and", "as", "at", "but", "could", "for", "from", "had", "he", "her", "him", "his",
-    "hot", "i", "in", "into", "it", "me", "my", "of", "on", "she", "so", "that", "the", "then",
-    "to", "up", "was", "were", "with", "you", "your",
-];
-
 ///
 pub struct Words {
+    path: PathBuf,
     words: BTreeMap<String, Word>,
     files: Vec<String>,
     age: Instant,
@@ -52,16 +44,29 @@ impl Word {
 }
 
 impl Words {
-    pub fn new() -> Self {
-        Words {
+    pub fn new(path: &Path) -> Result<Self, AppError> {
+        Ok(Words {
+            path: path.into(),
             words: Default::default(),
             files: Default::default(),
             age: Instant::now(),
             auto_save: Duration::from_secs(60),
-        }
+        })
     }
 
-    pub fn write(&self, path: &Path) -> Result<(), AppError> {
+    pub fn write(&self) -> Result<(), AppError> {
+        let tmp = self.path.parent().expect("path").join(".tmp_stored");
+        if tmp.exists() {
+            return Ok(());
+        }
+
+        self.write_to(&tmp)?;
+
+        fs::rename(tmp, &self.path)?;
+        Ok(())
+    }
+
+    fn write_to(&self, path: &Path) -> Result<(), AppError> {
         let mut f = BufWriter::new(File::create(path)?);
 
         f.write_all(&(self.files.len() as u32).to_ne_bytes())?;
@@ -87,7 +92,7 @@ impl Words {
     }
 
     pub fn read(path: &Path) -> Result<Words, AppError> {
-        let mut words = Words::new();
+        let mut words = Words::new(path)?;
 
         let mut f = BufReader::new(File::open(path)?);
         let mut buf = Vec::new();
@@ -210,7 +215,7 @@ impl Words {
             .collect()
     }
 
-    pub fn find(&self, txt: &[&str]) -> BTreeSet<&String> {
+    pub fn find(&self, txt: &[&str]) -> Result<BTreeSet<String>, AppError> {
         let mut collect_idx = BTreeSet::new();
 
         let mut first = true;
@@ -234,10 +239,11 @@ impl Words {
             collect_idx = f_idx;
         }
 
-        collect_idx
+        Ok(collect_idx
             .iter()
             .map(|v| self.files.get(*v as usize).expect("file"))
-            .collect()
+            .cloned()
+            .collect())
     }
 
     pub fn should_auto_save(&mut self) -> bool {
@@ -253,257 +259,3 @@ impl Words {
         self.auto_save = auto_save;
     }
 }
-
-pub fn index_txt(words: &mut Words, file_idx: u32, buf: &str) {
-    // split at white
-    for w in buf.split(|c: char| {
-        c as u32 <= 32
-            || c == '_'
-            || c == ','
-            || c == '.'
-            || c == '='
-            || c == '/'
-            || c == '\u{FFFD}'
-            || c.is_whitespace()
-    }) {
-        let w = w.trim_end_matches(|c: char| {
-            c == '"'
-                || c == '\''
-                || c == '`'
-                || c == '?'
-                || c == '!'
-                || c == ';'
-                || c == ':'
-                || c == '.'
-                || c == ','
-                || c == '@'
-                || c == '#'
-                || c == '-'
-                || c == '+'
-                || c == '*'
-                || c == '~'
-                || c == '^'
-                || c == '('
-                || c == ')'
-                || c == '['
-                || c == ']'
-                || c == '{'
-                || c == '}'
-                || c == '|'
-                || c == '\\'
-        });
-        let w = w.trim_start_matches(|c: char| {
-            c == '"'
-                || c == '\''
-                || c == '`'
-                || c == '?'
-                || c == '!'
-                || c == ';'
-                || c == ':'
-                || c == '.'
-                || c == ','
-                || c == '@'
-                || c == '#'
-                || c == '-'
-                || c == '+'
-                || c == '*'
-                || c == '~'
-                || c == '^'
-                || c == '('
-                || c == ')'
-                || c == '['
-                || c == ']'
-                || c == '{'
-                || c == '}'
-                || c == '|'
-                || c == '\\'
-        });
-
-        if let Some(c) = w.chars().next() {
-            if c.is_ascii_digit() {
-                continue;
-            } else if c == '<' {
-                continue;
-            } else if c == '&' {
-                continue;
-            } else if c == '/' {
-                continue;
-            }
-        }
-
-        if w.is_empty() {
-            continue;
-        }
-
-        let c = w.chars().next().expect("char");
-        if c.is_ascii_alphanumeric() {
-            let w = w.to_lowercase();
-            words.add_word(w, file_idx);
-        }
-    }
-}
-
-pub fn index_html(words: &mut Words, file_idx: u32, buf: &str) {
-    struct IdxSink<'a> {
-        pub words: &'a mut Words,
-        pub file_idx: u32,
-
-        pub elem: Vec<QualName>,
-        pub comment: Vec<StrTendril>,
-        pub pi: Vec<(StrTendril, StrTendril)>,
-    }
-
-    #[derive(Clone)]
-    enum IdxHandle {
-        Elem(usize),
-        Comment(usize),
-        Pi(usize),
-    }
-
-    impl<'a> TreeSink for IdxSink<'a> {
-        type Handle = IdxHandle;
-        type Output = ();
-
-        fn finish(self) -> Self::Output {}
-
-        fn parse_error(&mut self, _msg: Cow<'static, str>) {
-            // println!("parse_error {:?}", msg);
-        }
-
-        fn get_document(&mut self) -> Self::Handle {
-            IdxHandle::Elem(0)
-        }
-
-        fn elem_name<'b>(&'b self, target: &'b Self::Handle) -> ExpandedName<'b> {
-            match target {
-                IdxHandle::Elem(i) => self.elem[*i].expanded(),
-                IdxHandle::Comment(_) => {
-                    unimplemented!()
-                }
-                IdxHandle::Pi(_) => {
-                    unimplemented!()
-                }
-            }
-        }
-
-        fn create_element(
-            &mut self,
-            name: QualName,
-            _attrs: Vec<Attribute>,
-            _flags: ElementFlags,
-        ) -> Self::Handle {
-            // println!("create_element {:?} {:?}", name, attrs);
-
-            let handle = self.elem.len();
-            self.elem.push(name);
-
-            IdxHandle::Elem(handle)
-        }
-
-        fn create_comment(&mut self, text: StrTendril) -> Self::Handle {
-            // println!("create_comment {:?}", text);
-
-            let handle = self.comment.len();
-            self.comment.push(text);
-
-            IdxHandle::Comment(handle)
-        }
-
-        fn create_pi(&mut self, target: StrTendril, data: StrTendril) -> Self::Handle {
-            // println!("create_pi {:?} {:?}", target, data);
-
-            let handle = self.pi.len();
-            self.pi.push((target, data));
-
-            IdxHandle::Pi(handle)
-        }
-
-        fn append(&mut self, _parent: &Self::Handle, child: NodeOrText<Self::Handle>) {
-            match child {
-                NodeOrText::AppendNode(_) => {}
-                NodeOrText::AppendText(v) => {
-                    index_txt(self.words, self.file_idx, v.as_ref());
-                }
-            }
-        }
-
-        fn append_based_on_parent_node(
-            &mut self,
-            _element: &Self::Handle,
-            _prev_element: &Self::Handle,
-            _child: NodeOrText<Self::Handle>,
-        ) {
-            // match child {
-            //     NodeOrText::AppendNode(v) => {}
-            //     NodeOrText::AppendText(v) => {
-            //         println!("append_based_on_parent_node {:?}", v);
-            //     }
-            // }
-        }
-
-        fn append_doctype_to_document(
-            &mut self,
-            _name: StrTendril,
-            _public_id: StrTendril,
-            _system_id: StrTendril,
-        ) {
-            // println!(
-            //     "append_doctype_to_document {:?} {:?} {:?}",
-            //     name, public_id, system_id
-            // );
-        }
-
-        fn get_template_contents(&mut self, target: &Self::Handle) -> Self::Handle {
-            target.clone()
-        }
-
-        fn same_node(&self, _x: &Self::Handle, _y: &Self::Handle) -> bool {
-            false
-        }
-
-        fn set_quirks_mode(&mut self, _mode: QuirksMode) {}
-
-        fn append_before_sibling(
-            &mut self,
-            _sibling: &Self::Handle,
-            _new_node: NodeOrText<Self::Handle>,
-        ) {
-            // match new_node {
-            //     NodeOrText::AppendNode(v) => {}
-            //     NodeOrText::AppendText(v) => {
-            //         println!("append_before_sibling {:?}", v);
-            //     }
-            // }
-        }
-
-        fn add_attrs_if_missing(&mut self, _target: &Self::Handle, _attrs: Vec<Attribute>) {}
-
-        fn remove_from_parent(&mut self, _target: &Self::Handle) {}
-
-        fn reparent_children(&mut self, _node: &Self::Handle, _new_parent: &Self::Handle) {}
-    }
-
-    let s = IdxSink {
-        words,
-        file_idx,
-        elem: vec![],
-        comment: vec![],
-        pi: vec![],
-    };
-
-    let p = parse_document(s, ParseOpts::default());
-    p.one(buf);
-}
-
-// pub fn index_html(words: &mut Words, file_idx: u32, buf: &str) -> Result<(), tl::ParseError> {
-//     let dom = tl::parse(buf, ParserOptions::new())?;
-//     for node in dom.nodes() {
-//         if let Some(tag) = node.as_tag() {
-//             if tag.name() != "style" && tag.name() != "script" {
-//                 let txt = node.inner_text(dom.parser());
-//                 index_txt(words, file_idx, txt.as_ref());
-//             }
-//         }
-//     }
-//     Ok(())
-// }

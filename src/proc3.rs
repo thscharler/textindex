@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::index::Words;
+use crate::index2::Words;
 use crate::tmp_index::{index_html, index_txt, TmpWords};
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use rustyline::ExternalPrinter;
@@ -9,9 +9,9 @@ use std::io::Read;
 use std::iter::Flatten;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
+use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
-use std::{fs, thread};
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -41,9 +41,9 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn write(&'static self, path: &Path) -> Result<(), AppError> {
-        if let Ok(rdl) = self.words.try_read() {
-            rdl.write(path)
+    pub fn write(&'static self) -> Result<(), AppError> {
+        if let Ok(mut rdl) = self.words.try_write() {
+            rdl.write()
         } else {
             println!("fail lock autosave?!");
             Ok(())
@@ -553,15 +553,7 @@ pub fn auto_save(
     _printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
     data: &'static Data,
 ) -> Result<(), AppError> {
-    let tmp = Path::new(".tmp_stored");
-    if tmp.exists() {
-        return Ok(());
-    }
-
-    data.write(tmp)?;
-
-    fs::rename(tmp, Path::new(".stored"))?;
-
+    data.write()?;
     Ok(())
 }
 

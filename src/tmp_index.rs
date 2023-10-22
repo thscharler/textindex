@@ -4,9 +4,8 @@ use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
-use std::io::BufRead;
 
-const STOP_WORDS: [&str; 35] = [
+pub const STOP_WORDS: [&str; 35] = [
     "a", "all", "and", "as", "at", "but", "could", "for", "from", "had", "he", "her", "him", "his",
     "hot", "i", "in", "into", "it", "me", "my", "of", "on", "she", "so", "that", "the", "then",
     "to", "up", "was", "were", "with", "you", "your",
