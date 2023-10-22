@@ -5,7 +5,8 @@ use crate::index2::files::FileList;
 use crate::index2::id::Ids;
 use crate::index2::word_map::{IterFileId, WordMap};
 use crate::index2::words::{WordData, WordList};
-use blockfile::FileBlocks;
+use blockfile::{BlockType, FileBlocks, UserBlockType};
+use std::fmt::{Debug, Formatter};
 use std::io;
 use std::path::Path;
 use std::str::from_utf8;
@@ -19,11 +20,75 @@ type Id = u32;
 
 #[derive(Debug)]
 pub struct Words {
-    pub db: FileBlocks,
+    pub db: WordFileBlocks,
     pub ids: Ids,
     pub words: WordList,
     pub files: FileList,
     pub wordmap: WordMap,
+}
+
+pub type WordFileBlocks = FileBlocks<WordBlockType>;
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum WordBlockType {
+    NotAllocated = BlockType::NotAllocated as isize,
+    Free = BlockType::Free as isize,
+    BlockMap = BlockType::BlockMap as isize,
+
+    Ids = BlockType::User1 as isize,
+    WordList = BlockType::User2 as isize,
+    FileList = BlockType::User3 as isize,
+    WordMap = BlockType::User4 as isize,
+
+    OtherUser = 254,
+    Undefined = BlockType::Undefined as isize,
+}
+
+impl Debug for WordBlockType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let v = match self {
+            WordBlockType::NotAllocated => "___",
+            WordBlockType::Free => "FRE",
+            WordBlockType::BlockMap => "BMP",
+            WordBlockType::Ids => "IDS",
+            WordBlockType::WordList => "WRD",
+            WordBlockType::FileList => "FIL",
+            WordBlockType::WordMap => "W-F",
+            WordBlockType::OtherUser => "OTH",
+            WordBlockType::Undefined => "UND",
+        };
+        write!(f, "{}", v)
+    }
+}
+
+impl UserBlockType for WordBlockType {
+    fn fbt(self) -> BlockType {
+        match self {
+            WordBlockType::NotAllocated => BlockType::NotAllocated,
+            WordBlockType::Free => BlockType::Free,
+            WordBlockType::BlockMap => BlockType::BlockMap,
+            WordBlockType::Ids => BlockType::User1,
+            WordBlockType::WordList => BlockType::User2,
+            WordBlockType::FileList => BlockType::User3,
+            WordBlockType::WordMap => BlockType::User4,
+            WordBlockType::OtherUser => unreachable!(),
+            WordBlockType::Undefined => BlockType::Undefined,
+        }
+    }
+
+    fn ubt(block_type: BlockType) -> Self {
+        match block_type {
+            BlockType::NotAllocated => Self::NotAllocated,
+            BlockType::Free => Self::Free,
+            BlockType::BlockMap => Self::BlockMap,
+            BlockType::User1 => Self::Ids,
+            BlockType::User2 => Self::WordList,
+            BlockType::User3 => Self::FileList,
+            BlockType::User4 => Self::WordMap,
+            BlockType::Undefined => Self::Undefined,
+            _ => Self::OtherUser,
+        }
+    }
 }
 
 impl Words {
@@ -61,7 +126,10 @@ impl Words {
         Ok(())
     }
 
-    pub fn add_file(&mut self, file: String) -> u32 {
+    /// Adds a new file.
+    /// It's not checked, if the same file was already added.
+    /// Simply returns a new FileId.
+    pub fn add_file(&mut self, file: String) -> FileId {
         let file_id = self.ids.next("file");
         self.files.add(file_id, file);
         file_id
@@ -84,6 +152,9 @@ impl Words {
         WordMap::iter_files(&mut self.db, block_nr, block_idx)
     }
 
+    /// Add a word and a file reference.
+    /// It is not checked, if the reference was already inserted.
+    /// Duplicates are acceptable.
     pub fn add_word<S: AsRef<str> + Into<String>>(
         &mut self,
         word: S,
@@ -118,8 +189,8 @@ impl Words {
 }
 
 pub mod word_map {
-    use crate::index2::{BlkIdx, BlkNr, FIdx, FileId};
-    use blockfile::{BlockType, FileBlocks, BLOCK_SIZE};
+    use crate::index2::{BlkIdx, BlkNr, FIdx, FileId, WordBlockType, WordFileBlocks};
+    use blockfile::BLOCK_SIZE;
     use std::fmt::{Debug, Formatter};
     use std::mem::size_of;
     use std::{io, mem};
@@ -168,9 +239,9 @@ pub mod word_map {
     }
 
     impl WordMap {
-        pub const TY: BlockType = BlockType::User4;
+        pub const TY: WordBlockType = WordBlockType::WordMap;
 
-        pub fn load(db: &mut FileBlocks, last_block_nr: BlkNr) -> Result<WordMap, io::Error> {
+        pub fn load(db: &mut WordFileBlocks, last_block_nr: BlkNr) -> Result<WordMap, io::Error> {
             if last_block_nr > 0 {
                 let empty = RawWordMap::default();
 
@@ -202,7 +273,7 @@ pub mod word_map {
             }
         }
 
-        pub fn store(&mut self, db: &mut FileBlocks) -> Result<BlkNr, io::Error> {
+        pub fn store(&mut self, db: &mut WordFileBlocks) -> Result<BlkNr, io::Error> {
             if self.last_block_nr > 0 {
                 db.set_owned_as(self.last_block_nr, self.last.clone());
             }
@@ -210,7 +281,7 @@ pub mod word_map {
         }
 
         /// Add first reference for a new word.
-        pub fn add_initial(&mut self, db: &mut FileBlocks, file_id: FileId) -> (BlkNr, BlkIdx) {
+        pub fn add_initial(&mut self, db: &mut WordFileBlocks, file_id: FileId) -> (BlkNr, BlkIdx) {
             if self.last_block_nr == 0 {
                 let (new_block_nr, new_block) = db.alloc_owned_as::<RawWordMapList>(Self::TY);
 
@@ -238,7 +309,7 @@ pub mod word_map {
         /// Add one more file reference for a word.
         pub fn add(
             &mut self,
-            db: &mut FileBlocks,
+            db: &mut WordFileBlocks,
             blk_nr: BlkNr,
             blk_idx: BlkIdx,
             file_id: FileId,
@@ -274,7 +345,11 @@ pub mod word_map {
             }
         }
 
-        pub fn iter_files(db: &mut FileBlocks, block_nr: BlkNr, block_idx: BlkIdx) -> IterFileId {
+        pub fn iter_files(
+            db: &mut WordFileBlocks,
+            block_nr: BlkNr,
+            block_idx: BlkIdx,
+        ) -> IterFileId {
             IterFileId {
                 db,
                 map_block_nr: block_nr,
@@ -286,7 +361,7 @@ pub mod word_map {
     }
 
     pub struct IterFileId<'a> {
-        db: &'a mut FileBlocks,
+        db: &'a mut WordFileBlocks,
         map_block_nr: u32,
         map: Option<Box<RawWordMapList>>,
         map_idx: BlkIdx,
@@ -353,8 +428,8 @@ pub mod word_map {
 }
 
 pub mod files {
-    use crate::index2::{byte_to_str, copy_clip_left, FileId};
-    use blockfile::{BlockType, FileBlocks, BLOCK_SIZE};
+    use crate::index2::{byte_to_str, copy_clip_left, FileId, WordBlockType, WordFileBlocks};
+    use blockfile::BLOCK_SIZE;
     use std::collections::BTreeMap;
     use std::fmt::{Debug, Formatter};
     use std::io;
@@ -401,9 +476,9 @@ pub mod files {
     }
 
     impl FileList {
-        pub(crate) const TY: BlockType = BlockType::User3;
+        pub(crate) const TY: WordBlockType = WordBlockType::FileList;
 
-        pub fn load(db: &mut FileBlocks) -> Result<FileList, io::Error> {
+        pub fn load(db: &mut WordFileBlocks) -> Result<FileList, io::Error> {
             let mut files = FileList {
                 list: Default::default(),
             };
@@ -428,7 +503,7 @@ pub mod files {
             Ok(files)
         }
 
-        pub fn store(&self, db: &mut FileBlocks) -> Result<(), io::Error> {
+        pub fn store(&self, db: &mut WordFileBlocks) -> Result<(), io::Error> {
             let mut blocks: Vec<_> = db
                 .iter_metadata()
                 .filter(|v| v.1 == Self::TY)
@@ -472,8 +547,10 @@ pub mod files {
 }
 
 pub mod words {
-    use crate::index2::{byte_to_str, copy_clip, BlkIdx, BlkNr, WordId};
-    use blockfile::{BlockType, FileBlocks, BLOCK_SIZE};
+    use crate::index2::{
+        byte_to_str, copy_clip, BlkIdx, BlkNr, WordBlockType, WordFileBlocks, WordId,
+    };
+    use blockfile::BLOCK_SIZE;
     use std::collections::BTreeMap;
     use std::io;
     use std::mem::size_of;
@@ -513,9 +590,9 @@ pub mod words {
     }
 
     impl WordList {
-        pub const TY: BlockType = BlockType::User2;
+        pub const TY: WordBlockType = WordBlockType::WordList;
 
-        pub fn load(db: &mut FileBlocks) -> Result<WordList, io::Error> {
+        pub fn load(db: &mut WordFileBlocks) -> Result<WordList, io::Error> {
             let mut words = WordList {
                 list: Default::default(),
             };
@@ -547,7 +624,7 @@ pub mod words {
             Ok(words)
         }
 
-        pub fn store(&self, db: &mut FileBlocks) -> Result<(), io::Error> {
+        pub fn store(&self, db: &mut WordFileBlocks) -> Result<(), io::Error> {
             let mut blocks: Vec<_> = db
                 .iter_metadata()
                 .filter(|v| v.1 == Self::TY)
@@ -589,8 +666,8 @@ pub mod words {
 }
 
 pub mod id {
-    use crate::index2::{byte_to_str, copy_clip, Id};
-    use blockfile::{BlockType, FileBlocks, BLOCK_SIZE};
+    use crate::index2::{byte_to_str, copy_clip, Id, WordBlockType, WordFileBlocks};
+    use blockfile::BLOCK_SIZE;
     use std::collections::HashMap;
     use std::io;
     use std::mem::size_of;
@@ -619,9 +696,9 @@ pub mod id {
     }
 
     impl Ids {
-        pub const TY: BlockType = BlockType::User1;
+        pub const TY: WordBlockType = WordBlockType::Ids;
 
-        pub fn load(db: &mut FileBlocks) -> Result<Ids, io::Error> {
+        pub fn load(db: &mut WordFileBlocks) -> Result<Ids, io::Error> {
             let mut ids = Ids {
                 ids: Default::default(),
             };
@@ -647,7 +724,7 @@ pub mod id {
             Ok(ids)
         }
 
-        pub fn store(&self, db: &mut FileBlocks) -> Result<(), io::Error> {
+        pub fn store(&self, db: &mut WordFileBlocks) -> Result<(), io::Error> {
             let mut blocks: Vec<_> = db
                 .iter_metadata()
                 .filter(|v| v.1 == Self::TY)
@@ -837,6 +914,43 @@ mod tests {
                 dbg!(fid);
             }
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_word2() -> Result<(), AppError> {
+        let path = PathBuf::from_str("tmp/word2.idx")?;
+
+        let _ = fs::remove_file(&path);
+
+        let mut w = Words::read(&path)?;
+        let fid = w.add_file("file0".into());
+        w.add_word("alpha", fid)?;
+        w.add_word("beta", fid)?;
+        w.add_word("gamma", fid)?;
+        w.add_word("delta", fid)?;
+        w.add_word("epsilon", fid)?;
+        // let fid = w.add_file("file1".into());
+        // w.add_word("alpha", fid)?;
+        // w.add_word("beta", fid)?;
+        // w.add_word("gamma", fid)?;
+        // let fid = w.add_file("file2".into());
+        // w.add_word("gamma", fid)?;
+        // for i in 0..14 {
+        //     let fid = w.add_file(format!("file-x{}", i));
+        //     w.add_word("gamma", fid)?;
+        // }
+        w.write()?;
+        dbg!(&w);
+
+        let w = Words::read(&path)?;
+
+        assert!(w.words.list.get("alpha").is_some());
+        assert!(w.words.list.get("beta").is_some());
+        assert!(w.words.list.get("gamma").is_some());
+        assert!(w.words.list.get("delta").is_some());
+        assert!(w.words.list.get("epsilon").is_some());
 
         Ok(())
     }
