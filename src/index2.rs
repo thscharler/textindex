@@ -5,7 +5,7 @@ use crate::index2::files::FileList;
 use crate::index2::id::Ids;
 use crate::index2::word_map::{IterFileId, WordMap};
 use crate::index2::words::{WordData, WordList};
-use blockfile::{BlockType, FileBlocks, UserBlockType};
+use blockfile::{BlockType, FileBlocks, Length, UserBlockType};
 use std::fmt::{Debug, Formatter};
 use std::io;
 use std::path::Path;
@@ -121,8 +121,8 @@ impl Words {
         let last_wordmap_block_nr = self.wordmap.store(&mut self.db)?;
         self.ids.set("wordmap", last_wordmap_block_nr);
         self.ids.store(&mut self.db)?;
-        dbg!(&self.db);
         self.db.store()?;
+        dbg!(&self.db);
         Ok(())
     }
 
@@ -148,8 +148,12 @@ impl Words {
         }
     }
 
-    pub fn iter_word_files(&mut self, block_nr: BlkNr, block_idx: BlkIdx) -> IterFileId {
-        WordMap::iter_files(&mut self.db, block_nr, block_idx)
+    pub fn iter_word_files(&mut self, word_data: WordData) -> IterFileId {
+        WordMap::iter_files(
+            &mut self.db,
+            word_data.file_map_block_nr,
+            word_data.file_map_block_idx,
+        )
     }
 
     /// Add a word and a file reference.
@@ -171,7 +175,7 @@ impl Words {
             word.file_map_block_idx = new_idx;
         } else {
             let word_id = self.ids.next("word");
-            let (word_block_nr, word_idx) = self.wordmap.add_initial(&mut self.db, file_idx);
+            let (word_block_nr, word_idx) = self.wordmap.add_initial(&mut self.db, file_idx)?;
 
             self.words.list.insert(
                 word.as_ref().into(),
@@ -190,7 +194,7 @@ impl Words {
 
 pub mod word_map {
     use crate::index2::{BlkIdx, BlkNr, FIdx, FileId, WordBlockType, WordFileBlocks};
-    use blockfile::BLOCK_SIZE;
+    use blockfile::{Length, BLOCK_SIZE};
     use std::fmt::{Debug, Formatter};
     use std::mem::size_of;
     use std::{io, mem};
@@ -198,7 +202,6 @@ pub mod word_map {
     pub struct WordMap {
         pub last_block_nr: BlkNr,
         pub last_idx: BlkIdx,
-        pub last: Box<RawWordMapList>,
     }
 
     pub type RawWordMapList = [RawWordMap; BLOCK_SIZE as usize / size_of::<RawWordMap>()];
@@ -218,7 +221,6 @@ pub mod word_map {
                 .field("last_idx", &self.last_idx)
                 .finish()?;
             write!(f, " = ")?;
-            f.debug_list().entries(self.last.iter()).finish()?;
             Ok(())
         }
     }
@@ -245,20 +247,19 @@ pub mod word_map {
             if last_block_nr > 0 {
                 let empty = RawWordMap::default();
 
-                let last = db.get_owned_as::<RawWordMapList>(last_block_nr)?;
-
+                let last = db.get_as::<RawWordMapList>(last_block_nr)?;
                 let mut last_idx = 0u32;
                 for i in 0..last.len() {
                     if last[i] == empty {
-                        last_idx = i as u32;
+                        break;
                     }
+                    last_idx = i as u32;
                 }
                 assert_ne!(0, last_idx);
 
                 Ok(Self {
                     last_block_nr,
                     last_idx,
-                    last,
                 })
             } else {
                 // don't init here, do this with the first add_word.
@@ -266,44 +267,54 @@ pub mod word_map {
                 Ok(Self {
                     last_block_nr: 0,
                     last_idx: 0,
-                    last: Box::new(
-                        [RawWordMap::default(); BLOCK_SIZE as usize / size_of::<RawWordMap>()],
-                    ),
                 })
             }
         }
 
         pub fn store(&mut self, db: &mut WordFileBlocks) -> Result<BlkNr, io::Error> {
-            if self.last_block_nr > 0 {
-                db.set_owned_as(self.last_block_nr, self.last.clone());
-            }
             Ok(self.last_block_nr)
         }
 
-        /// Add first reference for a new word.
-        pub fn add_initial(&mut self, db: &mut WordFileBlocks, file_id: FileId) -> (BlkNr, BlkIdx) {
-            if self.last_block_nr == 0 {
-                let (new_block_nr, new_block) = db.alloc_owned_as::<RawWordMapList>(Self::TY);
+        // Ensures we can add at least 1 new region.
+        fn ensure_add(&mut self, db: &mut WordFileBlocks) -> BlkIdx {
+            let res_idx = if self.last_block_nr == 0 {
+                let (new_block_nr, _) = db.alloc_as::<RawWordMapList>(Self::TY);
 
                 self.last_block_nr = new_block_nr;
                 self.last_idx = 0;
-                self.last = new_block;
-            } else if self.last_idx + 1 >= self.last.len() as u32 {
-                let (new_block_nr, new_block) = db.alloc_owned_as::<RawWordMapList>(Self::TY);
 
-                // forward current block to storage.
-                let last_block = mem::replace(&mut self.last, new_block);
-                db.set_owned_as(self.last_block_nr, last_block);
-
-                self.last_block_nr = new_block_nr;
-                self.last_idx = 0;
+                self.last_idx
             } else {
-                self.last_idx += 1;
-            }
+                if self.last_idx + 1 >= RawWordMapList::LEN as u32 {
+                    let (new_block_nr, _) = db.alloc_as::<RawWordMapList>(Self::TY);
 
-            self.last[self.last_idx as usize].file_id[0] = file_id;
+                    db.discard(self.last_block_nr);
 
-            (self.last_block_nr, self.last_idx)
+                    self.last_block_nr = new_block_nr;
+                    self.last_idx = 0;
+
+                    self.last_idx
+                } else {
+                    self.last_idx + 1
+                }
+            };
+
+            res_idx
+        }
+
+        /// Add first reference for a new word.
+        pub fn add_initial(
+            &mut self,
+            db: &mut WordFileBlocks,
+            file_id: FileId,
+        ) -> Result<(BlkNr, BlkIdx), io::Error> {
+            let new_idx = self.ensure_add(db);
+
+            let last = db.get_as_mut::<RawWordMapList>(self.last_block_nr)?;
+            last[new_idx as usize].file_id[0] = file_id;
+            self.last_idx = new_idx;
+
+            Ok((self.last_block_nr, self.last_idx))
         }
 
         /// Add one more file reference for a word.
@@ -314,33 +325,32 @@ pub mod word_map {
             blk_idx: BlkIdx,
             file_id: FileId,
         ) -> Result<(BlkNr, BlkIdx), io::Error> {
-            assert_ne!(self.last_block_nr, 0);
-
+            // append to given region list.
             let mut append = true;
-
-            let mut block = db.get_owned_as::<RawWordMapList>(blk_nr)?;
-            let word_map = &mut block[blk_idx as usize];
-            for i in 0..word_map.file_id.len() {
-                if word_map.file_id[i] == 0 {
-                    word_map.file_id[i] = file_id;
-                    append = false;
-                    break;
+            {
+                let block = db.get_as_mut::<RawWordMapList>(blk_nr)?;
+                let word_map = &mut block[blk_idx as usize];
+                for fid in word_map.file_id.iter_mut() {
+                    if *fid == 0 {
+                        *fid = file_id;
+                        append = false;
+                        break;
+                    }
                 }
             }
 
             // no more space in this region, add a new one.
             if append {
-                let (new_block_nr, new_idx) = self.add_initial(db, file_id);
+                // add to new region
+                let new_idx = self.ensure_add(db);
+                let last = db.get_as_mut::<RawWordMapList>(self.last_block_nr)?;
+                last[new_idx as usize].file_id[0] = file_id;
+                last[new_idx as usize].next_block_nr = blk_nr;
+                last[new_idx as usize].next_idx = blk_idx;
+                self.last_idx = new_idx;
 
-                word_map.next_block_nr = new_block_nr;
-                word_map.next_idx = new_idx;
-
-                db.set_owned_as(blk_nr, block);
-
-                Ok((new_block_nr, new_idx))
+                Ok((self.last_block_nr, self.last_idx))
             } else {
-                db.set_owned_as(blk_nr, block);
-
                 Ok((blk_nr, blk_idx))
             }
         }
@@ -353,7 +363,6 @@ pub mod word_map {
             IterFileId {
                 db,
                 map_block_nr: block_nr,
-                map: None,
                 map_idx: block_idx,
                 file_idx: 0,
             }
@@ -363,7 +372,6 @@ pub mod word_map {
     pub struct IterFileId<'a> {
         db: &'a mut WordFileBlocks,
         map_block_nr: u32,
-        map: Option<Box<RawWordMapList>>,
         map_idx: BlkIdx,
         file_idx: FIdx,
     }
@@ -375,7 +383,6 @@ pub mod word_map {
 
         fn clear(&mut self) {
             self.map_block_nr = 0;
-            self.map = None;
             self.map_idx = 0;
             self.file_idx = 0;
         }
@@ -389,40 +396,42 @@ pub mod word_map {
                 return None;
             }
 
-            if self.map.is_none() {
-                match self.db.get_owned_as::<RawWordMapList>(self.map_block_nr) {
-                    Ok(v) => self.map = Some(v),
-                    Err(e) => return Some(Err(e)),
+            let mut discard_block = None;
+            let file_id = loop {
+                let block = match self.db.get_as::<RawWordMapList>(self.map_block_nr) {
+                    Ok(block) => block,
+                    Err(err) => return Some(Err(err)),
+                };
+                let map = &block[self.map_idx as usize];
+                let file_id = map.file_id[self.file_idx as usize];
+
+                if file_id != 0 {
+                    // next
+                    self.file_idx += 1;
+                    if self.file_idx >= map.file_id.len() as u32 {
+                        discard_block = Some(self.map_block_nr);
+                        self.map_block_nr = map.next_block_nr;
+                        self.map_idx = map.next_idx;
+                        self.file_idx = 0;
+                    }
+                    break Some(file_id);
+                } else {
+                    if map.next_block_nr != 0 {
+                        discard_block = Some(self.map_block_nr);
+                        self.map_block_nr = map.next_block_nr;
+                        self.map_idx = map.next_idx;
+                        self.file_idx = 0;
+                    } else {
+                        break None;
+                    }
                 }
-            }
-            let Some(map) = self.map.as_ref() else {
-                unreachable!()
             };
 
-            let map_entry = &map[self.map_idx as usize];
-
-            let file_id = map_entry.file_id[self.file_idx as usize];
-            if file_id == 0 {
-                self.clear();
-                return None;
+            if let Some(block_nr) = discard_block {
+                self.db.discard(block_nr);
             }
 
-            // next
-            self.file_idx += 1;
-            // possibly new block alltogether.
-            if self.file_idx > map_entry.file_id.len() as u32 {
-                let next_block_nr = map_entry.next_block_nr;
-                let next_idx = map_entry.next_idx;
-
-                // another word-map within the current block?
-                if self.map_block_nr != next_block_nr {
-                    self.map_block_nr = next_block_nr;
-                    self.map = None;
-                }
-                self.map_idx = next_idx;
-            }
-
-            Some(Ok(file_id))
+            file_id.map(|v| Ok(v))
         }
     }
 }
@@ -490,14 +499,14 @@ pub mod files {
                 .collect();
             let empty = RawFile::default();
             for block_nr in blocks {
-                let raw: Box<RawFileList> = db.get_owned_as(block_nr)?;
-
+                let raw: &RawFileList = db.get_as(block_nr)?;
                 for r in raw.iter() {
                     if r.file != empty.file {
                         let file = byte_to_str(&r.file)?;
                         files.list.insert(r.id, FileData { name: file.into() });
                     }
                 }
+                db.discard(block_nr);
             }
 
             Ok(files)
@@ -515,12 +524,11 @@ pub mod files {
             let mut it_files = self.list.iter();
             let mut it_fin = false;
             loop {
-                let block = if let Some(block_nr) = blocks.pop() {
-                    db.set_dirty(block_nr, true);
-                    db.get_as_mut::<RawFileList>(block_nr)?
+                let (block_nr, block) = if let Some(block_nr) = blocks.pop() {
+                    (block_nr, db.get_as_mut::<RawFileList>(block_nr)?)
                 } else {
                     if !it_fin {
-                        db.alloc_as::<RawFileList>(Self::TY).1
+                        db.alloc_as::<RawFileList>(Self::TY)
                     } else {
                         break;
                     }
@@ -535,6 +543,8 @@ pub mod files {
                         it_fin = true;
                     }
                 }
+
+                db.discard(block_nr);
             }
 
             Ok(())
@@ -604,8 +614,7 @@ pub mod words {
                 .collect();
             let empty = RawWord::default();
             for block_nr in blocks {
-                let raw: Box<RawWordList> = db.get_owned_as(block_nr)?;
-
+                let raw: &RawWordList = db.get_as(block_nr)?;
                 for r in raw.iter() {
                     if r.word != empty.word {
                         let word = byte_to_str(&r.word)?;
@@ -619,6 +628,7 @@ pub mod words {
                         );
                     }
                 }
+                db.discard(block_nr);
             }
 
             Ok(words)
@@ -636,12 +646,11 @@ pub mod words {
             let mut it_words = self.list.iter();
             let mut it_fin = false;
             loop {
-                let block = if let Some(block_nr) = blocks.pop() {
-                    db.set_dirty(block_nr, true);
-                    db.get_as_mut::<RawWordList>(block_nr)?
+                let (block_nr, block) = if let Some(block_nr) = blocks.pop() {
+                    (block_nr, db.get_as_mut::<RawWordList>(block_nr)?)
                 } else {
                     if !it_fin {
-                        db.alloc_as::<RawWordList>(Self::TY).1
+                        db.alloc_as::<RawWordList>(Self::TY)
                     } else {
                         break;
                     }
@@ -659,6 +668,8 @@ pub mod words {
                         it_fin = true;
                     }
                 }
+
+                db.discard(block_nr);
             }
             Ok(())
         }
@@ -711,14 +722,14 @@ pub mod id {
 
             let empty = RawId::default();
             for block_nr in blocks {
-                let raw: Box<RawIdMap> = db.get_owned_as(block_nr)?;
-
+                let raw: &RawIdMap = db.get_as(block_nr)?;
                 for r in raw.iter() {
                     if r.name != empty.name {
                         let name = byte_to_str(&r.name)?;
                         ids.ids.insert(name.into(), r.id);
                     }
                 }
+                db.discard(block_nr);
             }
 
             Ok(ids)
@@ -738,11 +749,10 @@ pub mod id {
 
             let mut it_names = self.ids.iter();
             loop {
-                let block = if let Some(block_nr) = blocks.pop() {
-                    db.set_dirty(block_nr, true);
-                    db.get_as_mut::<RawIdMap>(block_nr)?
+                let (block_nr, block) = if let Some(block_nr) = blocks.pop() {
+                    (block_nr, db.get_as_mut::<RawIdMap>(block_nr)?)
                 } else {
-                    db.alloc_as::<RawIdMap>(Self::TY).1
+                    db.alloc_as::<RawIdMap>(Self::TY)
                 };
 
                 for id_rec in block.iter_mut() {
@@ -754,6 +764,7 @@ pub mod id {
                 }
 
                 if block[block.len() - 1] == empty {
+                    db.discard(block_nr);
                     break;
                 }
             }
@@ -904,15 +915,13 @@ mod tests {
         let mut w = Words::read(&path)?;
 
         assert!(w.words.list.get("alpha").is_some());
-        if let Some(word) = w.words.list.get("alpha") {
+        if let Some(word) = w.words.list.get("alpha").cloned() {
             assert_eq!(word.file_map_block_nr, 1);
             assert_eq!(word.file_map_block_idx, 0);
             assert_eq!(word.id, 1);
-
-            for fid in w.iter_word_files(word.file_map_block_nr, word.file_map_block_idx) {
-                let fid = fid?;
-                dbg!(fid);
-            }
+            let mut it = w.iter_word_files(word);
+            assert_eq!(it.next().unwrap()?, 1);
+            assert!(it.next().is_none());
         }
 
         Ok(())
@@ -931,18 +940,7 @@ mod tests {
         w.add_word("gamma", fid)?;
         w.add_word("delta", fid)?;
         w.add_word("epsilon", fid)?;
-        // let fid = w.add_file("file1".into());
-        // w.add_word("alpha", fid)?;
-        // w.add_word("beta", fid)?;
-        // w.add_word("gamma", fid)?;
-        // let fid = w.add_file("file2".into());
-        // w.add_word("gamma", fid)?;
-        // for i in 0..14 {
-        //     let fid = w.add_file(format!("file-x{}", i));
-        //     w.add_word("gamma", fid)?;
-        // }
         w.write()?;
-        dbg!(&w);
 
         let w = Words::read(&path)?;
 
@@ -951,6 +949,98 @@ mod tests {
         assert!(w.words.list.get("gamma").is_some());
         assert!(w.words.list.get("delta").is_some());
         assert!(w.words.list.get("epsilon").is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_word3() -> Result<(), AppError> {
+        let path = PathBuf::from_str("tmp/word3.idx")?;
+
+        let _ = fs::remove_file(&path);
+
+        let mut w = Words::read(&path)?;
+        let fid = w.add_file("file0".into());
+        w.add_word("alpha", fid)?;
+        w.add_word("beta", fid)?;
+        w.add_word("gamma", fid)?;
+        w.add_word("delta", fid)?;
+        w.add_word("epsilon", fid)?;
+        let fid = w.add_file("file1".into());
+        w.add_word("alpha", fid)?;
+        w.add_word("beta", fid)?;
+        w.add_word("gamma", fid)?;
+        w.write()?;
+
+        let mut w = Words::read(&path)?;
+
+        assert!(w.words.list.get("alpha").is_some());
+        assert!(w.words.list.get("beta").is_some());
+        assert!(w.words.list.get("gamma").is_some());
+        assert!(w.words.list.get("delta").is_some());
+        assert!(w.words.list.get("epsilon").is_some());
+
+        let wdata = w.words.list.get("alpha").cloned().unwrap();
+        assert_eq!(wdata.file_map_block_nr, 1);
+        assert_eq!(wdata.file_map_block_idx, 0);
+        let mut it = w.iter_word_files(wdata);
+        assert_eq!(it.next().unwrap()?, 1);
+        assert_eq!(it.next().unwrap()?, 2);
+        assert!(it.next().is_none());
+
+        let wdata = w.words.list.get("beta").cloned().unwrap();
+        assert_eq!(wdata.file_map_block_nr, 1);
+        assert_eq!(wdata.file_map_block_idx, 1);
+        let mut it = w.iter_word_files(wdata);
+        assert_eq!(it.next().unwrap()?, 1);
+        assert_eq!(it.next().unwrap()?, 2);
+        assert!(it.next().is_none());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_word4() -> Result<(), AppError> {
+        let path = PathBuf::from_str("tmp/word4.idx")?;
+
+        let _ = fs::remove_file(&path);
+
+        let mut w = Words::read(&path)?;
+        let fid = w.add_file("file0".into());
+        w.add_word("alpha", fid)?;
+        w.add_word("beta", fid)?;
+        w.add_word("gamma", fid)?;
+        w.add_word("delta", fid)?;
+        w.add_word("epsilon", fid)?;
+
+        let wdata = w.words.list.get("gamma").cloned().unwrap();
+
+        let fid = w.add_file("file1".into());
+        w.add_word("alpha", fid)?;
+        w.add_word("beta", fid)?;
+        w.add_word("gamma", fid)?;
+
+        let wdata = w.words.list.get("gamma").cloned().unwrap();
+
+        for i in 0..14 {
+            let fid = w.add_file(format!("file-x{}", i));
+            w.add_word("gamma", fid)?;
+
+            let wdata = w.words.list.get("gamma").cloned().unwrap();
+        }
+        w.write()?;
+
+        let mut w = Words::read(&path)?;
+
+        let wdata = w.words.list.get("gamma").cloned().unwrap();
+        let fid = w
+            .iter_word_files(wdata)
+            .map(|v| v.unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            fid.as_slice(),
+            &[15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        );
 
         Ok(())
     }
