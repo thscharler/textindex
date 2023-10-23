@@ -42,10 +42,10 @@ pub struct Data {
 
 impl Data {
     pub fn write(&'static self) -> Result<(), AppError> {
-        if let Ok(mut rdl) = self.words.try_write() {
-            rdl.write()
+        if let Ok(mut wrl) = self.words.try_write() {
+            wrl.write()?;
+            Ok(())
         } else {
-            println!("fail lock autosave?!");
             Ok(())
         }
     }
@@ -232,6 +232,7 @@ fn spawn_walking(
                         }
                     }
                 } else {
+                    send.send(Msg::AutoSave)?;
                     send.send(Msg::WalkFinished(sproc.path.clone()))?;
                     proc = None;
                 }
@@ -532,12 +533,12 @@ fn merge_words(
 ) -> Result<(), AppError> {
     let do_auto_save = {
         let mut write = data.words.write()?;
-        timing(printer, "merge", 100, || write.append(words_buffer));
+        timing(printer, "merge", 10, || write.append(words_buffer));
         write.should_auto_save()
     };
 
     if do_auto_save {
-        let (res, save_time) = timing(printer, "autosave", 100, || auto_save(printer, data));
+        let (res, save_time) = timing(printer, "autosave", 1, || auto_save(printer, data));
         res?;
 
         // increase the wait for autosave. otherwise the savetime will be longer

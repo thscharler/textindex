@@ -176,33 +176,6 @@ fn parse_cmd(
                 t_cnt += 1;
             }
             println!("threads: {}/{}", t_fine, t_cnt);
-
-            // let rd = data.words.read()?;
-            // let stored_len = Path::new(".stored").metadata().map(|v| v.len()).ok();
-            // let file_len = rd
-            //     .files
-            //     .iter()
-            //     .map(|v| v.len())
-            //     .reduce(|v, w| v + w)
-            //     .unwrap_or(0);
-            // let word_len = rd
-            //     .words
-            //     .keys()
-            //     .map(|v| v.len())
-            //     .reduce(|v, w| v + w)
-            //     .unwrap_or(0);
-            // let idx_len = rd
-            //     .words
-            //     .values()
-            //     .map(|v| v.file_idx.len())
-            //     .reduce(|v, w| v + w)
-            //     .unwrap_or(0);
-            //
-            // println!("stored: {:?}", stored_len);
-            // println!("files: {} {}", rd.files.len(), file_len);
-            // println!("words: {} {}", rd.words.len(), word_len);
-            // println!("idx: {} {}", idx_len, idx_len * 4);
-
             work.send.send(Msg::Debug)?;
         }
         BCommand::Stats(Stats::Debug) => {

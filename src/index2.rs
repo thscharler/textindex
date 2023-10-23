@@ -29,9 +29,6 @@ pub struct Words {
     pub words: WordList,
     pub files: FileList,
     pub wordmap: WordMap,
-
-    age: Instant,
-    auto_save: Duration,
 }
 
 pub type WordFileBlocks = FileBlocks<WordBlockType>;
@@ -128,8 +125,6 @@ impl Words {
             words,
             files,
             wordmap,
-            age: Instant::now(),
-            auto_save: Duration::from_secs(60),
         })
     }
 
@@ -152,7 +147,7 @@ impl Words {
         self.ids.set("wordmap", last_wordmap_block_nr);
 
         self.ids.store(&mut self.db)?;
-        dbg!(&self.db);
+
         self.db.store()?;
         Ok(())
     }
@@ -281,17 +276,10 @@ impl Words {
     }
 
     pub fn should_auto_save(&mut self) -> bool {
-        if self.age.elapsed() > self.auto_save {
-            self.age = Instant::now();
-            true
-        } else {
-            false
-        }
+        true
     }
 
-    pub fn set_auto_save_interval(&mut self, auto_save: Duration) {
-        self.auto_save = auto_save;
-    }
+    pub fn set_auto_save_interval(&mut self, auto_save: Duration) {}
     //
 }
 
