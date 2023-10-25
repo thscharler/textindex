@@ -62,11 +62,33 @@ impl Data {
     }
 }
 
+#[derive(Default)]
+pub struct WorkerState {
+    pub state: u64,
+    pub msg: String,
+}
+
+pub struct Worker {
+    pub name: &'static str,
+    pub handle: JoinHandle<()>,
+    pub state: Arc<Mutex<WorkerState>>,
+}
+
+impl Worker {
+    pub fn new(name: &'static str, handle: JoinHandle<()>, state: Arc<Mutex<WorkerState>>) -> Self {
+        Self {
+            name,
+            handle,
+            state,
+        }
+    }
+}
+
 pub struct Work {
     pub send: Sender<Msg>,
     pub recv_send: [(Receiver<Msg>, Sender<Msg>); 4],
     pub recv: Receiver<Msg>,
-    pub handles: [JoinHandle<()>; 8],
+    pub workers: [Worker; 8],
 
     pub printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 }
@@ -83,20 +105,87 @@ pub fn init_work<P: ExternalPrinter + Send + Sync + 'static>(
     let (s3, r4) = bounded::<Msg>(10);
     let (s4, r5) = bounded::<Msg>(10);
 
-    let h1 = spawn_walking(r1.clone(), s1.clone(), data, printer.clone());
-    let h2 = spawn_loading(r2.clone(), s2.clone(), data, printer.clone());
-    let h3_1 = spawn_indexing(r3.clone(), s3.clone(), data, printer.clone());
-    let h3_2 = spawn_indexing(r3.clone(), s3.clone(), data, printer.clone());
-    let h3_3 = spawn_indexing(r3.clone(), s3.clone(), data, printer.clone());
-    let h3_4 = spawn_indexing(r3.clone(), s3.clone(), data, printer.clone());
-    let h4 = spawn_merge_words(r4.clone(), s4.clone(), data, printer.clone());
-    let h5 = spawn_terminal(r5.clone(), data, printer.clone());
+    let n1 = "walking";
+    let st1 = Arc::new(Mutex::new(WorkerState::default()));
+    let h1 = spawn_walking(
+        r1.clone(),
+        s1.clone(),
+        Arc::clone(&st1),
+        data,
+        printer.clone(),
+    );
+    let n2 = "loading";
+    let st2 = Arc::new(Mutex::new(WorkerState::default()));
+    let h2 = spawn_loading(
+        r2.clone(),
+        s2.clone(),
+        Arc::clone(&st2),
+        data,
+        printer.clone(),
+    );
+    let n3_1 = "index 1";
+    let st3_1 = Arc::new(Mutex::new(WorkerState::default()));
+    let h3_1 = spawn_indexing(
+        r3.clone(),
+        s3.clone(),
+        Arc::clone(&st3_1),
+        data,
+        printer.clone(),
+    );
+    let n3_2 = "index 2";
+    let st3_2 = Arc::new(Mutex::new(WorkerState::default()));
+    let h3_2 = spawn_indexing(
+        r3.clone(),
+        s3.clone(),
+        Arc::clone(&st3_2),
+        data,
+        printer.clone(),
+    );
+    let n3_3 = "index 3";
+    let st3_3 = Arc::new(Mutex::new(WorkerState::default()));
+    let h3_3 = spawn_indexing(
+        r3.clone(),
+        s3.clone(),
+        Arc::clone(&st3_3),
+        data,
+        printer.clone(),
+    );
+    let n3_4 = "index 4";
+    let st3_4 = Arc::new(Mutex::new(WorkerState::default()));
+    let h3_4 = spawn_indexing(
+        r3.clone(),
+        s3.clone(),
+        Arc::clone(&st3_4),
+        data,
+        printer.clone(),
+    );
+    let n4 = "merge";
+    let st4 = Arc::new(Mutex::new(WorkerState::default()));
+    let h4 = spawn_merge_words(
+        r4.clone(),
+        s4.clone(),
+        Arc::clone(&st4),
+        data,
+        printer.clone(),
+    );
+    let n5 = "terminal";
+    let st5 = Arc::new(Mutex::new(WorkerState::default()));
+    let h5 = spawn_terminal(r5.clone(), Arc::clone(&st5), data, printer.clone());
 
     Work {
         send: s0,
         recv_send: [(r1, s1), (r2, s2), (r3, s3), (r4, s4)],
         recv: r5,
-        handles: [h1, h2, h3_1, h3_2, h3_3, h3_4, h4, h5],
+        workers: [
+            Worker::new(n1, h1, st1),
+            Worker::new(n2, h2, st2),
+            Worker::new(n3_1, h3_1, st3_1),
+            Worker::new(n3_2, h3_2, st3_2),
+            Worker::new(n3_3, h3_3, st3_3),
+            Worker::new(n3_4, h3_4, st3_4),
+            Worker::new(n4, h4, st4),
+            Worker::new(n5, h5, st5),
+        ],
         printer,
     }
 }
@@ -116,8 +205,8 @@ pub fn shut_down(work: &Work) {
 
         sleep(Duration::from_millis(100));
 
-        for h in work.handles.iter() {
-            if !h.is_finished() {
+        for w in work.workers.iter() {
+            if !w.handle.is_finished() {
                 continue;
             }
         }
@@ -129,63 +218,78 @@ pub fn shut_down(work: &Work) {
 fn spawn_walking(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
     data: &'static Data,
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
-    struct WalkingProc {
-        path: PathBuf,
-        tree_iter: Flatten<walkdir::IntoIter>,
-        count: u32,
-    }
+    thread::spawn(move || {
+        print_err_(
+            &printer,
+            "walker",
+            walk_proc(recv, send, state, data, &printer),
+        );
+    })
+}
 
-    fn walk_proc(
-        recv: Receiver<Msg>,
-        send: Sender<Msg>,
-        data: &'static Data,
-        printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    ) -> Result<(), AppError> {
-        // This is a bit more complicated, as we need to keep up the message flow
-        // while traversing the directory tree. We interweave each step of the tree iteration
-        // and message processing.
+struct WalkingProc {
+    path: PathBuf,
+    tree_iter: Flatten<walkdir::IntoIter>,
+    count: u32,
+}
 
-        let mut proc = None;
+fn walk_proc(
+    recv: Receiver<Msg>,
+    send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
+    data: &'static Data,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+) -> Result<(), AppError> {
+    // This is a bit more complicated, as we need to keep up the message flow
+    // while traversing the directory tree. We interweave each step of the tree iteration
+    // and message processing.
 
-        loop {
-            if proc.is_none() {
-                match recv.recv()? {
-                    Msg::Quit => {
-                        send.send(Msg::Quit)?;
-                        break;
-                    }
-                    Msg::Debug => {
-                        print_(printer, "walk_tree empty");
-                        send.send(Msg::Debug)?;
-                    }
-                    Msg::WalkTree(path) => {
-                        proc = Some(WalkingProc {
-                            path: path.clone(),
-                            tree_iter: WalkDir::new(path).into_iter().flatten(),
-                            count: 0,
-                        });
-                    }
-                    msg => {
-                        send.send(msg)?;
-                    }
+    let mut proc = None;
+
+    loop {
+        match &mut proc {
+            None => match recv.recv()? {
+                Msg::Quit => {
+                    state.lock().unwrap().state = 1;
+                    send.send(Msg::Quit)?;
+                    break;
                 }
-            } else {
+                Msg::Debug => {
+                    state.lock().unwrap().state = 2;
+                    print_(printer, "walk_tree empty");
+                    send.send(Msg::Debug)?;
+                }
+                Msg::WalkTree(path) => {
+                    state.lock().unwrap().state = 3;
+                    proc = Some(WalkingProc {
+                        path: path.clone(),
+                        tree_iter: WalkDir::new(path).into_iter().flatten(),
+                        count: 0,
+                    });
+                }
+                msg => {
+                    state.lock().unwrap().state = 4;
+                    send.send(msg)?;
+                }
+            },
+            Some(rproc) => {
                 match recv.try_recv() {
                     Ok(Msg::Quit) => {
+                        state.lock().unwrap().state = 5;
                         send.send(Msg::Quit)?;
                         break;
                     }
                     Ok(Msg::Debug) => {
-                        let Some(proc) = &mut proc else {
-                            unreachable!()
-                        };
-                        print_(printer, format!("walk_tree {}", proc.count));
+                        state.lock().unwrap().state = 6;
+                        print_(printer, format!("walk_tree {}", rproc.count));
                         send.send(Msg::Debug)?;
                     }
                     Ok(Msg::WalkTree(_)) => {
+                        state.lock().unwrap().state = 7;
                         if let Ok(mut print) = printer.lock() {
                             let _ = print.print(format!(
                                 "new tree walk ignored, still working on the last one."
@@ -193,25 +297,26 @@ fn spawn_walking(
                         }
                     }
                     Ok(msg) => {
+                        state.lock().unwrap().state = 8;
                         send.send(msg)?;
                     }
-                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Empty) => {
+                        state.lock().unwrap().state = 9;
+                    }
                     Err(TryRecvError::Disconnected) => {
+                        state.lock().unwrap().state = 10;
                         break;
                     }
                 }
 
-                let Some(sproc) = &mut proc else {
-                    unreachable!()
-                };
-
-                if let Some(entry) = sproc.tree_iter.next() {
+                if let Some(entry) = rproc.tree_iter.next() {
+                    state.lock().unwrap().state = 101;
                     let meta = entry.metadata()?;
                     if meta.is_file() {
                         let absolute = entry.path();
                         let relative = entry
                             .path()
-                            .strip_prefix(&sproc.path)
+                            .strip_prefix(&rproc.path)
                             .unwrap_or(absolute)
                             .to_string_lossy()
                             .to_string();
@@ -223,194 +328,311 @@ fn spawn_walking(
                             continue;
                         }
 
-                        let words = data.words.read()?;
-                        if !words.have_file(&relative) {
-                            sproc.count += 1;
-                            send.send(Msg::Load(sproc.count, filter, absolute.into(), relative))?;
-                        } else {
-                            // print_(&printer, format!("seen {:?}", relative));
+                        let do_send = {
+                            state.lock().unwrap().state = 102;
+                            let words = data.words.read()?;
+                            !words.have_file(&relative)
+                        };
+                        if do_send {
+                            state.lock().unwrap().state = 103;
+                            rproc.count += 1;
+                            send.send(Msg::Load(rproc.count, filter, absolute.into(), relative))?;
                         }
                     }
                 } else {
+                    state.lock().unwrap().state = 104;
                     send.send(Msg::AutoSave)?;
-                    send.send(Msg::WalkFinished(sproc.path.clone()))?;
+                    state.lock().unwrap().state = 105;
+                    send.send(Msg::WalkFinished(rproc.path.clone()))?;
                     proc = None;
                 }
             }
         }
-
-        Ok(())
     }
 
-    thread::spawn(move || {
-        print_err_(&printer, "walker", walk_proc(recv, send, data, &printer));
-    })
+    Ok(())
 }
 
 fn spawn_loading(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
     data: &'static Data,
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
-    fn load_proc(
-        recv: Receiver<Msg>,
-        send: Sender<Msg>,
-        _data: &'static Data,
-        printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    ) -> Result<(), AppError> {
-        let mut last_count = 0;
+    thread::spawn(move || {
+        print_err_(
+            &printer,
+            "loading",
+            load_proc(recv, send, state, data, &printer),
+        );
+    })
+}
 
-        loop {
-            match recv.recv()? {
-                Msg::Quit => {
-                    send.send(Msg::Quit)?;
-                    break;
-                }
-                Msg::Debug => {
-                    print_(printer, format!("loading {}", last_count));
-                    send.send(Msg::Debug)?;
-                }
-                Msg::Load(count, filter, absolute, relative) => {
-                    last_count = count;
-                    loading(printer, count, filter, absolute, relative, &send)?;
-                }
-                msg => send.send(msg)?,
+fn load_proc(
+    recv: Receiver<Msg>,
+    send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
+    _data: &'static Data,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+) -> Result<(), AppError> {
+    let mut last_count = 0;
+
+    loop {
+        match recv.recv()? {
+            Msg::Quit => {
+                state.lock().unwrap().state = 1;
+                send.send(Msg::Quit)?;
+                break;
+            }
+            Msg::Debug => {
+                state.lock().unwrap().state = 2;
+                print_(printer, format!("loading {}", last_count));
+                send.send(Msg::Debug)?;
+            }
+            Msg::Load(count, filter, absolute, relative) => {
+                state.lock().unwrap().state = 3;
+                last_count = count;
+                loading(printer, count, filter, absolute, relative, &send)?;
+            }
+            msg => {
+                state.lock().unwrap().state = 4;
+                send.send(msg)?;
             }
         }
-        Ok(())
     }
+    Ok(())
+}
 
-    thread::spawn(move || {
-        print_err_(&printer, "loading", load_proc(recv, send, data, &printer));
-    })
+fn loading(
+    _printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+    count: u32,
+    filter: FileFilter,
+    absolute: PathBuf,
+    relative: String,
+    send: &Sender<Msg>,
+) -> Result<(), AppError> {
+    let mut buf = Vec::new();
+    File::open(&absolute)?.read_to_end(&mut buf)?;
+    let str = String::from_utf8_lossy(buf.as_slice());
+
+    let filter = content_filter(filter, str.as_ref());
+
+    if filter != FileFilter::Ignore {
+        send.send(Msg::Index(count, filter, absolute, relative, str.into()))?;
+    }
+    Ok(())
 }
 
 fn spawn_indexing(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
     data: &'static Data,
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
-    fn index_proc(
-        recv: Receiver<Msg>,
-        send: Sender<Msg>,
-        _data: &'static Data,
-        printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    ) -> Result<(), AppError> {
-        let mut last_count = 0;
+    thread::spawn(move || {
+        print_err_(
+            &printer,
+            "indexing",
+            index_proc(recv, send, state, data, &printer),
+        );
+    })
+}
 
-        loop {
-            match recv.recv()? {
-                Msg::Quit => {
-                    send.send(Msg::Quit)?;
-                    break;
-                }
-                Msg::Debug => {
-                    print_(printer, format!("indexing {}", last_count));
-                    send.send(Msg::Debug)?;
-                }
-                Msg::Index(count, filter, absolute, relative, txt) => {
-                    last_count = count;
-                    indexing(printer, count, filter, absolute, relative, &txt, &send)?;
-                }
-                msg => send.send(msg)?,
+fn index_proc(
+    recv: Receiver<Msg>,
+    send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
+    _data: &'static Data,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+) -> Result<(), AppError> {
+    let mut last_count = 0;
+
+    loop {
+        match recv.recv()? {
+            Msg::Quit => {
+                state.lock().unwrap().state = 1;
+                send.send(Msg::Quit)?;
+                break;
+            }
+            Msg::Debug => {
+                state.lock().unwrap().state = 2;
+                print_(printer, format!("indexing {}", last_count));
+                send.send(Msg::Debug)?;
+            }
+            Msg::Index(count, filter, absolute, relative, txt) => {
+                state.lock().unwrap().state = 3;
+                last_count = count;
+                indexing(printer, count, filter, absolute, relative, &txt, &send)?;
+            }
+            msg => {
+                state.lock().unwrap().state = 4;
+                send.send(msg)?;
             }
         }
-        Ok(())
+    }
+    Ok(())
+}
+
+fn indexing(
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+    count: u32,
+    filter: FileFilter,
+    _absolute: PathBuf,
+    relative: String,
+    txt: &String,
+    send: &Sender<Msg>,
+) -> Result<(), AppError> {
+    let mut words = TmpWords::new(relative.clone());
+
+    match filter {
+        FileFilter::Text => {
+            timing(printer, format!("indexing {:?}", relative), 100, || {
+                index_txt(&mut words, &txt)
+            });
+        }
+        FileFilter::Html => {
+            timing(printer, format!("indexing {:?}", relative), 100, || {
+                index_html(&mut words, &txt)
+            });
+        }
+        FileFilter::Ignore => {}
+        FileFilter::Inspect => {}
     }
 
-    thread::spawn(move || {
-        print_err_(&printer, "indexing", index_proc(recv, send, data, &printer));
-    })
+    send.send(Msg::MergeWords(count, words))?;
+    Ok(())
 }
 
 fn spawn_merge_words(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
     data: &'static Data,
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
-    fn merge_words_proc(
-        recv: Receiver<Msg>,
-        send: Sender<Msg>,
-        data: &'static Data,
-        printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    ) -> Result<(), AppError> {
-        let mut last_count = 0;
-
-        loop {
-            match recv.recv()? {
-                Msg::Quit => {
-                    send.send(Msg::Quit)?;
-                    break;
-                }
-                Msg::Debug => {
-                    print_(printer, format!("merge words {}", last_count));
-                    send.send(Msg::Debug)?;
-                }
-                Msg::MergeWords(count, words) => {
-                    last_count = count;
-                    print_err_(printer, "merge_words", merge_words(data, words, printer));
-
-                    // ...
-                    if count % 1000 == 0 {
-                        print_(printer, format!("merged {}", count));
-                    }
-                }
-                msg => send.send(msg)?,
-            }
-        }
-        Ok(())
-    }
-
     thread::spawn(move || {
         print_err_(
             &printer,
             "merge_words",
-            merge_words_proc(recv, send, data, &printer),
+            merge_words_proc(recv, send, state, data, &printer),
         )
     })
 }
 
+fn merge_words_proc(
+    recv: Receiver<Msg>,
+    send: Sender<Msg>,
+    state: Arc<Mutex<WorkerState>>,
+    data: &'static Data,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+) -> Result<(), AppError> {
+    let mut last_count = 0;
+
+    loop {
+        match recv.recv()? {
+            Msg::Quit => {
+                state.lock().unwrap().state = 1;
+                send.send(Msg::Quit)?;
+                break;
+            }
+            Msg::Debug => {
+                state.lock().unwrap().state = 2;
+                print_(printer, format!("merge words {}", last_count));
+                send.send(Msg::Debug)?;
+            }
+            Msg::MergeWords(count, words) => {
+                state.lock().unwrap().state = 3;
+                last_count = count;
+                print_err_(
+                    printer,
+                    "merge_words",
+                    merge_words(data, &state, words, printer),
+                );
+            }
+            msg => {
+                state.lock().unwrap().state = 4;
+                send.send(msg)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn merge_words(
+    data: &'static Data,
+    state: &Arc<Mutex<WorkerState>>,
+    words_buffer: TmpWords,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+) -> Result<(), AppError> {
+    let do_auto_save = {
+        state.lock().unwrap().state = 100;
+        let mut write = data.words.write()?;
+        state.lock().unwrap().state = 101;
+        timing(printer, "merge", 10, || write.append(words_buffer))?;
+        state.lock().unwrap().state = 102;
+        write.should_auto_save()
+    };
+
+    if do_auto_save {
+        state.lock().unwrap().state = 103;
+        timing(printer, "autosave", 1, || auto_save(printer, data))?;
+    }
+
+    Ok(())
+}
+
 fn spawn_terminal(
     recv: Receiver<Msg>,
+    state: Arc<Mutex<WorkerState>>,
     data: &'static Data,
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
-    fn terminal_proc(
-        recv: &Receiver<Msg>,
-        data: &'static Data,
-        printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    ) -> Result<(), AppError> {
-        loop {
-            match recv.recv()? {
-                Msg::Quit => {
-                    break;
-                }
-                Msg::Debug => {
-                    print_(printer, "terminal");
-                }
-                Msg::AutoSave => {
-                    print_err_(&printer, "auto_save", auto_save(printer, data));
-                }
-                Msg::DeleteFile(file) => {
-                    print_err_(&printer, "delete_file", delete_file(printer, data, file));
-                }
-                Msg::WalkFinished(file) => {
-                    print_(&printer, format!("*** {:?} finished ***", file));
-                }
-                msg => {
-                    print_(&printer, format!("invalid terminal message {:?}", msg));
-                }
+    thread::spawn(move || {
+        print_err_(
+            &printer,
+            "terminal",
+            terminal_proc(&recv, state, data, &printer),
+        );
+    })
+}
+
+fn terminal_proc(
+    recv: &Receiver<Msg>,
+    state: Arc<Mutex<WorkerState>>,
+    data: &'static Data,
+    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+) -> Result<(), AppError> {
+    loop {
+        match recv.recv()? {
+            Msg::Quit => {
+                state.lock().unwrap().state = 1;
+                break;
+            }
+            Msg::Debug => {
+                state.lock().unwrap().state = 2;
+                print_(printer, "terminal");
+            }
+            Msg::AutoSave => {
+                state.lock().unwrap().state = 3;
+                print_err_(&printer, "auto_save", auto_save(printer, data));
+            }
+            Msg::DeleteFile(file) => {
+                state.lock().unwrap().state = 4;
+                print_err_(&printer, "delete_file", delete_file(printer, data, file));
+            }
+            Msg::WalkFinished(file) => {
+                state.lock().unwrap().state = 5;
+                print_(&printer, format!("*** {:?} finished ***", file));
+            }
+            msg => {
+                state.lock().unwrap().state = 6;
+                print_(&printer, format!("invalid terminal message {:?}", msg));
             }
         }
-        Ok(())
     }
-
-    thread::spawn(move || {
-        print_err_(&printer, "terminal", terminal_proc(&recv, data, &printer));
-    })
+    Ok(())
 }
 
 fn name_filter(path: &Path) -> FileFilter {
@@ -458,26 +680,6 @@ fn name_filter(path: &Path) -> FileFilter {
     }
 }
 
-fn loading(
-    _printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    count: u32,
-    filter: FileFilter,
-    absolute: PathBuf,
-    relative: String,
-    send: &Sender<Msg>,
-) -> Result<(), AppError> {
-    let mut buf = Vec::new();
-    File::open(&absolute)?.read_to_end(&mut buf)?;
-    let str = String::from_utf8_lossy(buf.as_slice());
-
-    let filter = content_filter(filter, str.as_ref());
-
-    if filter != FileFilter::Ignore {
-        send.send(Msg::Index(count, filter, absolute, relative, str.into()))?;
-    }
-    Ok(())
-}
-
 fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
     if filter != FileFilter::Inspect {
         return filter;
@@ -492,62 +694,6 @@ fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
     } else {
         FileFilter::Ignore
     }
-}
-
-fn indexing(
-    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    count: u32,
-    filter: FileFilter,
-    _absolute: PathBuf,
-    relative: String,
-    txt: &String,
-    send: &Sender<Msg>,
-) -> Result<(), AppError> {
-    let mut words = TmpWords::new(relative.clone());
-
-    match filter {
-        FileFilter::Text => {
-            timing(printer, format!("indexing {:?}", relative), 100, || {
-                index_txt(&mut words, &txt)
-            })
-            .0;
-        }
-        FileFilter::Html => {
-            timing(printer, format!("indexing {:?}", relative), 100, || {
-                index_html(&mut words, &txt)
-            })
-            .0;
-        }
-        FileFilter::Ignore => {}
-        FileFilter::Inspect => {}
-    }
-
-    send.send(Msg::MergeWords(count, words))?;
-    Ok(())
-}
-
-fn merge_words(
-    data: &'static Data,
-    words_buffer: TmpWords,
-    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-) -> Result<(), AppError> {
-    let do_auto_save = {
-        let mut write = data.words.write()?;
-        timing(printer, "merge", 10, || write.append(words_buffer));
-        write.should_auto_save()
-    };
-
-    if do_auto_save {
-        let (res, save_time) = timing(printer, "autosave", 1, || auto_save(printer, data));
-        res?;
-
-        // increase the wait for autosave. otherwise the savetime will be longer
-        // than the interval at some point.
-        let mut write = data.words.write()?;
-        write.set_auto_save_interval(save_time * 9);
-    }
-
-    Ok(())
 }
 
 pub fn auto_save(
@@ -592,7 +738,7 @@ pub fn timing<S: AsRef<str>, R>(
     name: S,
     threshold: u64,
     fun: impl FnOnce() -> R,
-) -> (R, Duration) {
+) -> R {
     let now = Instant::now();
 
     let result = fun();
@@ -602,5 +748,5 @@ pub fn timing<S: AsRef<str>, R>(
         print_(printer, format!("{} {:?}", name.as_ref(), now.elapsed()));
     }
 
-    (result, timing)
+    result
 }

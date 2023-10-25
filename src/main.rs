@@ -167,15 +167,23 @@ fn parse_cmd(
             );
             println!("recv terminal: {}", work.recv.len());
 
-            let mut t_cnt = 0;
-            let mut t_fine = 0;
-            for h in work.handles.iter() {
-                if !h.is_finished() {
-                    t_fine += 1;
-                }
-                t_cnt += 1;
+            for i in 0..8 {
+                let w = &work.workers[i];
+                let s = w.state.lock().unwrap();
+                println!(
+                    "thread[{}]: {} state={} msg={} thread={}",
+                    i,
+                    w.name,
+                    s.state,
+                    s.msg,
+                    if w.handle.is_finished() {
+                        "finished"
+                    } else {
+                        "running"
+                    }
+                );
             }
-            println!("threads: {}/{}", t_fine, t_cnt);
+
             work.send.send(Msg::Debug)?;
         }
         BCommand::Stats(Stats::Debug) => {

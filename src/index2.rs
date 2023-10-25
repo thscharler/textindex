@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::path::Path;
 use std::str::from_utf8;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use std::{fs, io};
 use wildmatch::WildMatch;
 
@@ -29,6 +29,7 @@ pub struct Words {
     pub words: WordList,
     pub files: FileList,
     pub wordmap: WordMap,
+    pub auto_save: u32,
 }
 
 pub type WordFileBlocks = FileBlocks<WordBlockType>;
@@ -125,6 +126,7 @@ impl Words {
             words,
             files,
             wordmap,
+            auto_save: 0,
         })
     }
 
@@ -276,11 +278,9 @@ impl Words {
     }
 
     pub fn should_auto_save(&mut self) -> bool {
-        true
+        self.auto_save += 1;
+        self.auto_save % 100 == 0
     }
-
-    pub fn set_auto_save_interval(&mut self, auto_save: Duration) {}
-    //
 }
 
 pub mod word_map {
