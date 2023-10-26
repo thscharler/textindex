@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::path::Path;
+use textindex::index2::Words;
 use textindex::proc3::{content_filter, name_filter, FileFilter};
 use textindex::tmp_index::{index_html, index_txt, TmpWords};
 use walkdir::WalkDir;
@@ -100,10 +101,55 @@ fn test_index() -> Result<(), io::Error> {
     }
 
     for (word, n) in word_stat {
-        if n >= (cnt_file as f64 * 0.9) as usize {
+        if n <= (cnt_file as f64 * 0.1) as usize {
             println!("{}: {}", word, n);
         }
     }
+
+    Ok(())
+}
+
+#[test]
+fn test_merge() -> Result<(), io::Error> {
+    let sample = "samples/index";
+    let path = Path::new(sample);
+
+    let mut words = Words::new(Path::new("tmp/merge.db")).unwrap();
+
+    let mut buf = Vec::new();
+
+    let mut cnt_file: usize = 0;
+    for f in WalkDir::new(path).into_iter().flatten() {
+        if !f.metadata()?.is_file() {
+            println!("-- DIR {:?}", f.path().file_name().unwrap());
+            continue;
+        }
+        println!("{:?}", f.path().file_name().unwrap());
+
+        cnt_file += 1;
+
+        let filter = name_filter(&f.path());
+        buf.clear();
+        File::open(f.path())?.read_to_end(&mut buf)?;
+        let text = String::from_utf8_lossy(buf.as_slice());
+        let filter = content_filter(filter, text.as_ref());
+
+        let mut tmp_words = TmpWords::new(f.path().to_string_lossy());
+        match filter {
+            FileFilter::Ignore => {
+                println!("ignore");
+            }
+            FileFilter::Inspect => {
+                println!("inspect");
+            }
+            FileFilter::Text => index_txt(&mut tmp_words, text.as_ref()),
+            FileFilter::Html => index_html(&mut tmp_words, text.as_ref()),
+        }
+
+        words.append(tmp_words);
+    }
+
+    dbg!(&words);
 
     Ok(())
 }

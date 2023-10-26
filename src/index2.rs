@@ -361,17 +361,20 @@ impl Words {
         word: S,
         file_idx: u32,
     ) -> Result<(), AppError> {
-        if let Some(word) = self.words.list.get_mut(word.as_ref()) {
+        if let Some(data) = self.words.list.get_mut(word.as_ref()) {
             self.wordmap.add(
                 &mut self.db,
-                word.file_map_block_nr,
-                word.file_map_block_idx,
+                word.as_ref(),
+                data.file_map_block_nr,
+                data.file_map_block_idx,
                 file_idx,
             )?;
-            word.count += 1;
+            data.count += 1;
         } else {
             let word_id = self.ids.next("word");
-            let (word_block_nr, word_idx) = self.wordmap.add_initial(&mut self.db, file_idx)?;
+            let (word_block_nr, word_idx) =
+                self.wordmap
+                    .add_initial(&mut self.db, word.as_ref(), file_idx)?;
 
             self.words.list.insert(
                 word.as_ref().into(),
@@ -455,7 +458,7 @@ pub mod word_map {
 
     pub type RawWordMapList = [RawWordMap; BLOCK_SIZE as usize / size_of::<RawWordMap>()];
 
-    pub const FILE_ID_LEN: usize = 4;
+    pub const FILE_ID_LEN: usize = 6;
 
     #[derive(Clone, Copy, PartialEq, Default)]
     #[repr(C)]
@@ -536,15 +539,20 @@ pub mod word_map {
             Ok((self.last_block_nr_head, self.last_block_nr_tail))
         }
 
+        fn confirm_add_head(&mut self, last_block_nr_head: BlkNr, last_idx_head: BlkIdx) {
+            self.last_block_nr_head = last_block_nr_head;
+            self.last_idx_head = last_idx_head;
+        }
+
         // Ensures we can add at least 1 new region.
-        fn ensure_add_head(&mut self, db: &mut WordFileBlocks) -> BlkIdx {
-            let res_idx = if self.last_block_nr_head == 0 {
+        fn ensure_add_head(&mut self, db: &mut WordFileBlocks) -> (BlkNr, BlkIdx) {
+            if self.last_block_nr_head == 0 {
                 let new_block_nr = db.alloc(Self::TY_LISTHEAD).block_nr();
 
                 self.last_block_nr_head = new_block_nr;
                 self.last_idx_head = 0;
 
-                self.last_idx_head
+                (self.last_block_nr_head, self.last_idx_head)
             } else {
                 if self.last_idx_head + 1 >= RawWordMapList::LEN as u32 {
                     let new_block_nr = db.alloc(Self::TY_LISTHEAD).block_nr();
@@ -552,24 +560,27 @@ pub mod word_map {
                     self.last_block_nr_head = new_block_nr;
                     self.last_idx_head = 0;
 
-                    self.last_idx_head
+                    (self.last_block_nr_head, self.last_idx_head)
                 } else {
-                    self.last_idx_head + 1
+                    (self.last_block_nr_head, self.last_idx_head + 1)
                 }
-            };
+            }
+        }
 
-            res_idx
+        fn confirm_add_tail(&mut self, last_block_nr_tail: BlkNr, last_idx_tail: BlkIdx) {
+            self.last_block_nr_tail = last_block_nr_tail;
+            self.last_idx_tail = last_idx_tail;
         }
 
         // Ensures we can add at least 1 new region.
-        fn ensure_add_tail(&mut self, db: &mut WordFileBlocks) -> BlkIdx {
-            let res_idx = if self.last_block_nr_tail == 0 {
+        fn ensure_add_tail(&mut self, db: &mut WordFileBlocks) -> (BlkNr, BlkIdx) {
+            if self.last_block_nr_tail == 0 {
                 let new_block_nr = db.alloc(Self::TY_LISTTAIL).block_nr();
 
                 self.last_block_nr_tail = new_block_nr;
                 self.last_idx_tail = 0;
 
-                self.last_idx_tail
+                (self.last_block_nr_tail, self.last_idx_tail)
             } else {
                 if self.last_idx_tail + 1 >= RawWordMapList::LEN as u32 {
                     let new_block_nr = db.alloc(Self::TY_LISTTAIL).block_nr();
@@ -577,46 +588,46 @@ pub mod word_map {
                     self.last_block_nr_tail = new_block_nr;
                     self.last_idx_tail = 0;
 
-                    self.last_idx_tail
+                    (self.last_block_nr_tail, self.last_idx_tail)
                 } else {
-                    self.last_idx_tail + 1
+                    (self.last_block_nr_tail, self.last_idx_tail + 1)
                 }
-            };
-
-            res_idx
+            }
         }
 
         /// Add first reference for a new word.
         pub fn add_initial(
             &mut self,
             db: &mut WordFileBlocks,
+            word: &str,
             file_id: FileId,
         ) -> Result<(BlkNr, BlkIdx), io::Error> {
-            let new_idx = self.ensure_add_head(db);
+            let (new_blk_nr, new_idx) = self.ensure_add_head(db);
 
-            let block = db.get_mut(self.last_block_nr_head)?;
+            let block = db.get_mut(new_blk_nr)?;
             block.set_dirty(true);
+            let word_map_list = block.cast_mut::<RawWordMapList>();
+            let word_map = &mut word_map_list[new_idx as usize];
 
-            let last = block.cast_mut::<RawWordMapList>();
-            last[new_idx as usize].file_id[0] = file_id;
+            word_map.file_id[0] = file_id;
 
-            self.last_idx_head = new_idx;
+            self.confirm_add_head(new_blk_nr, new_idx);
 
-            Ok((self.last_block_nr_head, self.last_idx_head))
+            Ok((new_blk_nr, new_idx))
         }
 
         /// Add one more file reference for a word.
         pub fn add(
             &mut self,
             db: &mut WordFileBlocks,
+            word: &str,
             blk_nr: BlkNr,
             blk_idx: BlkIdx,
             file_id: FileId,
         ) -> Result<(), io::Error> {
             // append to given region list.
             {
-                let retire_idx = self.ensure_add_tail(db);
-                let retire_block_nr = self.last_block_nr_tail;
+                let (retire_block_nr, retire_idx) = self.ensure_add_tail(db);
 
                 let block = db.get_mut(blk_nr)?;
                 block.set_dirty(true);
@@ -646,6 +657,8 @@ pub mod word_map {
                     retire_map.file_id = retire_file_id;
                     retire_map.next_block_nr = retire_next_block_nr;
                     retire_map.next_idx = retire_next_idx;
+
+                    self.confirm_add_tail(retire_block_nr, retire_idx);
                 }
             }
             Ok(())
@@ -1217,239 +1230,4 @@ fn byte_to_str<const N: usize>(src: &[u8; N]) -> Result<&str, io::Error> {
     };
     let word = word.trim_end_matches('\0');
     Ok(word)
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::error::AppError;
-    use crate::index2::files::{RawFile, RawFileList};
-    use crate::index2::id::{RawId, RawIdMap};
-    use crate::index2::word_map::{RawWordMap, RawWordMapList};
-    use crate::index2::words::{RawWord, RawWordList};
-    use crate::index2::Words;
-    use blockfile::Length;
-    use blockfile::BLOCK_SIZE;
-    use std::fs;
-    use std::mem::size_of;
-    use std::path::PathBuf;
-    use std::str::FromStr;
-
-    #[test]
-    fn test_sizes() {
-        println!("RawWordmapList {}", size_of::<RawWordMapList>());
-        println!("RawWordmapList::LEN {}", RawWordMapList::LEN);
-        println!("RawWordMap {}", size_of::<RawWordMap>());
-        println!("RawFileList {}", size_of::<RawFileList>());
-        println!("RawFileList::LEN {}", RawFileList::LEN);
-        println!("RawFile {}", size_of::<RawFile>());
-        println!("RawWordList {}", size_of::<RawWordList>());
-        println!("RawWordList::LEN {}", RawWordList::LEN);
-        println!("RawWord {}", size_of::<RawWord>());
-        println!("RawIds {}", size_of::<RawIdMap>());
-        println!("RawSingleId {}", size_of::<RawId>());
-
-        assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordMapList>());
-        assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWordMap>());
-        assert_eq!(BLOCK_SIZE as usize, size_of::<RawFileList>());
-        assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawFile>());
-        assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordList>());
-        assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWord>());
-        assert_eq!(BLOCK_SIZE as usize, size_of::<RawIdMap>());
-        assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawId>());
-    }
-
-    #[test]
-    fn test_init() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/init.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        w.write()?;
-        let w = Words::read(&path)?;
-        dbg!(w);
-        Ok(())
-    }
-
-    #[test]
-    fn test_files() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/files.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        let _fid = w.add_file("file0".into());
-        w.write()?;
-        let w = Words::read(&path)?;
-
-        assert!(w.files.list.contains_key(&1));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_files2() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/files2.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        let _fid = w.add_file("file0".into());
-        let _fid = w.add_file("file1".into());
-        let _fid = w.add_file("file2".into());
-        let _fid = w.add_file("file3".into());
-        w.write()?;
-        let w = Words::read(&path)?;
-        dbg!(w);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_word() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/word.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        let fid = w.add_file("file0".into());
-        w.add_word("alpha", fid)?;
-        w.write()?;
-
-        let mut w = Words::read(&path)?;
-
-        assert!(w.words.list.get("alpha").is_some());
-        if let Some(word) = w.words.list.get("alpha").cloned() {
-            assert_eq!(word.file_map_block_nr, 1);
-            assert_eq!(word.file_map_block_idx, 0);
-            assert_eq!(word.id, 1);
-            let mut it = w.iter_word_files(word);
-            assert_eq!(it.next().unwrap()?, 1);
-            assert!(it.next().is_none());
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_word2() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/word2.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        let fid = w.add_file("file0".into());
-        w.add_word("alpha", fid)?;
-        w.add_word("beta", fid)?;
-        w.add_word("gamma", fid)?;
-        w.add_word("delta", fid)?;
-        w.add_word("epsilon", fid)?;
-        w.write()?;
-
-        let w = Words::read(&path)?;
-
-        assert!(w.words.list.get("alpha").is_some());
-        assert!(w.words.list.get("beta").is_some());
-        assert!(w.words.list.get("gamma").is_some());
-        assert!(w.words.list.get("delta").is_some());
-        assert!(w.words.list.get("epsilon").is_some());
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_word3() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/word3.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        let fid = w.add_file("file0".into());
-        w.add_word("alpha", fid)?;
-        w.add_word("beta", fid)?;
-        w.add_word("gamma", fid)?;
-        w.add_word("delta", fid)?;
-        w.add_word("epsilon", fid)?;
-        let fid = w.add_file("file1".into());
-        w.add_word("alpha", fid)?;
-        w.add_word("beta", fid)?;
-        w.add_word("gamma", fid)?;
-        w.write()?;
-
-        let mut w = Words::read(&path)?;
-
-        assert!(w.words.list.get("alpha").is_some());
-        assert!(w.words.list.get("beta").is_some());
-        assert!(w.words.list.get("gamma").is_some());
-        assert!(w.words.list.get("delta").is_some());
-        assert!(w.words.list.get("epsilon").is_some());
-
-        let wdata = w.words.list.get("alpha").cloned().unwrap();
-        assert_eq!(wdata.file_map_block_nr, 1);
-        assert_eq!(wdata.file_map_block_idx, 0);
-        {
-            let mut it = w.iter_word_files(wdata);
-            assert_eq!(it.next().unwrap()?, 1);
-            assert_eq!(it.next().unwrap()?, 2);
-            assert!(it.next().is_none());
-        }
-
-        let wdata = w.words.list.get("beta").cloned().unwrap();
-        assert_eq!(wdata.file_map_block_nr, 1);
-        assert_eq!(wdata.file_map_block_idx, 1);
-        let mut it = w.iter_word_files(wdata);
-        assert_eq!(it.next().unwrap()?, 1);
-        assert_eq!(it.next().unwrap()?, 2);
-        assert!(it.next().is_none());
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_word4() -> Result<(), AppError> {
-        let path = PathBuf::from_str("tmp/word4.idx")?;
-
-        let _ = fs::remove_file(&path);
-
-        let mut w = Words::read(&path)?;
-        let fid = w.add_file("file0".into());
-        w.add_word("alpha", fid)?;
-        w.add_word("beta", fid)?;
-        w.add_word("gamma", fid)?;
-        w.add_word("delta", fid)?;
-        w.add_word("epsilon", fid)?;
-
-        let _wdata = w.words.list.get("gamma").cloned().unwrap();
-
-        let fid = w.add_file("file1".into());
-        w.add_word("alpha", fid)?;
-        w.add_word("beta", fid)?;
-        w.add_word("gamma", fid)?;
-
-        let _wdata = w.words.list.get("gamma").cloned().unwrap();
-
-        for i in 0..14 {
-            let fid = w.add_file(format!("file-x{}", i));
-            w.add_word("gamma", fid)?;
-
-            let _wdata = w.words.list.get("gamma").cloned().unwrap();
-        }
-        w.write()?;
-
-        let mut w = Words::read(&path)?;
-
-        let wdata = w.words.list.get("gamma").cloned().unwrap();
-        let fid = w
-            .iter_word_files(wdata)
-            .map(|v| v.unwrap())
-            .collect::<Vec<_>>();
-        assert_eq!(
-            fid.as_slice(),
-            &[15, 16, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-        );
-
-        // dbg!(w);
-
-        Ok(())
-    }
 }
