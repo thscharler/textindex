@@ -309,18 +309,18 @@ impl Words {
 
         self.db.store()?;
 
-        let mut gen_count: BTreeMap<u32, u32> = BTreeMap::new();
+        let mut gen_count: BTreeMap<(BlockType, u32), u32> = BTreeMap::new();
         for block in self.db.iter_blocks() {
             gen_count
-                .entry(block.generation())
+                .entry((block.block_type(), block.generation()))
                 .and_modify(|v| *v += 1)
                 .or_insert_with(|| 1);
         }
-        println!(
-            "remain: {} generation: {:?}",
-            self.db.iter_blocks().count(),
-            gen_count
-        );
+        println!("remain: {} generations: ", self.db.iter_blocks().count(),);
+        for ((t, g), n) in &gen_count {
+            print!("{:?}{} = {}, ", WordBlockType::ubt(*t), g, n);
+        }
+        println!();
 
         Ok(())
     }

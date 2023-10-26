@@ -184,9 +184,6 @@ fn parse_cmd(
                 );
             }
 
-            let words = data.words.write().unwrap();
-            println!("{:?}", words);
-
             work.send.send(Msg::Debug)?;
         }
         BCommand::Stats(Stats::Debug) => {
