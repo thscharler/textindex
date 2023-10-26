@@ -16,11 +16,11 @@ use std::sync::{Mutex, RwLock};
 mod cmdlib;
 mod cmds;
 mod error;
-mod index;
-mod index2;
+// mod index;
+pub mod index2;
 mod log;
-mod proc3;
-mod tmp_index;
+pub mod proc3;
+pub mod tmp_index;
 
 fn main() -> Result<(), AppError> {
     let tmp = PathBuf::from(".tmp_stored");
@@ -183,6 +183,9 @@ fn parse_cmd(
                     }
                 );
             }
+
+            let words = data.words.write().unwrap();
+            println!("{:?}", words);
 
             work.send.send(Msg::Debug)?;
         }

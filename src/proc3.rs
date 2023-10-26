@@ -27,7 +27,7 @@ pub enum Msg {
     AutoSave,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FileFilter {
     Ignore,
     Inspect,
@@ -326,6 +326,8 @@ fn walk_proc(
                         if filter == FileFilter::Ignore {
                             // print_(&printer, format!("ignore {:?}", relative));
                             continue;
+                        } else {
+                            // print_(&printer, format!("process {:?}", relative));
                         }
 
                         let do_send = {
@@ -488,7 +490,7 @@ fn indexing(
 
     match filter {
         FileFilter::Text => {
-            timing(printer, format!("indexing {:?}", relative), 100, || {
+            timing(printer, format!("indexing {:?}", relative), 1000, || {
                 index_txt(&mut words, &txt)
             });
         }
@@ -570,13 +572,17 @@ fn merge_words(
         state.lock().unwrap().state = 100;
         let mut write = data.words.write()?;
         state.lock().unwrap().state = 101;
-        timing(printer, "merge", 10, || write.append(words_buffer))?;
+        timing(printer, "merge", 100, || write.append(words_buffer))?;
         state.lock().unwrap().state = 102;
+        if write.should_reorg() {
+            write.reorg()?;
+        }
+        state.lock().unwrap().state = 103;
         write.should_auto_save()
     };
 
     if do_auto_save {
-        state.lock().unwrap().state = 103;
+        state.lock().unwrap().state = 200;
         timing(printer, "autosave", 1, || auto_save(printer, data))?;
     }
 
@@ -635,7 +641,7 @@ fn terminal_proc(
     Ok(())
 }
 
-fn name_filter(path: &Path) -> FileFilter {
+pub fn name_filter(path: &Path) -> FileFilter {
     let ext = path
         .extension()
         .map(|v| v.to_string_lossy())
@@ -647,52 +653,66 @@ fn name_filter(path: &Path) -> FileFilter {
         .unwrap_or(Cow::Borrowed(""))
         .to_lowercase();
 
-    if name == ".message.ftp.txt"
-        || name == "history.txt"
-        || name == ".stored"
-        || name == ".tmp_stored"
+    const EXT_IGNORE: &[&str] = &["jpg", "pdf", "gif", "css", "png", "doc", "rtf", "js", "ico"];
+    const NAME_IGNORE: &[&str] = &[
+        ".message.ftp.txt",
+        "history.txt",
+        ".stored",
+        ".tmp_stored",
+        "index.html",
+        "jan.html",
+        "feb.html",
+        "mar.html",
+        "apr.html",
+        "may.html",
+        "jun.html",
+        "jul.html",
+        "aug.html",
+        "sep.html",
+        "oct.html",
+        "nov.html",
+        "dec.html",
+    ];
+    const PREFIX_IGNORE: &[&str] = &["week"];
+
+    if EXT_IGNORE.contains(&ext.as_str()) {
+        FileFilter::Ignore
+    } else if NAME_IGNORE.contains(&name.as_str()) {
+        FileFilter::Ignore
+    } else if PREFIX_IGNORE
+        .iter()
+        .find(|v| name.starts_with(*v))
+        .is_some()
     {
         FileFilter::Ignore
-    } else if name.starts_with("index.html") {
-        FileFilter::Ignore
-    } else if name.starts_with("week") {
-        FileFilter::Ignore
-    } else if [
-        "apr.html", "aug.html", "dec.html", "feb.html", "jan.html", "jul.html", "jun.html",
-        "mar.html", "may.html", "nov.html", "oct.html", "sep.html",
-    ]
-    .binary_search_by(|v| v.cmp(&name.as_str()))
-    .is_ok()
-    {
-        FileFilter::Ignore
-    } else if ext == "jpg" || ext == "pdf" || ext == "gif" || ext == "css" || ext == "png" {
-        FileFilter::Ignore
-    } else if ext == "doc" {
-        FileFilter::Ignore
-    } else if ext == "rtf" {
-        FileFilter::Ignore
-    } else if ext == "html" || ext == "htm" {
-        FileFilter::Html
-    } else if ext == "txt" {
-        FileFilter::Text
     } else {
         FileFilter::Inspect
     }
 }
 
-fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
-    if filter != FileFilter::Inspect {
+pub fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
+    if filter == FileFilter::Ignore {
         return filter;
     }
 
-    if txt.starts_with("<?xml")
-        || txt.starts_with("<!DOCTYPE")
-        || txt.starts_with("<html")
-        || txt.starts_with("<!--")
+    const HTML_RECOGNIZE: &[&str] = &[
+        "<!--ADULTSONLY",
+        "<HTML",
+        "<html",
+        "<?xml",
+        "<!DOCTYPE",
+        "<!doctype",
+        "_<!DOCTYPE",
+    ];
+
+    if HTML_RECOGNIZE
+        .iter()
+        .find(|v| txt.starts_with(*v))
+        .is_some()
     {
         FileFilter::Html
     } else {
-        FileFilter::Ignore
+        FileFilter::Text
     }
 }
 

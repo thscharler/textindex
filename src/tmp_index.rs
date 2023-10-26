@@ -2,14 +2,8 @@ use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
 use html5ever::tendril::{StrTendril, TendrilSink};
 use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
 use std::borrow::Cow;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
-
-pub const STOP_WORDS: [&str; 35] = [
-    "a", "all", "and", "as", "at", "but", "could", "for", "from", "had", "he", "her", "him", "his",
-    "hot", "i", "in", "into", "it", "me", "my", "of", "on", "she", "so", "that", "the", "then",
-    "to", "up", "was", "were", "with", "you", "your",
-];
 
 #[derive(Debug)]
 pub struct TmpWords {
@@ -25,14 +19,14 @@ impl TmpWords {
         }
     }
 
-    pub fn add_word<S: Into<String>>(&mut self, word: S) {
-        let word = word.into();
-
-        if let Ok(_) = STOP_WORDS.binary_search_by(|probe| (*probe).cmp(word.as_str())) {
+    pub fn add_word<S: AsRef<str>>(&mut self, word: S) {
+        if let Ok(_) = STOP_WORDS.binary_search_by(|probe| (*probe).cmp(word.as_ref())) {
             return;
         }
 
-        self.words.insert(word);
+        if !self.words.contains(word.as_ref()) {
+            self.words.insert(word.as_ref().to_string());
+        }
     }
 }
 
@@ -126,6 +120,7 @@ pub fn index_txt(words: &mut TmpWords, buf: &str) {
 }
 
 pub fn index_html(words: &mut TmpWords, buf: &str) {
+    #[derive(Debug)]
     struct IdxSink<'a> {
         pub words: &'a mut TmpWords,
 
@@ -148,7 +143,7 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
         fn finish(self) -> Self::Output {}
 
         fn parse_error(&mut self, _msg: Cow<'static, str>) {
-            // println!("parse_error {:?}", msg);
+            // println!("parse_error {:?} {:?}", _msg, self);
         }
 
         fn get_document(&mut self) -> Self::Handle {
@@ -173,7 +168,7 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
             _attrs: Vec<Attribute>,
             _flags: ElementFlags,
         ) -> Self::Handle {
-            // println!("create_element {:?} {:?}", name, attrs);
+            // println!("create_element {:?} {:?}", name, _attrs);
 
             let handle = self.elem.len();
             self.elem.push(name);
@@ -274,3 +269,252 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
     let p = parse_document(s, ParseOpts::default());
     p.one(buf);
 }
+
+pub const STOP_WORDS: &[&str] = &[
+    "a",
+    "about",
+    "after",
+    "again",
+    "agin",
+    "ain't",
+    "all",
+    "all",
+    "almost",
+    "alt",
+    "always",
+    "an",
+    "and",
+    "another",
+    "any",
+    "anyway",
+    "are",
+    "around",
+    "as",
+    "asked",
+    "at",
+    "author",
+    "away",
+    "back",
+    "be",
+    "because",
+    "been",
+    "before",
+    "behind",
+    "being",
+    "best",
+    "better",
+    "between",
+    "both",
+    "but",
+    "by",
+    "cain't",
+    "came",
+    "can",
+    "can't",
+    "com",
+    "comes",
+    "could",
+    "couldn't",
+    "day",
+    "did",
+    "didn't",
+    "do",
+    "don't",
+    "done",
+    "down",
+    "each",
+    "else",
+    "even",
+    "ever",
+    "every",
+    "few",
+    "finally",
+    "find",
+    "finds",
+    "for",
+    "found",
+    "from",
+    "get",
+    "gets",
+    "give",
+    "go",
+    "going",
+    "gonna",
+    "good",
+    "got",
+    "gotta",
+    "had",
+    "has",
+    "have",
+    "he",
+    "he's",
+    "her",
+    "here",
+    "herself",
+    "him",
+    "himself",
+    "his",
+    "hot",
+    "how",
+    "i",
+    "i'd",
+    "i'll",
+    "i'm",
+    "if",
+    "in",
+    "inside",
+    "into",
+    "is",
+    "it",
+    "it's",
+    "its",
+    "just",
+    "keep",
+    "knew",
+    "know",
+    "knowed",
+    "last",
+    "leave",
+    "left",
+    "like",
+    "look",
+    "looked",
+    "looks",
+    "made",
+    "make",
+    "makes",
+    "making",
+    "many",
+    "may",
+    "maybe",
+    "me",
+    "mean",
+    "meets",
+    "might",
+    "more",
+    "most",
+    "much",
+    "must",
+    "my",
+    "myself",
+    "need",
+    "net",
+    "never",
+    "new",
+    "next",
+    "no",
+    "not",
+    "nothin",
+    "now",
+    "of",
+    "off",
+    "ok",
+    "on",
+    "one",
+    "only",
+    "onto",
+    "or",
+    "other",
+    "our",
+    "out",
+    "over",
+    "own",
+    "part",
+    "please",
+    "put",
+    "read",
+    "reading",
+    "reads",
+    "real",
+    "really",
+    "rl:http",
+    "said",
+    "same",
+    "saw",
+    "say",
+    "says",
+    "see",
+    "seemed",
+    "seen",
+    "she",
+    "she's",
+    "shook",
+    "should",
+    "show",
+    "since",
+    "so",
+    "some",
+    "someone",
+    "something",
+    "sometimes",
+    "soon",
+    "sorry",
+    "still",
+    "such",
+    "sure",
+    "take",
+    "tell",
+    "than",
+    "that",
+    "that's",
+    "the",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "think",
+    "this",
+    "those",
+    "though",
+    "thought",
+    "through",
+    "time",
+    "to",
+    "together",
+    "told",
+    "too",
+    "took",
+    "tried",
+    "tries",
+    "try",
+    "u",
+    "under",
+    "until",
+    "up",
+    "us",
+    "use",
+    "used",
+    "using",
+    "very",
+    "want",
+    "wanted",
+    "was",
+    "wasn't",
+    "watched",
+    "we",
+    "well",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "who",
+    "why",
+    "will",
+    "with",
+    "within",
+    "without",
+    "work",
+    "working",
+    "would",
+    "www",
+    "yet",
+    "you",
+    "you're",
+    "you've",
+    "your",
+    "yourself",
+];
