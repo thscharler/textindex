@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io;
 use std::io::Read;
@@ -54,13 +54,16 @@ fn test_index() -> Result<(), io::Error> {
 
     let mut buf = Vec::new();
 
-    let mut word_stat: HashMap<String, usize> = HashMap::new();
+    let mut word_stat: BTreeMap<String, usize> = BTreeMap::new();
+    let mut cnt_file: usize = 0;
     for f in WalkDir::new(path).into_iter().flatten() {
         if !f.metadata()?.is_file() {
             println!("-- DIR {:?}", f.path().file_name().unwrap());
             continue;
         }
         println!("{:?}", f.path().file_name().unwrap());
+
+        cnt_file += 1;
 
         let filter = name_filter(&f.path());
         buf.clear();
@@ -86,14 +89,20 @@ fn test_index() -> Result<(), io::Error> {
     }
 
     let mut stat: BTreeMap<usize, usize> = BTreeMap::new();
-    for (_word, n) in word_stat {
-        stat.entry(n).and_modify(|v| *v += 1).or_insert(1);
+    for (_, n) in &word_stat {
+        stat.entry(*n).and_modify(|v| *v += 1).or_insert(1);
     }
     let sum: usize = stat.values().sum();
     let mut partial = 0usize;
     for (n, cnt) in stat {
         partial += cnt;
         println!("{}: {} | {}%", n, cnt, partial * 100 / sum);
+    }
+
+    for (word, n) in word_stat {
+        if n >= (cnt_file as f64 * 0.9) as usize {
+            println!("{}: {}", word, n);
+        }
     }
 
     Ok(())
