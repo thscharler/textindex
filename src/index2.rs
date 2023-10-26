@@ -7,7 +7,7 @@ use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use crate::tmp_index::TmpWords;
 use blockfile::{BlockType, FileBlocks, UserBlockType};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fmt::{Debug, Formatter};
 use std::path::Path;
 use std::str::from_utf8;
@@ -463,7 +463,7 @@ impl Words {
 
     pub fn should_auto_save(&mut self) -> bool {
         self.auto_save += 1;
-        self.auto_save % 100 == 0
+        self.auto_save % 1000 == 0
     }
 
     pub fn should_reorg(&mut self) -> bool {
@@ -1037,7 +1037,7 @@ pub mod words {
         ) -> Result<(), io::Error> {
             // assume append only
             for (word, word_data) in self.list.iter_mut() {
-                let w = if word_data.first_file_id == 0 {
+                let w = if word_data.first_file_id != 0 {
                     RawWord {
                         word: copy_fix::<20>(word.as_bytes()),
                         id: word_data.id,
