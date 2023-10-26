@@ -100,13 +100,23 @@ impl UserBlockType for WordBlockType {
 
 impl Debug for Words {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Words")
-            .field("ids", &self.ids)
-            .field("words", &self.words)
-            .field("files", &self.files)
-            .field("wordmap", &self.wordmap)
-            .field("db", &self.db)
-            .finish()?;
+        if f.width().unwrap_or(0) == 0 {
+            f.debug_struct("Words")
+                .field("ids", &self.ids)
+                .field("words", &self.words.list.len())
+                .field("files", &self.files.list.len())
+                .field("wordmap", &self.wordmap)
+                .field("db", &self.db)
+                .finish()?;
+        } else if f.width().unwrap_or(0) == 1 {
+            f.debug_struct("Words")
+                .field("ids", &self.ids)
+                .field("words", &self.words)
+                .field("files", &self.files)
+                .field("wordmap", &self.wordmap)
+                .field("db", &self.db)
+                .finish()?;
+        }
 
         writeln!(f)?;
         for block in self.db.iter_blocks() {
@@ -130,36 +140,44 @@ impl Debug for Words {
                 WordBlockType::WordList => {
                     let data = block.cast::<RawWordList>();
                     writeln!(f, "WordList {}", block.block_nr())?;
-                    for d in data.iter() {
-                        writeln!(
-                            f,
-                            "{} {} -> {}:{}",
-                            from_utf8(&d.word).unwrap_or(""),
-                            d.id,
-                            d.file_map_block_nr,
-                            d.file_map_idx
-                        )?;
+                    if f.width().unwrap_or(0) == 1 {
+                        for d in data.iter() {
+                            writeln!(
+                                f,
+                                "{} {} -> {}:{}",
+                                from_utf8(&d.word).unwrap_or(""),
+                                d.id,
+                                d.file_map_block_nr,
+                                d.file_map_idx
+                            )?;
+                        }
                     }
                 }
                 WordBlockType::FileList => {
                     let data = block.cast::<RawFileList>();
                     writeln!(f, "FileList {}", block.block_nr())?;
-                    for d in data.iter() {
-                        writeln!(f, "{} {}", from_utf8(&d.file).unwrap_or(""), d.id)?;
+                    if f.width().unwrap_or(0) == 1 {
+                        for d in data.iter() {
+                            writeln!(f, "{} {}", from_utf8(&d.file).unwrap_or(""), d.id)?;
+                        }
                     }
                 }
                 WordBlockType::WordMapHead => {
                     let data = block.cast::<RawWordMapList>();
                     writeln!(f, "WordMapHead {}", block.block_nr())?;
-                    for d in data.iter() {
-                        writeln!(f, "{:?} -> {} {}", d.file_id, d.next_block_nr, d.next_idx)?;
+                    if f.width().unwrap_or(0) == 1 {
+                        for d in data.iter() {
+                            writeln!(f, "{:?} -> {} {}", d.file_id, d.next_block_nr, d.next_idx)?;
+                        }
                     }
                 }
                 WordBlockType::WordMapTail => {
                     let data = block.cast::<RawWordMapList>();
                     writeln!(f, "WordMapTail {}", block.block_nr())?;
-                    for d in data.iter() {
-                        writeln!(f, "{:?} -> {} {}", d.file_id, d.next_block_nr, d.next_idx)?;
+                    if f.width().unwrap_or(0) == 1 {
+                        for d in data.iter() {
+                            writeln!(f, "{:?} -> {} {}", d.file_id, d.next_block_nr, d.next_idx)?;
+                        }
                     }
                 }
                 WordBlockType::OtherUser => {}
@@ -189,6 +207,7 @@ impl Words {
         ids.create("file");
         ids.create("file_block_nr");
         ids.create("file_block_idx");
+        ids.store(&mut db)?;
 
         let words = WordList::load(&mut db)?;
         let files = FileList::load(&mut db)?;
@@ -285,8 +304,6 @@ impl Words {
             n1, n11, n2, n22, n3, n33, n4, n44, n5, n55
         );
 
-        // println!("{:?}", &self);
-
         self.db.store()?;
 
         let mut gen_count: BTreeMap<u32, u32> = BTreeMap::new();
@@ -296,6 +313,7 @@ impl Words {
                 .and_modify(|v| *v += 1)
                 .or_insert_with(|| 1);
         }
+
         println!(
             "remain: {} generation: {:?}",
             self.db.iter_blocks().count(),
@@ -471,8 +489,10 @@ pub mod word_map {
     impl Debug for WordMap {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("WordMap")
-                .field("last_block_nr", &self.last_block_nr_head)
-                .field("last_idx", &self.last_idx_head)
+                .field("last_block_nr_head", &self.last_block_nr_head)
+                .field("last_idx_head", &self.last_idx_head)
+                .field("last_block_nr_tail", &self.last_block_nr_tail)
+                .field("last_idx_tail", &self.last_idx_tail)
                 .finish()?;
             write!(f, " = ")?;
             Ok(())
@@ -651,6 +671,7 @@ pub mod word_map {
                     // retire
                     let retire_block = db.get_mut(self.last_block_nr_tail)?;
                     retire_block.set_dirty(true);
+                    retire_block.discard();
                     let retire_map_list = retire_block.cast_mut::<RawWordMapList>();
                     let retire_map = &mut retire_map_list[retire_idx as usize];
 
@@ -854,6 +875,7 @@ pub mod files {
 
                     let block = db.get_mut(*last_block_nr)?;
                     block.set_dirty(true);
+                    block.discard();
                     let file_list = block.cast_mut::<RawFileList>();
                     file_list[*last_block_idx as usize] = w;
                     file_data.block_nr = *last_block_nr;
@@ -1037,6 +1059,7 @@ pub mod words {
                         word_data.written = true;
                         word_list[word_data.block_idx as usize] = w;
                         block.set_dirty(true);
+                        block.discard();
                     }
                 } else {
                     if *last_block_nr == 0 {
@@ -1046,6 +1069,7 @@ pub mod words {
 
                     let block = db.get_mut(*last_block_nr)?;
                     block.set_dirty(true);
+                    block.discard();
                     let word_list = block.cast_mut::<RawWordList>();
                     word_list[*last_block_idx as usize] = w;
                     word_data.block_nr = *last_block_nr;

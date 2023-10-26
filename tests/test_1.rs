@@ -146,8 +146,10 @@ fn test_merge() -> Result<(), io::Error> {
             FileFilter::Html => index_html(&mut tmp_words, text.as_ref()),
         }
 
-        words.append(tmp_words);
+        words.append(tmp_words).unwrap();
     }
+
+    words.write().unwrap();
 
     dbg!(&words);
 
