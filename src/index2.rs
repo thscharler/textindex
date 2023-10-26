@@ -148,7 +148,7 @@ impl Debug for Words {
                                 from_utf8(&d.word).unwrap_or(""),
                                 d.id,
                                 d.file_map_block_nr,
-                                d.file_map_idx
+                                d.file_map_idx_or_file_id
                             )?;
                         }
                     }
@@ -369,7 +369,8 @@ impl Words {
         WordMap::iter_files(
             &mut self.db,
             word_data.file_map_block_nr,
-            word_data.file_map_block_idx,
+            word_data.file_map_idx,
+            word_data.first_file_id,
         )
     }
 
@@ -379,22 +380,32 @@ impl Words {
     pub fn add_word<S: AsRef<str> + Into<String>>(
         &mut self,
         word: S,
-        file_idx: u32,
+        file_id: FileId,
     ) -> Result<(), AppError> {
         if let Some(data) = self.words.list.get_mut(word.as_ref()) {
+            // first file-id is stored directly with the word. this covers a surprisingly
+            // large number of cases.
+            if data.first_file_id != 0 {
+                let (file_map_block_nr, file_map_idx) =
+                    self.wordmap
+                        .add_initial(&mut self.db, word.as_ref(), file_id)?;
+
+                data.first_file_id = 0;
+                data.file_map_block_nr = file_map_block_nr;
+                data.file_map_idx = file_map_idx;
+            }
+
+            // add second file-id. (and any further).
             self.wordmap.add(
                 &mut self.db,
                 word.as_ref(),
                 data.file_map_block_nr,
-                data.file_map_block_idx,
-                file_idx,
+                data.file_map_idx,
+                file_id,
             )?;
             data.count += 1;
         } else {
             let word_id = self.ids.next("word");
-            let (word_block_nr, word_idx) =
-                self.wordmap
-                    .add_initial(&mut self.db, word.as_ref(), file_idx)?;
 
             self.words.list.insert(
                 word.as_ref().into(),
@@ -402,8 +413,9 @@ impl Words {
                     id: word_id,
                     block_nr: 0,
                     block_idx: 0,
-                    file_map_block_nr: word_block_nr,
-                    file_map_block_idx: word_idx,
+                    file_map_block_nr: 0,
+                    file_map_idx: 0,
+                    first_file_id: file_id,
                     written: false,
                     count: 1,
                 },
@@ -454,11 +466,11 @@ impl Words {
 
     pub fn should_auto_save(&mut self) -> bool {
         self.auto_save += 1;
-        self.auto_save % 10 == 0
+        self.auto_save % 100 == 0
     }
 
     pub fn should_reorg(&mut self) -> bool {
-        self.auto_save % 100 == 0
+        self.auto_save % 1000 == 0
     }
 }
 
@@ -679,9 +691,11 @@ pub mod word_map {
             db: &mut WordFileBlocks,
             block_nr: BlkNr,
             block_idx: BlkIdx,
+            first_file_id: FileId,
         ) -> IterFileId {
             IterFileId {
                 db,
+                first_file_id: first_file_id,
                 map_block_nr: block_nr,
                 map_idx: block_idx,
                 file_idx: 0,
@@ -691,17 +705,19 @@ pub mod word_map {
 
     pub struct IterFileId<'a> {
         db: &'a mut WordFileBlocks,
-        map_block_nr: u32,
+        first_file_id: FileId,
+        map_block_nr: BlkNr,
         map_idx: BlkIdx,
         file_idx: FIdx,
     }
 
     impl<'a> IterFileId<'a> {
         fn is_clear(&self) -> bool {
-            self.map_block_nr == 0
+            self.map_block_nr == 0 && self.first_file_id == 0
         }
 
         fn clear(&mut self) {
+            self.first_file_id = 0;
             self.map_block_nr = 0;
             self.map_idx = 0;
             self.file_idx = 0;
@@ -716,7 +732,12 @@ pub mod word_map {
                 return None;
             }
 
-            let mut _discard_block = None;
+            if self.first_file_id != 0 {
+                let first_file_id = self.first_file_id;
+                self.clear();
+                return Some(Ok(first_file_id));
+            }
+
             let file_id = loop {
                 let map_list = match self.db.get(self.map_block_nr) {
                     Ok(block) => block.cast::<RawWordMapList>(),
@@ -729,7 +750,6 @@ pub mod word_map {
                     // next
                     self.file_idx += 1;
                     if self.file_idx >= map.file_id.len() as u32 {
-                        _discard_block = Some(self.map_block_nr);
                         self.map_block_nr = map.next_block_nr;
                         self.map_idx = map.next_idx;
                         self.file_idx = 0;
@@ -737,7 +757,6 @@ pub mod word_map {
                     break Some(file_id);
                 } else {
                     if map.next_block_nr != 0 {
-                        _discard_block = Some(self.map_block_nr);
                         self.map_block_nr = map.next_block_nr;
                         self.map_idx = map.next_idx;
                         self.file_idx = 0;
@@ -746,10 +765,6 @@ pub mod word_map {
                     }
                 }
             };
-
-            // if let Some(block_nr) = discard_block {
-            //     self.db.discard(block_nr);
-            // }
 
             file_id.map(|v| Ok(v))
         }
@@ -896,7 +911,7 @@ pub mod files {
 
 pub mod words {
     use crate::index2::{
-        byte_to_str, copy_fix, BlkIdx, BlkNr, WordBlockType, WordFileBlocks, WordId,
+        byte_to_str, copy_fix, BlkIdx, BlkNr, FileId, WordBlockType, WordFileBlocks, WordId,
     };
     use blockfile::Length;
     use blockfile::BLOCK_SIZE;
@@ -917,7 +932,8 @@ pub mod words {
         pub block_nr: BlkNr,
         pub block_idx: BlkIdx,
         pub file_map_block_nr: BlkNr,
-        pub file_map_block_idx: BlkIdx,
+        pub file_map_idx: BlkIdx,
+        pub first_file_id: FileId,
         pub written: bool,
         pub count: u32,
     }
@@ -930,7 +946,7 @@ pub mod words {
         pub word: [u8; 20],
         pub id: WordId,
         pub file_map_block_nr: BlkNr,
-        pub file_map_idx: BlkIdx,
+        pub file_map_idx_or_file_id: BlkIdx,
     }
 
     impl Debug for RawWord {
@@ -939,7 +955,7 @@ pub mod words {
             write!(
                 f,
                 "{} {} -> {} {}",
-                w, self.id, self.file_map_block_nr, self.file_map_idx
+                w, self.id, self.file_map_block_nr, self.file_map_idx_or_file_id
             )
         }
     }
@@ -950,7 +966,7 @@ pub mod words {
                 word: Default::default(),
                 id: 0,
                 file_map_block_nr: 0,
-                file_map_idx: 0,
+                file_map_idx_or_file_id: 0,
             }
         }
     }
@@ -974,18 +990,37 @@ pub mod words {
                 for (i, r) in raw.iter().enumerate() {
                     if r.word != empty.word {
                         let word = byte_to_str(&r.word)?;
-                        words.list.insert(
-                            word.into(),
-                            WordData {
-                                id: r.id,
-                                block_nr,
-                                block_idx: i as u32,
-                                file_map_block_nr: r.file_map_block_nr,
-                                file_map_block_idx: r.file_map_idx,
-                                written: false,
-                                count: 0,
-                            },
-                        );
+                        // block_nr == 0 means we have only one file-id and it is stored
+                        // as file_map_idx.
+                        if r.file_map_block_nr == 0 {
+                            words.list.insert(
+                                word.into(),
+                                WordData {
+                                    id: r.id,
+                                    block_nr,
+                                    block_idx: i as u32,
+                                    file_map_block_nr: 0,
+                                    file_map_idx: 0,
+                                    first_file_id: r.file_map_idx_or_file_id,
+                                    written: false,
+                                    count: 0,
+                                },
+                            );
+                        } else {
+                            words.list.insert(
+                                word.into(),
+                                WordData {
+                                    id: r.id,
+                                    block_nr,
+                                    block_idx: i as u32,
+                                    file_map_block_nr: r.file_map_block_nr,
+                                    file_map_idx: r.file_map_idx_or_file_id,
+                                    first_file_id: 0,
+                                    written: false,
+                                    count: 0,
+                                },
+                            );
+                        }
                     }
                 }
                 db.discard(block_nr);
@@ -996,31 +1031,10 @@ pub mod words {
 
         /// Reorder the word list due to histogram data.
         /// Does not store to disk.
-        pub fn reorder(&mut self, db: &mut WordFileBlocks) -> Result<(), io::Error> {
-            let mut reorder: Vec<_> = self.list.values_mut().map(|w| (w.count, w)).collect();
-            reorder.sort_by(|v, w| w.0.cmp(&v.0));
-
-            let mut n: u32 = 0;
-
-            let mut it = reorder.into_iter();
-            let blocks: Vec<_> = db
-                .iter_metadata()
-                .filter(|v| v.1 == Self::TY)
-                .map(|v| v.0)
-                .collect();
-            for block_nr in blocks {
-                for idx in 0..RawWordList::LEN {
-                    if let Some((_, data)) = it.next() {
-                        if data.block_nr != block_nr || data.block_idx != idx as u32 {
-                            n += 1;
-                        }
-                        data.block_nr = block_nr;
-                        data.block_idx = idx as u32;
-                    }
-                }
-            }
-            println!("reorder {}/{}", n, self.list.len());
-
+        pub fn reorder(&mut self, _db: &mut WordFileBlocks) -> Result<(), io::Error> {
+            // the linked list is created within the word-map, instead of always
+            // rewriting the head here. keeps the necessary writes mostly to the
+            // head-blocks and newly added words.
             Ok(())
         }
 
@@ -1032,11 +1046,20 @@ pub mod words {
         ) -> Result<(), io::Error> {
             // assume append only
             for (word, word_data) in self.list.iter_mut() {
-                let w = RawWord {
-                    word: copy_fix::<20>(word.as_bytes()),
-                    id: word_data.id,
-                    file_map_block_nr: word_data.file_map_block_nr,
-                    file_map_idx: word_data.file_map_block_idx,
+                let w = if word_data.first_file_id == 0 {
+                    RawWord {
+                        word: copy_fix::<20>(word.as_bytes()),
+                        id: word_data.id,
+                        file_map_block_nr: 0,
+                        file_map_idx_or_file_id: word_data.first_file_id,
+                    }
+                } else {
+                    RawWord {
+                        word: copy_fix::<20>(word.as_bytes()),
+                        id: word_data.id,
+                        file_map_block_nr: word_data.file_map_block_nr,
+                        file_map_idx_or_file_id: word_data.file_map_idx,
+                    }
                 };
 
                 if word_data.block_nr != 0 {
@@ -1143,12 +1166,6 @@ pub mod id {
                 .filter(|v| v.1 == Self::TY)
                 .map(|v| v.0)
                 .collect();
-            dbg!(&blocks);
-
-            let empty = RawId {
-                name: Default::default(),
-                id: 0,
-            };
 
             let mut it_names = self.ids.iter();
             'f: loop {

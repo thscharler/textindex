@@ -151,7 +151,7 @@ fn test_merge() -> Result<(), io::Error> {
 
     words.write().unwrap();
 
-    dbg!(&words);
+    println!("{:2?}", words);
 
     Ok(())
 }

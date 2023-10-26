@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
 use textindex::index2::id::{RawId, RawIdMap};
-use textindex::index2::word_map::{RawWordMap, RawWordMapList};
+use textindex::index2::word_map::{RawWordMap, RawWordMapInit, RawWordMapInitList, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
 use textindex::index2::Words;
 
@@ -15,6 +15,9 @@ fn test_sizes() {
     println!("RawWordmapList {}", size_of::<RawWordMapList>());
     println!("RawWordmapList::LEN {}", RawWordMapList::LEN);
     println!("RawWordMap {}", size_of::<RawWordMap>());
+    println!("RawWordMapInitList {}", size_of::<RawWordMapInitList>());
+    println!("RawWordMapInitList::LEN {}", RawWordMapInitList::LEN);
+    println!("RawWordMapInit {}", size_of::<RawWordMapInit>());
     println!("RawWordList {}", size_of::<RawWordList>());
     println!("RawWordList::LEN {}", RawWordList::LEN);
     println!("RawWord {}", size_of::<RawWord>());
@@ -22,6 +25,8 @@ fn test_sizes() {
     println!("RawIdMap::LEN {}", RawIdMap::LEN);
     println!("RawSingleId {}", size_of::<RawId>());
 
+    assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordMapInitList>());
+    assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWordMapInit>());
     assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordMapList>());
     assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWordMap>());
     assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordList>());
