@@ -140,6 +140,7 @@ pub enum CCode {
 
     CFindMatch,
     CFilesMatch,
+    CStatMatch,
     CDeleteMatch,
 }
 
@@ -176,6 +177,7 @@ impl CCode {
             CBase => "base",
             CDebug => "debug",
             CStore => "store",
+            CStatMatch => "stats",
         }
     }
 }
@@ -201,6 +203,7 @@ pub enum Delete {
 pub enum Stats {
     Base,
     Debug,
+    Word(String),
 }
 
 #[derive(Debug, Clone)]
@@ -224,7 +227,7 @@ pub fn parse_cmds(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
 // -----------------------------------------------------------------------
 // -----------------------------------------------------------------------
 
-const ALL_PARSERS: CmdParse<BCommand, 9> = CmdParse {
+const ALL_PARSERS: CmdParse<BCommand, 10> = CmdParse {
     parse: [
         Cmd::P1("index", CIndex, BCommand::Index()),
         Cmd::P2(
@@ -237,6 +240,7 @@ const ALL_PARSERS: CmdParse<BCommand, 9> = CmdParse {
             (CStats, CDebug),
             BCommand::Stats(Stats::Debug),
         ),
+        Cmd::P1p("stats", CStats, parse_stats),
         Cmd::P1p("delete", CDelete, parse_delete),
         Cmd::P1p("find", CFind, parse_find),
         Cmd::P1p("files", CFiles, parse_files),
@@ -251,6 +255,14 @@ fn parse_delete(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
     track(CDelete, preceded(nom_ws, nom_last_token))
         .map(|v| BCommand::Delete(Delete::Delete(v.fragment().to_string())))
         .with_code(CDeleteMatch)
+        .err_into()
+        .parse(input)
+}
+
+fn parse_stats(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
+    track(CStats, preceded(nom_ws, nom_last_token))
+        .map(|v| BCommand::Stats(Stats::Word(v.fragment().to_string())))
+        .with_code(CStatMatch)
         .err_into()
         .parse(input)
 }

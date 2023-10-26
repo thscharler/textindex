@@ -12,6 +12,7 @@ use rustyline::Editor;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Mutex, RwLock};
+use wildmatch::WildMatch;
 
 mod cmdlib;
 mod cmds;
@@ -185,6 +186,28 @@ fn parse_cmd(
             }
 
             work.send.send(Msg::Debug)?;
+        }
+        BCommand::Stats(Stats::Word(txt)) => {
+            let mut words = data.words.write()?;
+
+            let match_find = WildMatch::new(txt.as_str());
+            let w: Vec<_> = words
+                .iter_words()
+                .filter(|(k, _)| match_find.matches(k))
+                .map(|(k, v)| (k, v.clone()))
+                .collect();
+            for (k, v) in w {
+                println!(
+                    "{}: [{}] -> {}|{} => {} | {}|{}",
+                    k,
+                    v.id,
+                    v.block_nr,
+                    v.block_idx,
+                    v.first_file_id,
+                    v.file_map_block_nr,
+                    v.file_map_idx
+                );
+            }
         }
         BCommand::Stats(Stats::Debug) => {
             let rd = data.words.read()?;

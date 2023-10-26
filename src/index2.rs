@@ -309,18 +309,18 @@ impl Words {
 
         self.db.store()?;
 
-        let mut gen_count: BTreeMap<(BlockType, u32), u32> = BTreeMap::new();
-        for block in self.db.iter_blocks() {
-            gen_count
-                .entry((block.block_type(), block.generation()))
-                .and_modify(|v| *v += 1)
-                .or_insert_with(|| 1);
-        }
-        println!("remain: {} generations: ", self.db.iter_blocks().count(),);
-        for ((t, g), n) in &gen_count {
-            print!("{:?}{} = {}, ", WordBlockType::ubt(*t), g, n);
-        }
-        println!();
+        // let mut gen_count: BTreeMap<(BlockType, u32), u32> = BTreeMap::new();
+        // for block in self.db.iter_blocks() {
+        //     gen_count
+        //         .entry((block.block_type(), block.generation()))
+        //         .and_modify(|v| *v += 1)
+        //         .or_insert_with(|| 1);
+        // }
+        // print!("remain: {} generations: ", self.db.iter_blocks().count(),);
+        // for ((t, g), n) in &gen_count {
+        //     print!("{:?}{} = {}, ", WordBlockType::ubt(*t), g, n);
+        // }
+        // println!();
 
         Ok(())
     }
@@ -403,7 +403,6 @@ impl Words {
                 data.file_map_idx,
                 file_id,
             )?;
-            data.count += 1;
         } else {
             let word_id = self.ids.next("word");
 
@@ -416,8 +415,6 @@ impl Words {
                     file_map_block_nr: 0,
                     file_map_idx: 0,
                     first_file_id: file_id,
-                    written: false,
-                    count: 1,
                 },
             );
         };
@@ -934,8 +931,6 @@ pub mod words {
         pub file_map_block_nr: BlkNr,
         pub file_map_idx: BlkIdx,
         pub first_file_id: FileId,
-        pub written: bool,
-        pub count: u32,
     }
 
     pub type RawWordList = [RawWord; BLOCK_SIZE as usize / size_of::<RawWord>()];
@@ -1002,8 +997,6 @@ pub mod words {
                                     file_map_block_nr: 0,
                                     file_map_idx: 0,
                                     first_file_id: r.file_map_idx_or_file_id,
-                                    written: false,
-                                    count: 0,
                                 },
                             );
                         } else {
@@ -1016,8 +1009,6 @@ pub mod words {
                                     file_map_block_nr: r.file_map_block_nr,
                                     file_map_idx: r.file_map_idx_or_file_id,
                                     first_file_id: 0,
-                                    written: false,
-                                    count: 0,
                                 },
                             );
                         }
@@ -1067,7 +1058,6 @@ pub mod words {
                     let word_list = block.cast_mut::<RawWordList>();
 
                     if word_list[word_data.block_idx as usize] != w {
-                        word_data.written = true;
                         word_list[word_data.block_idx as usize] = w;
                         block.set_dirty(true);
                         block.discard();
@@ -1085,7 +1075,6 @@ pub mod words {
                     word_list[*last_block_idx as usize] = w;
                     word_data.block_nr = *last_block_nr;
                     word_data.block_idx = *last_block_idx;
-                    word_data.written = true;
 
                     if *last_block_idx + 1 == RawWordList::LEN as u32 {
                         *last_block_nr = db.alloc(Self::TY).block_nr();

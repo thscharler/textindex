@@ -631,9 +631,11 @@ fn terminal_proc(
             Msg::WalkFinished(file) => {
                 state.lock().unwrap().state = 5;
 
+                print_(&printer, format!("*** final store ***"));
+
                 let mut words = data.words.write()?;
-                words.db.compact();
                 words.write()?;
+                words.db.compact();
 
                 print_(&printer, format!("*** {:?} finished ***", file));
             }
