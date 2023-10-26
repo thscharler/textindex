@@ -37,7 +37,6 @@ pub enum FileFilter {
 
 pub struct Data {
     pub words: RwLock<Words>,
-    pub modified: Mutex<bool>,
 }
 
 impl Data {
@@ -55,7 +54,6 @@ impl Data {
 
         let data: &'static Data = Box::leak(Box::new(Data {
             words: RwLock::new(words),
-            modified: Mutex::new(false),
         }));
 
         Ok(data)

@@ -11,7 +11,7 @@ use rustyline::history::FileHistory;
 use rustyline::Editor;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Mutex, RwLock};
+use std::sync::RwLock;
 use wildmatch::WildMatch;
 
 mod cmdlib;
@@ -38,7 +38,6 @@ fn main() -> Result<(), AppError> {
             println!("start with empty index");
             Box::leak(Box::new(Data {
                 words: RwLock::new(Words::new(&stored)?),
-                modified: Mutex::new(false),
             }))
         }
     };
@@ -83,10 +82,7 @@ fn main() -> Result<(), AppError> {
     }
 
     shut_down(work);
-
-    if *data.modified.lock()? {
-        let _ = auto_save(&work.printer.clone(), data);
-    }
+    auto_save(&work.printer.clone(), data)?;
 
     rl.save_history("history.txt")?;
 
@@ -136,8 +132,6 @@ fn parse_cmd(
             }
         }
         BCommand::Delete(Delete::Delete(v)) => {
-            *data.modified.lock()? = true;
-
             let words = data.words.read()?;
 
             for file in words.find_file(v.as_str()) {
@@ -184,6 +178,10 @@ fn parse_cmd(
                     }
                 );
             }
+
+            let words = data.words.read()?;
+            println!("words: {}", words.words.list.len());
+            println!("files: {}", words.files.list.len());
 
             work.send.send(Msg::Debug)?;
         }
