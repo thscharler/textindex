@@ -84,6 +84,9 @@ fn main() -> Result<(), AppError> {
     shut_down(work);
     auto_save(&work.printer.clone(), data)?;
 
+    let words = data.words.write()?;
+    dbg!(&words.db);
+
     rl.save_history("history.txt")?;
 
     Ok(())

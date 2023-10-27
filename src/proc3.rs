@@ -633,7 +633,7 @@ fn terminal_proc(
 
                 let mut words = data.words.write()?;
                 words.write()?;
-                words.db.compact();
+                words.db.compact_blocks();
 
                 print_(&printer, format!("*** {:?} finished ***", file));
             }

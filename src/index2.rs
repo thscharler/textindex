@@ -211,6 +211,7 @@ impl Words {
 
         let wordmap_block_nr_head = ids.get("wordmap_head");
         let wordmap_block_nr_tail = ids.get("wordmap_tail");
+
         let wordmap = WordMap::load(&mut db, wordmap_block_nr_head, wordmap_block_nr_tail)?;
 
         Ok(Self {
@@ -308,19 +309,6 @@ impl Words {
         );
 
         self.db.store()?;
-
-        // let mut gen_count: BTreeMap<(BlockType, u32), u32> = BTreeMap::new();
-        // for block in self.db.iter_blocks() {
-        //     gen_count
-        //         .entry((block.block_type(), block.generation()))
-        //         .and_modify(|v| *v += 1)
-        //         .or_insert_with(|| 1);
-        // }
-        // print!("remain: {} generations: ", self.db.iter_blocks().count(),);
-        // for ((t, g), n) in &gen_count {
-        //     print!("{:?}{} = {}, ", WordBlockType::ubt(*t), g, n);
-        // }
-        // println!();
 
         Ok(())
     }
