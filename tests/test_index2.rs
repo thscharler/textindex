@@ -1,5 +1,4 @@
 use blockfile::Length;
-use blockfile::BLOCK_SIZE;
 use std::fs;
 use std::mem::size_of;
 use std::path::PathBuf;
@@ -9,6 +8,8 @@ use textindex::index2::id::{RawId, RawIdMap};
 use textindex::index2::word_map::{RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
 use textindex::index2::Words;
+
+const BLOCK_SIZE: usize = 128;
 
 #[test]
 fn test_sizes() {
@@ -28,6 +29,18 @@ fn test_sizes() {
     assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWord>());
     assert_eq!(BLOCK_SIZE as usize, size_of::<RawIdMap>());
     assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawId>());
+}
+
+#[test]
+fn test_numeric() {
+    let word = "09feb97:";
+    if let Some(c) = word.chars().next() {
+        // numeric data ignored
+        if c.is_numeric() {
+            return;
+        }
+    }
+    panic!();
 }
 
 #[test]
@@ -124,7 +137,7 @@ fn test_word() -> Result<(), AppError> {
     assert!(w.words.list.get("alpha").is_some());
     if let Some(word) = w.words.list.get("alpha").cloned() {
         assert_eq!(word.file_map_block_nr, 4);
-        assert_eq!(word.file_map_block_idx, 0);
+        assert_eq!(word.file_map_idx, 0);
         assert_eq!(word.id, 1);
         let mut it = w.iter_word_files(word);
         assert_eq!(it.next().unwrap()?, 1);
@@ -189,7 +202,7 @@ fn test_word3() -> Result<(), AppError> {
 
     let wdata = w.words.list.get("alpha").cloned().unwrap();
     assert_eq!(wdata.file_map_block_nr, 4);
-    assert_eq!(wdata.file_map_block_idx, 0);
+    assert_eq!(wdata.file_map_idx, 0);
     {
         let mut it = w.iter_word_files(wdata);
         assert_eq!(it.next().unwrap()?, 1);
@@ -199,7 +212,7 @@ fn test_word3() -> Result<(), AppError> {
 
     let wdata = w.words.list.get("beta").cloned().unwrap();
     assert_eq!(wdata.file_map_block_nr, 4);
-    assert_eq!(wdata.file_map_block_idx, 1);
+    assert_eq!(wdata.file_map_idx, 1);
     let mut it = w.iter_word_files(wdata);
     assert_eq!(it.next().unwrap()?, 1);
     assert_eq!(it.next().unwrap()?, 2);

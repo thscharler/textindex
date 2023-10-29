@@ -4,6 +4,7 @@ use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
 use std::borrow::Cow;
 use std::collections::BTreeSet;
 use std::fmt::Debug;
+use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct TmpWords {
@@ -30,113 +31,107 @@ impl TmpWords {
     }
 }
 
-pub fn index_txt(words: &mut TmpWords, buf: &str) {
-    // split at white
-    for word in buf.split(|c: char| {
-        c as u32 <= 32
-            || c == '_'
-            || c == ','
-            || c == '.'
-            || c == '='
-            || c == '/'
-            || c == '\u{FFFD}'
-            || c.is_whitespace()
-    }) {
-        let word = word.trim_end_matches(|c: char| {
-            c == '"'
-                || c == '\''
-                || c == '`'
-                || c == '?'
-                || c == '!'
-                || c == ';'
-                || c == ':'
-                || c == '.'
-                || c == ','
-                || c == '@'
-                || c == '#'
-                || c == '-'
-                || c == '+'
-                || c == '*'
-                || c == '~'
-                || c == '^'
-                || c == '('
-                || c == ')'
-                || c == '['
-                || c == ']'
-                || c == '{'
-                || c == '}'
-                || c == '|'
-                || c == '\\'
-        });
-        let word = word.trim_start_matches(|c: char| {
-            c == '"'
-                || c == '\''
-                || c == '`'
-                || c == '?'
-                || c == '!'
-                || c == ';'
-                || c == ':'
-                || c == '.'
-                || c == ','
-                || c == '@'
-                || c == '#'
-                || c == '-'
-                || c == '+'
-                || c == '*'
-                || c == '~'
-                || c == '^'
-                || c == '('
-                || c == ')'
-                || c == '['
-                || c == ']'
-                || c == '{'
-                || c == '}'
-                || c == '|'
-                || c == '\\'
-        });
+pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
+    let now = Instant::now();
+    let result = fun();
+    *dur += now.elapsed();
+    result
+}
 
-        if let Some(c) = word.chars().next() {
-            if c.is_ascii_digit() {
-                continue;
-            } else if c == '<' {
-                continue;
-            } else if c == '&' {
-                continue;
-            } else if c == '/' {
+pub fn index_txt(tmp_words: &mut TmpWords, text: &str) -> usize {
+    let mut n_words = 0usize;
+
+    let mut base64_section = false;
+    let mut pgp_section = false;
+
+    for line in text.split('\n') {
+        // skip headers like:
+        // Subject: some subject ...
+        if let Some(header) = line.split_once(|c: char| c == ':') {
+            if header
+                .0
+                .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '*')
+                .is_none()
+            {
                 continue;
             }
         }
-
-        if word.is_empty() {
+        if let Some(c) = line.chars().next() {
+            // text-frames ignored
+            if c == '|' || c == '+' {
+                continue;
+            }
+        }
+        if line.starts_with("begin") {
+            base64_section = true;
+        }
+        if base64_section && line.starts_with("end") {
+            base64_section = false;
+        }
+        if base64_section && line.starts_with("M") {
+            continue;
+        }
+        if line.contains("-----BEGIN PGP SIGNATURE-----") {
+            pgp_section = true;
+        }
+        if pgp_section && line.contains("-----END PGP SIGNATURE-----") {
+            pgp_section = false;
+        }
+        if pgp_section {
             continue;
         }
 
-        let c = word.chars().next().expect("char");
-        if c.is_ascii_alphanumeric() {
-            let word = word.to_lowercase();
-            words.add_word(word);
+        // split at white
+        let words = line.split(|c: char| {
+            c as u32 <= 32
+                || c == '_'
+                || c == ','
+                || c == '.'
+                || c == '-'
+                || c == '\u{FFFD}'
+                || c.is_whitespace()
+        });
+        for word in words {
+            let word = trim_word(word);
+            if let Some(c) = word.chars().next() {
+                // numeric data ignored
+                if c.is_numeric() {
+                    continue;
+                }
+            }
+            if word.is_empty() {
+                continue;
+            }
+
+            n_words += 1;
+            tmp_words.add_word(word.to_lowercase());
         }
     }
+
+    n_words
+}
+
+fn trim_word(word: &str) -> &str {
+    word.trim_matches(|c: char| !c.is_alphanumeric())
 }
 
 pub fn index_html(words: &mut TmpWords, buf: &str) {
     #[derive(Debug)]
-    struct IdxSink<'a> {
-        pub words: &'a mut TmpWords,
-
+    struct IdxSink {
+        pub txt: String,
         pub elem: Vec<QualName>,
-        pub comment: Vec<StrTendril>,
-        pub pi: Vec<(StrTendril, StrTendril)>,
+        // pub comment: Vec<StrTendril>,
+        // pub pi: Vec<(StrTendril, StrTendril)>,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     enum IdxHandle {
         Elem(usize),
         Comment(usize),
         Pi(usize),
     }
 
-    impl<'a> TreeSink for IdxSink<'a> {
+    impl TreeSink for &mut IdxSink {
         type Handle = IdxHandle;
         type Output = ();
 
@@ -153,12 +148,8 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
         fn elem_name<'c>(&'c self, target: &'c Self::Handle) -> ExpandedName<'c> {
             match target {
                 IdxHandle::Elem(i) => self.elem[*i].expanded(),
-                IdxHandle::Comment(_) => {
-                    unimplemented!()
-                }
-                IdxHandle::Pi(_) => {
-                    unimplemented!()
-                }
+                IdxHandle::Comment(_) => unimplemented!(),
+                IdxHandle::Pi(_) => unimplemented!(),
             }
         }
 
@@ -168,37 +159,30 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
             _attrs: Vec<Attribute>,
             _flags: ElementFlags,
         ) -> Self::Handle {
-            // println!("create_element {:?} {:?}", name, _attrs);
-
             let handle = self.elem.len();
             self.elem.push(name);
-
             IdxHandle::Elem(handle)
         }
 
-        fn create_comment(&mut self, text: StrTendril) -> Self::Handle {
-            // println!("create_comment {:?}", text);
-
-            let handle = self.comment.len();
-            self.comment.push(text);
-
-            IdxHandle::Comment(handle)
+        fn create_comment(&mut self, _text: StrTendril) -> Self::Handle {
+            // no need to store, always hand out 0
+            // let handle = self.comment.len();
+            // self.comment.push(text);
+            IdxHandle::Comment(0)
         }
 
-        fn create_pi(&mut self, target: StrTendril, data: StrTendril) -> Self::Handle {
-            // println!("create_pi {:?} {:?}", target, data);
-
-            let handle = self.pi.len();
-            self.pi.push((target, data));
-
-            IdxHandle::Pi(handle)
+        fn create_pi(&mut self, _target: StrTendril, _data: StrTendril) -> Self::Handle {
+            // no need to store, always hand out 0
+            // let handle = self.pi.len();
+            // self.pi.push((target, data));
+            IdxHandle::Pi(0)
         }
 
         fn append(&mut self, _parent: &Self::Handle, child: NodeOrText<Self::Handle>) {
             match child {
-                NodeOrText::AppendNode(_) => {}
+                NodeOrText::AppendNode(_n) => {}
                 NodeOrText::AppendText(v) => {
-                    index_txt(self.words, v.as_ref());
+                    self.txt.push_str(v.as_ref());
                 }
             }
         }
@@ -209,12 +193,6 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
             _prev_element: &Self::Handle,
             _child: NodeOrText<Self::Handle>,
         ) {
-            // match child {
-            //     NodeOrText::AppendNode(v) => {}
-            //     NodeOrText::AppendText(v) => {
-            //         println!("append_based_on_parent_node {:?}", v);
-            //     }
-            // }
         }
 
         fn append_doctype_to_document(
@@ -223,10 +201,6 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
             _public_id: StrTendril,
             _system_id: StrTendril,
         ) {
-            // println!(
-            //     "append_doctype_to_document {:?} {:?} {:?}",
-            //     name, public_id, system_id
-            // );
         }
 
         fn get_template_contents(&mut self, target: &Self::Handle) -> Self::Handle {
@@ -244,12 +218,6 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
             _sibling: &Self::Handle,
             _new_node: NodeOrText<Self::Handle>,
         ) {
-            // match new_node {
-            //     NodeOrText::AppendNode(v) => {}
-            //     NodeOrText::AppendText(v) => {
-            //         println!("append_before_sibling {:?}", v);
-            //     }
-            // }
         }
 
         fn add_attrs_if_missing(&mut self, _target: &Self::Handle, _attrs: Vec<Attribute>) {}
@@ -259,15 +227,15 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
         fn reparent_children(&mut self, _node: &Self::Handle, _new_parent: &Self::Handle) {}
     }
 
-    let s = IdxSink {
-        words,
-        elem: vec![],
-        comment: vec![],
-        pi: vec![],
+    let mut s = IdxSink {
+        txt: String::default(),
+        elem: Vec::default(),
     };
 
-    let p = parse_document(s, ParseOpts::default());
+    let p = parse_document(&mut s, ParseOpts::default());
     p.one(buf);
+
+    index_txt(words, s.txt.as_str());
 }
 
 pub const STOP_WORDS: &[&str] = &[
@@ -276,7 +244,6 @@ pub const STOP_WORDS: &[&str] = &[
     "after",
     "again",
     "against",
-    "agin",
     "ain't",
     "all",
     "all",
@@ -318,12 +285,9 @@ pub const STOP_WORDS: &[&str] = &[
     "can't",
     "com",
     "comes",
-    "committee",
     "contact",
     "could",
     "couldn't",
-    "d",
-    "d",
     "date",
     "day",
     "did",
@@ -345,7 +309,6 @@ pub const STOP_WORDS: &[&str] = &[
     "find",
     "finds",
     "first",
-    "followup-to",
     "for",
     "found",
     "from",
@@ -411,7 +374,6 @@ pub const STOP_WORDS: &[&str] = &[
     "me",
     "mean",
     "meets",
-    "message-id",
     "might",
     "moderated",
     "moderator",
@@ -422,17 +384,14 @@ pub const STOP_WORDS: &[&str] = &[
     "my",
     "myself",
     "need",
-    "net!usenet",
     "net",
     "net",
-    "netusa",
     "never",
     "new",
     "news1",
     "newsgroup",
     "newsgroups",
     "next",
-    "nntp-posting-host",
     "no",
     "not",
     "notes",
@@ -447,7 +406,6 @@ pub const STOP_WORDS: &[&str] = &[
     "only",
     "onto",
     "or",
-    "organization",
     "other",
     "our",
     "out",
@@ -463,7 +421,6 @@ pub const STOP_WORDS: &[&str] = &[
     "real",
     "really",
     "right",
-    "rl:http",
     "runscroller",
     "s",
     "said",
@@ -474,14 +431,12 @@ pub const STOP_WORDS: &[&str] = &[
     "see",
     "seemed",
     "seen",
-    "senet-approval@qz",
     "she",
     "she's",
     "shook",
     "should",
     "show",
     "since",
-    "site",
     "so",
     "some",
     "someone",
@@ -492,12 +447,7 @@ pub const STOP_WORDS: &[&str] = &[
     "spam",
     "started",
     "still",
-    "stories",
     "story",
-    "story-admin@qz",
-    "story-submit@qz",
-    "subject",
-    "submission",
     "such",
     "sure",
     "take",
@@ -525,12 +475,9 @@ pub const STOP_WORDS: &[&str] = &[
     "told",
     "too",
     "took",
-    "tory-admin@qz",
-    "tory-submit@qz",
     "tried",
     "tries",
     "try",
-    "u",
     "under",
     "until",
     "up",
@@ -562,10 +509,6 @@ pub const STOP_WORDS: &[&str] = &[
     "working",
     "would",
     "www",
-    "x-archived-at",
-    "x-moderator-contact",
-    "x-story-submission",
-    "year97",
     "yet",
     "you",
     "you're",

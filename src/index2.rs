@@ -21,6 +21,8 @@ type FileId = u32;
 type WordId = u32;
 type Id = u32;
 
+const BLOCK_SIZE: usize = 4096;
+
 pub struct Words {
     pub db: WordFileBlocks,
     pub ids: Ids,
@@ -193,7 +195,10 @@ impl Words {
     }
 
     pub fn read(file: &Path) -> Result<Self, AppError> {
-        let mut db = FileBlocks::open(file)?;
+        // 382_445 Dateien, 16_218 Ordner
+        // 8,56 GB (9_194_861_782 Bytes)
+
+        let mut db = FileBlocks::open(file, BLOCK_SIZE)?;
 
         let mut ids = Ids::load(&mut db)?;
         ids.create("wordmap_head");
@@ -255,7 +260,53 @@ impl Words {
 
     pub fn write(&mut self) -> Result<(), AppError> {
         self.store()?;
+        self.write_stats();
+        self.db.store()?;
 
+        // write!(self.log, "{:?}", self.db)?;
+
+        self.cleanup()?;
+
+        Ok(())
+    }
+
+    fn cleanup(&mut self) -> Result<(), io::Error> {
+        let generation = self.db.generation();
+
+        self.db
+            .retain_blocks(|_k, v| match WordBlockType::ubt(v.block_type()) {
+                WordBlockType::NotAllocated => true,
+                WordBlockType::Free => true,
+                WordBlockType::BlockMap => true,
+                WordBlockType::Ids => true,
+                WordBlockType::WordList => v.generation() + 2 >= generation,
+                WordBlockType::FileList => true,
+                WordBlockType::WordMapHead => true,
+                WordBlockType::WordMapTail => v.generation() + 2 >= generation,
+                WordBlockType::OtherUser => true,
+                WordBlockType::Undefined => true,
+            });
+
+        // let mut block_stat = BTreeMap::<(BlockType, u32), u32>::new();
+        // for block in self.db.iter_blocks() {
+        //     block_stat
+        //         .entry((block.block_type(), block.generation()))
+        //         .and_modify(|v| *v += 1)
+        //         .or_insert(1);
+        // }
+        // for ((ty, gen), n) in block_stat.iter() {
+        //     write!(
+        //         &mut self.log,
+        //         "{:?}:{}={} ",
+        //         WordBlockType::ubt(*ty),
+        //         gen,
+        //         n
+        //     )?;
+        // }
+        Ok(())
+    }
+
+    fn write_stats(&mut self) {
         let mut n1 = 0;
         let mut n11 = 0;
         let mut n2 = 0;
@@ -266,6 +317,8 @@ impl Words {
         let mut n44 = 0;
         let mut n5 = 0;
         let mut n55 = 0;
+        let mut n6 = 0;
+        let mut n66 = 0;
         for block in self.db.iter_blocks() {
             if block.block_type() == BlockType::User1 {
                 if block.dirty() {
@@ -303,14 +356,22 @@ impl Words {
                 }
             }
         }
+        for block in self.db.iter_metadata_blocks() {
+            if block.dirty() {
+                n6 += 1;
+            } else {
+                n66 += 1;
+            }
+        }
         println!(
-            "write blocks: ids {}/{} words {}/{} files {}/{} map {}/{} retired {}/{}",
-            n1, n11, n2, n22, n3, n33, n4, n44, n5, n55
+            "write blocks: ids {}/{} wrd {}/{} fil {}/{} map {}/{} ret {}/{} bmp {}/{}",
+            n1, n11, n2, n22, n3, n33, n4, n44, n5, n55, n6, n66
         );
-
-        self.db.store()?;
-
-        Ok(())
+        println!(
+            "write words {} files {}",
+            self.words.list.len(),
+            self.files.list.len()
+        );
     }
 
     /// Adds a new file.
@@ -460,8 +521,8 @@ impl Words {
 }
 
 pub mod word_map {
-    use crate::index2::{BlkIdx, BlkNr, FIdx, FileId, WordBlockType, WordFileBlocks};
-    use blockfile::{Length, BLOCK_SIZE};
+    use crate::index2::{BlkIdx, BlkNr, FIdx, FileId, WordBlockType, WordFileBlocks, BLOCK_SIZE};
+    use blockfile::Length;
     use std::fmt::{Debug, Formatter};
     use std::io;
     use std::mem::size_of;
@@ -658,7 +719,7 @@ pub mod word_map {
                     // retire
                     let retire_block = db.get_mut(self.last_block_nr_tail)?;
                     retire_block.set_dirty(true);
-                    retire_block.discard();
+                    // retire_block.discard();
                     let retire_map_list = retire_block.cast_mut::<RawWordMapList>();
                     let retire_map = &mut retire_map_list[retire_idx as usize];
 
@@ -757,8 +818,7 @@ pub mod word_map {
 }
 
 pub mod files {
-    use crate::index2::{BlkIdx, BlkNr, FileId, WordBlockType, WordFileBlocks};
-    use blockfile::BLOCK_SIZE;
+    use crate::index2::{BlkIdx, BlkNr, FileId, WordBlockType, WordFileBlocks, BLOCK_SIZE};
     use std::collections::BTreeMap;
     use std::fmt::Debug;
     use std::io;
@@ -897,9 +957,9 @@ pub mod files {
 pub mod words {
     use crate::index2::{
         byte_to_str, copy_fix, BlkIdx, BlkNr, FileId, WordBlockType, WordFileBlocks, WordId,
+        BLOCK_SIZE,
     };
     use blockfile::Length;
-    use blockfile::BLOCK_SIZE;
     use std::collections::BTreeMap;
     use std::fmt::{Debug, Formatter};
     use std::io;
@@ -1002,7 +1062,7 @@ pub mod words {
                         }
                     }
                 }
-                db.discard(block_nr);
+                // db.discard(block_nr);
             }
 
             Ok(words)
@@ -1048,7 +1108,7 @@ pub mod words {
                     if word_list[word_data.block_idx as usize] != w {
                         word_list[word_data.block_idx as usize] = w;
                         block.set_dirty(true);
-                        block.discard();
+                        // block.discard();
                     }
                 } else {
                     if *last_block_nr == 0 {
@@ -1058,7 +1118,7 @@ pub mod words {
 
                     let block = db.get_mut(*last_block_nr)?;
                     block.set_dirty(true);
-                    block.discard();
+                    // block.discard();
                     let word_list = block.cast_mut::<RawWordList>();
                     word_list[*last_block_idx as usize] = w;
                     word_data.block_nr = *last_block_nr;
@@ -1079,8 +1139,7 @@ pub mod words {
 }
 
 pub mod id {
-    use crate::index2::{byte_to_str, copy_clip, Id, WordBlockType, WordFileBlocks};
-    use blockfile::BLOCK_SIZE;
+    use crate::index2::{byte_to_str, copy_clip, Id, WordBlockType, WordFileBlocks, BLOCK_SIZE};
     use std::collections::HashMap;
     use std::io;
     use std::mem::size_of;
@@ -1131,7 +1190,7 @@ pub mod id {
                         ids.ids.insert(name.into(), r.id);
                     }
                 }
-                db.discard(block_nr);
+                // db.discard(block_nr);
             }
 
             Ok(ids)
@@ -1153,7 +1212,7 @@ pub mod id {
                 };
                 block.clear();
                 block.set_dirty(true);
-                block.discard();
+                // block.discard();
 
                 let id_list = block.cast_mut::<RawIdMap>();
                 for id_rec in id_list.iter_mut() {

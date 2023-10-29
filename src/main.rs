@@ -1,7 +1,8 @@
+extern crate core;
+
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
-use crate::index2::Words;
 use crate::log::dump_diagnostics;
 use crate::proc3::{auto_save, init_work, shut_down, Data, Msg, Work};
 use kparse::prelude::*;
@@ -10,8 +11,9 @@ use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
-use std::sync::RwLock;
+use std::process::exit;
 use wildmatch::WildMatch;
 
 mod cmdlib;
@@ -35,10 +37,7 @@ fn main() -> Result<(), AppError> {
         Ok(v) => v,
         Err(e) => {
             println!("{:?}", e);
-            println!("start with empty index");
-            Box::leak(Box::new(Data {
-                words: RwLock::new(Words::new(&stored)?),
-            }))
+            exit(1234);
         }
     };
 
@@ -83,9 +82,6 @@ fn main() -> Result<(), AppError> {
 
     shut_down(work);
     auto_save(&work.printer.clone(), data)?;
-
-    let words = data.words.write()?;
-    dbg!(&words.db);
 
     rl.save_history("history.txt")?;
 
@@ -182,9 +178,19 @@ fn parse_cmd(
                 );
             }
 
-            let words = data.words.read()?;
+            let words = data.words.write()?;
             println!("words: {}", words.words.list.len());
             println!("files: {}", words.files.list.len());
+
+            let mut log = data.log.try_clone()?;
+            for (word, data) in words.words.list.iter() {
+                let f = words.files.list.get(&data.first_file_id).map(|v| &v.name);
+                writeln!(
+                    log,
+                    "{}: [{}] => {} | {:?}",
+                    word, data.id, data.first_file_id, f
+                )?;
+            }
 
             work.send.send(Msg::Debug)?;
         }

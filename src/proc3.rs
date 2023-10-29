@@ -4,8 +4,9 @@ use crate::tmp_index::{index_html, index_txt, TmpWords};
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Read;
+use std::io::Write;
 use std::iter::Flatten;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
@@ -37,6 +38,7 @@ pub enum FileFilter {
 
 pub struct Data {
     pub words: RwLock<Words>,
+    pub log: File,
 }
 
 impl Data {
@@ -51,9 +53,14 @@ impl Data {
 
     pub fn read(path: &Path) -> Result<&'static Data, AppError> {
         let words = Words::read(path)?;
+        let log = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("log.txt")?;
 
         let data: &'static Data = Box::leak(Box::new(Data {
             words: RwLock::new(words),
+            log,
         }));
 
         Ok(data)
@@ -566,6 +573,15 @@ fn merge_words(
     words_buffer: TmpWords,
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
+    if words_buffer.words.len() > 5000 {
+        writeln!(
+            data.log.try_clone()?,
+            "{}<={}",
+            words_buffer.words.len(),
+            words_buffer.file
+        )?;
+    }
+
     let do_auto_save = {
         state.lock().unwrap().state = 100;
         let mut write = data.words.write()?;
@@ -658,12 +674,16 @@ pub fn name_filter(path: &Path) -> FileFilter {
         .unwrap_or(Cow::Borrowed(""))
         .to_lowercase();
 
-    const EXT_IGNORE: &[&str] = &["jpg", "pdf", "gif", "css", "png", "doc", "rtf", "js", "ico"];
+    const EXT_IGNORE: &[&str] = &[
+        "jpg", "pdf", "gif", "css", "png", "doc", "rtf", "js", "ico", "woff", "zip", "jpeg", "odt",
+        "docx", "lit", "xml",
+    ];
     const NAME_IGNORE: &[&str] = &[
         ".message.ftp.txt",
         "history.txt",
         ".stored",
         ".tmp_stored",
+        "thumbs.db",
         "index.html",
         "jan.html",
         "feb.html",
@@ -677,6 +697,8 @@ pub fn name_filter(path: &Path) -> FileFilter {
         "oct.html",
         "nov.html",
         "dec.html",
+        "ctur_seven2^4.html",
+        "my_hot_little_sister.html",
     ];
     const PREFIX_IGNORE: &[&str] = &["week"];
 
