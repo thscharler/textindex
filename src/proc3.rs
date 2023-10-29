@@ -588,10 +588,6 @@ fn merge_words(
         state.lock().unwrap().state = 101;
         timing(printer, "merge", 100, || write.append(words_buffer))?;
         state.lock().unwrap().state = 102;
-        if write.should_reorg() {
-            write.reorg()?;
-        }
-        state.lock().unwrap().state = 103;
         write.should_auto_save()
     };
 

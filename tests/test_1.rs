@@ -10,7 +10,7 @@ use walkdir::WalkDir;
 
 #[test]
 fn test_filter() -> Result<(), io::Error> {
-    let sample = "H:\\asstr";
+    let sample = "samples/index";
     let path = Path::new(sample);
 
     let mut buf = Vec::new();
@@ -80,8 +80,12 @@ fn test_index() -> Result<(), io::Error> {
             FileFilter::Inspect => {
                 println!("inspect");
             }
-            FileFilter::Text => index_txt(&mut words, text.as_ref()),
-            FileFilter::Html => index_html(&mut words, text.as_ref()),
+            FileFilter::Text => {
+                index_txt(&mut words, text.as_ref());
+            }
+            FileFilter::Html => {
+                index_html(&mut words, text.as_ref());
+            }
         }
 
         for word in words.words {
@@ -142,8 +146,12 @@ fn test_merge() -> Result<(), io::Error> {
             FileFilter::Inspect => {
                 println!("inspect");
             }
-            FileFilter::Text => index_txt(&mut tmp_words, text.as_ref()),
-            FileFilter::Html => index_html(&mut tmp_words, text.as_ref()),
+            FileFilter::Text => {
+                index_txt(&mut tmp_words, text.as_ref());
+            }
+            FileFilter::Html => {
+                index_html(&mut tmp_words, text.as_ref());
+            }
         }
 
         words.append(tmp_words).unwrap();

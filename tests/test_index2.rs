@@ -9,7 +9,7 @@ use textindex::index2::word_map::{RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
 use textindex::index2::Words;
 
-const BLOCK_SIZE: usize = 128;
+const BLOCK_SIZE: usize = 4096;
 
 #[test]
 fn test_sizes() {
@@ -23,12 +23,12 @@ fn test_sizes() {
     println!("RawIdMap::LEN {}", RawIdMap::LEN);
     println!("RawSingleId {}", size_of::<RawId>());
 
-    assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordMapList>());
-    assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWordMap>());
-    assert_eq!(BLOCK_SIZE as usize, size_of::<RawWordList>());
-    assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawWord>());
-    assert_eq!(BLOCK_SIZE as usize, size_of::<RawIdMap>());
-    assert_eq!(0, BLOCK_SIZE as usize % size_of::<RawId>());
+    assert_eq!(BLOCK_SIZE, size_of::<RawWordMapList>());
+    assert_eq!(0, BLOCK_SIZE % size_of::<RawWordMap>());
+    assert_eq!(BLOCK_SIZE, size_of::<RawWordList>());
+    assert_eq!(0, BLOCK_SIZE % size_of::<RawWord>());
+    assert_eq!(BLOCK_SIZE, size_of::<RawIdMap>());
+    assert_eq!(0, BLOCK_SIZE % size_of::<RawId>());
 }
 
 #[test]
@@ -88,34 +88,35 @@ fn test_files2() -> Result<(), AppError> {
     let _fid = w.add_file("file3".into());
 
     w.store()?;
-    println!("{:#2?}", w);
+    println!("{:#?}", w);
     w.write()?;
 
     let w = Words::read(&path)?;
+    // println!("{:#?}", w);
 
     let mut it = w.files.list.iter();
     let f0 = it.next().unwrap();
     assert_eq!(*f0.0, 1);
     assert_eq!(f0.1.name, "file0");
-    assert_eq!(f0.1.block_nr, 4);
+    assert_eq!(f0.1.block_nr, 3);
     assert_eq!(f0.1.block_idx, 0);
 
     let f1 = it.next().unwrap();
     assert_eq!(*f1.0, 2);
     assert_eq!(f1.1.name, "file1");
-    assert_eq!(f1.1.block_nr, 4);
+    assert_eq!(f1.1.block_nr, 3);
     assert_eq!(f1.1.block_idx, 10);
 
     let f2 = it.next().unwrap();
     assert_eq!(*f2.0, 3);
     assert_eq!(f2.1.name, "file2");
-    assert_eq!(f2.1.block_nr, 4);
+    assert_eq!(f2.1.block_nr, 3);
     assert_eq!(f2.1.block_idx, 20);
 
     let f3 = it.next().unwrap();
     assert_eq!(*f3.0, 4);
     assert_eq!(f3.1.name, "file3");
-    assert_eq!(f3.1.block_nr, 4);
+    assert_eq!(f3.1.block_nr, 3);
     assert_eq!(f3.1.block_idx, 30);
 
     Ok(())
@@ -136,8 +137,9 @@ fn test_word() -> Result<(), AppError> {
 
     assert!(w.words.list.get("alpha").is_some());
     if let Some(word) = w.words.list.get("alpha").cloned() {
-        assert_eq!(word.file_map_block_nr, 4);
+        assert_eq!(word.file_map_block_nr, 0);
         assert_eq!(word.file_map_idx, 0);
+        assert_eq!(word.first_file_id, 1);
         assert_eq!(word.id, 1);
         let mut it = w.iter_word_files(word);
         assert_eq!(it.next().unwrap()?, 1);
@@ -193,6 +195,7 @@ fn test_word3() -> Result<(), AppError> {
     w.write()?;
 
     let mut w = Words::read(&path)?;
+    // println!("{:#1?}", w);
 
     assert!(w.words.list.get("alpha").is_some());
     assert!(w.words.list.get("beta").is_some());
@@ -201,8 +204,9 @@ fn test_word3() -> Result<(), AppError> {
     assert!(w.words.list.get("epsilon").is_some());
 
     let wdata = w.words.list.get("alpha").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 4);
+    assert_eq!(wdata.file_map_block_nr, 3);
     assert_eq!(wdata.file_map_idx, 0);
+    assert_eq!(wdata.first_file_id, 0);
     {
         let mut it = w.iter_word_files(wdata);
         assert_eq!(it.next().unwrap()?, 1);
@@ -211,7 +215,7 @@ fn test_word3() -> Result<(), AppError> {
     }
 
     let wdata = w.words.list.get("beta").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 4);
+    assert_eq!(wdata.file_map_block_nr, 3);
     assert_eq!(wdata.file_map_idx, 1);
     let mut it = w.iter_word_files(wdata);
     assert_eq!(it.next().unwrap()?, 1);

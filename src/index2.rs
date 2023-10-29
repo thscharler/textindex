@@ -5,7 +5,7 @@ use crate::index2::id::{Ids, RawIdMap};
 use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use crate::tmp_index::TmpWords;
-use blockfile::{BlockType, FileBlocks, UserBlockType};
+use blockfile::{BlockType, FileBlocks, Recovered, UserBlockType};
 use std::collections::BTreeSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
@@ -68,8 +68,7 @@ pub enum WordBlockType {
     WordMapHead = BlockType::User4 as isize,
     WordMapTail = BlockType::User5 as isize,
 
-    OtherUser = 254,
-    Undefined = BlockType::Undefined as isize,
+    IdsHigh = BlockType::User16 as isize,
 }
 
 impl Debug for WordBlockType {
@@ -78,13 +77,12 @@ impl Debug for WordBlockType {
             WordBlockType::NotAllocated => "___",
             WordBlockType::Free => "FRE",
             WordBlockType::BlockMap => "BMP",
-            WordBlockType::Ids => "IDS",
+            WordBlockType::Ids => "IDL",
             WordBlockType::WordList => "WRD",
             WordBlockType::FileList => "FIL",
             WordBlockType::WordMapHead => "WHD",
             WordBlockType::WordMapTail => "WTL",
-            WordBlockType::OtherUser => "OTH",
-            WordBlockType::Undefined => "UND",
+            WordBlockType::IdsHigh => "IDH",
         };
         write!(f, "{}", v)
     }
@@ -101,8 +99,7 @@ impl UserBlockType for WordBlockType {
             WordBlockType::FileList => BlockType::User3,
             WordBlockType::WordMapHead => BlockType::User4,
             WordBlockType::WordMapTail => BlockType::User5,
-            WordBlockType::OtherUser => unreachable!(),
-            WordBlockType::Undefined => BlockType::Undefined,
+            WordBlockType::IdsHigh => BlockType::User16,
         }
     }
 
@@ -116,8 +113,8 @@ impl UserBlockType for WordBlockType {
             BlockType::User3 => Self::FileList,
             BlockType::User4 => Self::WordMapHead,
             BlockType::User5 => Self::WordMapTail,
-            BlockType::Undefined => Self::Undefined,
-            _ => Self::OtherUser,
+            BlockType::User16 => Self::IdsHigh,
+            _ => unreachable!(),
         }
     }
 }
@@ -157,6 +154,13 @@ impl Debug for Words {
                 WordBlockType::Ids => {
                     let data = block.cast::<RawIdMap>();
                     writeln!(f, "Ids {}", block.block_nr())?;
+                    for d in data.iter() {
+                        writeln!(f, "{} {}", from_utf8(&d.name).unwrap_or(""), d.id)?;
+                    }
+                }
+                WordBlockType::IdsHigh => {
+                    let data = block.cast::<RawIdMap>();
+                    writeln!(f, "IdsHigh {}", block.block_nr())?;
                     for d in data.iter() {
                         writeln!(f, "{} {}", from_utf8(&d.name).unwrap_or(""), d.id)?;
                     }
@@ -201,13 +205,17 @@ impl Debug for Words {
                         }
                     }
                 }
-                WordBlockType::OtherUser => {}
-                WordBlockType::Undefined => {}
             }
         }
 
         Ok(())
     }
+}
+
+pub(crate) struct LastRef {
+    pub id: u32,
+    pub block_nr: u32,
+    pub block_idx: u32,
 }
 
 impl Words {
@@ -229,58 +237,67 @@ impl Words {
             }
         };
 
-        println!("load ids");
-        let mut ids = Ids::load(&mut db)?;
-        if db.is_initialized() {
-            ids.create("wordmap_head");
-            ids.create("wordmap_tail");
-            ids.create("word");
-            ids.create("word_block_nr");
-            ids.create("word_block_idx");
-            ids.create("file");
-            ids.create("file_block_nr");
-            ids.create("file_block_idx");
-            ids.store(&mut db)?;
-        }
-
-        println!("load words");
-        let words = WordList::load(&mut db)?;
-        println!("load files");
-        let files = FileList::load(&mut db)?;
-
-        let wordmap_block_nr_head = ids.get("wordmap_head");
-        let wordmap_block_nr_tail = ids.get("wordmap_tail");
-
-        println!("load wordmap");
-        let wordmap = match WordMap::load(&mut db, wordmap_block_nr_head, wordmap_block_nr_tail) {
-            Ok(v) => v,
-            Err(e) => {
-                println!(
-                    "head {} tail {}",
-                    wordmap_block_nr_head, wordmap_block_nr_tail
-                );
-                for m in db.iter_metadata_blocks() {
-                    if m.contains(wordmap_block_nr_head) || m.contains(wordmap_block_nr_tail) {
-                        println!("{:?}", m);
-                    }
+        match db.recovered() {
+            Recovered::AllIsWell => {
+                println!("load ids");
+                let mut ids = Ids::load(&mut db)?;
+                if db.is_initialized() {
+                    ids.create("wordmap_head");
+                    ids.create("wordmap_tail");
+                    ids.create("word");
+                    ids.create("word_block_nr");
+                    ids.create("word_block_idx");
+                    ids.create("file");
+                    ids.create("file_block_nr");
+                    ids.create("file_block_idx");
+                    ids.store(&mut db)?;
                 }
-                return Err(e);
+
+                println!("load words");
+                let (words, _) = WordList::load(&mut db)?;
+                println!("load files");
+                let (files, _) = FileList::load(&mut db)?;
+
+                println!("load wordmap");
+                let wordmap_block_nr_head = ids.get("wordmap_head");
+                let wordmap_block_nr_tail = ids.get("wordmap_tail");
+                let wordmap = WordMap::load(&mut db, wordmap_block_nr_head, wordmap_block_nr_tail)?;
+
+                Ok(Self {
+                    db,
+                    ids,
+                    words,
+                    files,
+                    wordmap,
+                    auto_save: 0,
+                })
             }
-        };
+            _ => {
+                println!("recover ids");
+                let mut ids = Ids::recover(&mut db)?;
 
-        Ok(Self {
-            db,
-            ids,
-            words,
-            files,
-            wordmap,
-            auto_save: 0,
-        })
-    }
+                println!("load words");
+                let (mut words, last_word) = WordList::load(&mut db)?;
+                println!("load files");
+                let (mut files, last_file) = FileList::load(&mut db)?;
 
-    pub fn reorg(&mut self) -> Result<(), IndexError> {
-        self.words.reorder(&mut self.db)?;
-        Ok(())
+                println!("recover words");
+                words.recover(last_file.id)?;
+                ids.set("word", last_word.id);
+                ids.set("word_block_nr", last_word.block_nr);
+                ids.set("word_block_idx", last_word.block_idx);
+
+                println!("recover files");
+                files.recover()?;
+                ids.set("file", last_file.id);
+                ids.set("file_block_nr", last_file.block_nr);
+                ids.set("file_block_idx", last_file.block_idx);
+
+                WordMap::recover(&words, &files, &mut db)?;
+
+                todo!()
+            }
+        }
     }
 
     /// Write everything to FileBlocks but don't actually store anything.
@@ -330,34 +347,16 @@ impl Words {
 
         self.db
             .retain_blocks(|_k, v| match WordBlockType::ubt(v.block_type()) {
-                WordBlockType::NotAllocated => true,
-                WordBlockType::Free => true,
+                WordBlockType::NotAllocated => false,
+                WordBlockType::Free => false,
                 WordBlockType::BlockMap => true,
                 WordBlockType::Ids => true,
+                WordBlockType::IdsHigh => true,
                 WordBlockType::WordList => v.generation() + 2 >= generation,
-                WordBlockType::FileList => true,
+                WordBlockType::FileList => false,
                 WordBlockType::WordMapHead => true,
                 WordBlockType::WordMapTail => v.generation() + 2 >= generation,
-                WordBlockType::OtherUser => true,
-                WordBlockType::Undefined => true,
             });
-
-        // let mut block_stat = BTreeMap::<(BlockType, u32), u32>::new();
-        // for block in self.db.iter_blocks() {
-        //     block_stat
-        //         .entry((block.block_type(), block.generation()))
-        //         .and_modify(|v| *v += 1)
-        //         .or_insert(1);
-        // }
-        // for ((ty, gen), n) in block_stat.iter() {
-        //     write!(
-        //         &mut self.log,
-        //         "{:?}:{}={} ",
-        //         WordBlockType::ubt(*ty),
-        //         gen,
-        //         n
-        //     )?;
-        // }
         Ok(())
     }
 
@@ -487,26 +486,33 @@ impl Words {
         file_id: FileId,
     ) -> Result<(), IndexError> {
         if let Some(data) = self.words.list.get_mut(word.as_ref()) {
-            // first file-id is stored directly with the word. this covers a surprisingly
-            // large number of cases.
-            if data.first_file_id != 0 {
-                let (file_map_block_nr, file_map_idx) =
-                    self.wordmap
-                        .add_initial(&mut self.db, word.as_ref(), file_id)?;
+            if data.first_file_id == 0 && data.block_nr == 0 {
+                // Recovery lost the file refs.
+                data.first_file_id = file_id;
+            } else {
+                // first file-id is stored directly with the word. this covers a surprisingly
+                // large number of cases.
+                if data.first_file_id != 0 {
+                    let (file_map_block_nr, file_map_idx) = self.wordmap.add_initial(
+                        &mut self.db,
+                        word.as_ref(),
+                        data.first_file_id,
+                    )?;
 
-                data.first_file_id = 0;
-                data.file_map_block_nr = file_map_block_nr;
-                data.file_map_idx = file_map_idx;
+                    data.first_file_id = 0;
+                    data.file_map_block_nr = file_map_block_nr;
+                    data.file_map_idx = file_map_idx;
+                }
+
+                // add second file-id. (and any further).
+                self.wordmap.add(
+                    &mut self.db,
+                    word.as_ref(),
+                    data.file_map_block_nr,
+                    data.file_map_idx,
+                    file_id,
+                )?;
             }
-
-            // add second file-id. (and any further).
-            self.wordmap.add(
-                &mut self.db,
-                word.as_ref(),
-                data.file_map_block_nr,
-                data.file_map_idx,
-                file_id,
-            )?;
         } else {
             let word_id = self.ids.next("word");
 
@@ -576,10 +582,12 @@ impl Words {
 }
 
 pub mod word_map {
+    use crate::index2::files::FileList;
+    use crate::index2::words::WordList;
     use crate::index2::{
         BlkIdx, BlkNr, FIdx, FileId, IndexError, WordBlockType, WordFileBlocks, BLOCK_SIZE,
     };
-    use blockfile::Length;
+    use blockfile::{FBErrorKind, Length};
     use std::fmt::{Debug, Formatter};
     use std::mem::size_of;
 
@@ -621,6 +629,62 @@ pub mod word_map {
     impl WordMap {
         pub const TY_LISTHEAD: WordBlockType = WordBlockType::WordMapHead;
         pub const TY_LISTTAIL: WordBlockType = WordBlockType::WordMapTail;
+
+        pub fn recover(
+            words: &WordList,
+            files: &FileList,
+            db: &mut WordFileBlocks,
+        ) -> Result<(), IndexError> {
+            for (_, data) in &words.list {
+                if data.file_map_block_nr != 0 {
+                    match db.block_type(data.file_map_block_nr) {
+                        WordBlockType::NotAllocated | WordBlockType::Free => {
+                            db.try_alloc(data.file_map_block_nr, WordBlockType::WordMapHead)?;
+                        }
+                        WordBlockType::WordMapHead => {
+                            // ok
+                        }
+                        _ => return Err(blockfile::Error::err(FBErrorKind::RecoverFailed).into()),
+                    }
+
+                    let mut block_nr = data.file_map_block_nr;
+                    let mut block_idx = data.file_map_idx;
+                    loop {
+                        let block = db.get_mut(block_nr)?;
+                        let list = block.cast_mut::<RawWordMapList>();
+                        let map = &mut list[block_idx as usize];
+
+                        for f in &mut map.file_id {
+                            if !files.list.contains_key(&f) {
+                                // we can handle some gaps in the data.
+                                *f = 0;
+                            }
+                        }
+
+                        block_nr = map.next_block_nr;
+                        block_idx = map.next_idx;
+
+                        if block_nr == 0 {
+                            break;
+                        }
+
+                        // lost the rest?
+                        if db.block_type(block_nr) != WordBlockType::WordMapTail {
+                            let block = db.get_mut(block_nr)?;
+                            let list = block.cast_mut::<RawWordMapList>();
+                            let map = &mut list[block_idx as usize];
+
+                            map.next_block_nr = 0;
+                            map.next_idx = 0;
+                        }
+                    }
+                }
+            }
+
+            // TODO: recover insert block-nr
+
+            Ok(())
+        }
 
         pub fn load(
             db: &mut WordFileBlocks,
@@ -858,6 +922,9 @@ pub mod word_map {
                         self.file_idx = 0;
                     }
                     break Some(file_id);
+                } else if self.file_idx + 1 < map.file_id.len() as u32 {
+                    // recover can leave 0 in the middle of the list.
+                    self.file_idx += 1;
                 } else {
                     if map.next_block_nr != 0 {
                         self.map_block_nr = map.next_block_nr;
@@ -876,7 +943,7 @@ pub mod word_map {
 
 pub mod files {
     use crate::index2::{
-        BlkIdx, BlkNr, FileId, IndexError, WordBlockType, WordFileBlocks, BLOCK_SIZE,
+        BlkIdx, BlkNr, FileId, IndexError, LastRef, WordBlockType, WordFileBlocks, BLOCK_SIZE,
     };
     use std::collections::BTreeMap;
     use std::fmt::Debug;
@@ -906,10 +973,19 @@ pub mod files {
     impl FileList {
         pub(crate) const TY: WordBlockType = WordBlockType::FileList;
 
-        pub fn load(db: &mut WordFileBlocks) -> Result<FileList, IndexError> {
+        pub(crate) fn recover(&mut self) -> Result<(), IndexError> {
+            // noop for now.
+            Ok(())
+        }
+
+        pub(crate) fn load(db: &mut WordFileBlocks) -> Result<(FileList, LastRef), IndexError> {
             let mut files = FileList {
                 list: Default::default(),
             };
+
+            let mut last_file_id = 0u32;
+            let mut last_block_nr = 0u32;
+            let mut last_block_idx = 0u32;
 
             let blocks: Vec<_> = db
                 .iter_metadata()
@@ -929,8 +1005,11 @@ pub mod files {
                     file_id.copy_from_slice(&block.raw[idx..idx + 4]);
                     let file_id = FileId::from_ne_bytes(file_id);
                     if file_id == 0 {
+                        last_block_nr = block_nr;
+                        last_block_idx = idx as u32;
                         break 'f;
                     }
+                    last_file_id = file_id;
                     let name_len = block.raw[idx + 4] as usize;
                     let name = &block.raw[idx + 5..idx + 5 + name_len];
 
@@ -947,10 +1026,17 @@ pub mod files {
                 }
             }
 
-            Ok(files)
+            Ok((
+                files,
+                LastRef {
+                    id: last_file_id,
+                    block_nr: last_block_nr,
+                    block_idx: last_block_idx,
+                },
+            ))
         }
 
-        pub fn store(
+        pub(crate) fn store(
             &mut self,
             db: &mut WordFileBlocks,
             last_block_nr: &mut u32,
@@ -1014,8 +1100,8 @@ pub mod files {
 
 pub mod words {
     use crate::index2::{
-        byte_to_str, byte_to_string, copy_fix, BlkIdx, BlkNr, FileId, IndexError, WordBlockType,
-        WordFileBlocks, WordId, BLOCK_SIZE,
+        byte_to_str, byte_to_string, copy_fix, BlkIdx, BlkNr, FileId, IndexError, LastRef,
+        WordBlockType, WordFileBlocks, WordId, BLOCK_SIZE,
     };
     use blockfile::Length;
     use std::collections::BTreeMap;
@@ -1074,10 +1160,23 @@ pub mod words {
     impl WordList {
         pub const TY: WordBlockType = WordBlockType::WordList;
 
-        pub fn load(db: &mut WordFileBlocks) -> Result<WordList, IndexError> {
+        pub(crate) fn recover(&mut self, max_file_id: u32) -> Result<(), IndexError> {
+            for (_word, data) in &mut self.list {
+                if data.first_file_id > max_file_id {
+                    data.first_file_id = 0;
+                }
+            }
+            Ok(())
+        }
+
+        pub(crate) fn load(db: &mut WordFileBlocks) -> Result<(WordList, LastRef), IndexError> {
             let mut words = WordList {
                 list: Default::default(),
             };
+
+            let mut last_block_nr = 0u32;
+            let mut last_block_idx = 0u32;
+            let mut last_word_id = 0u32;
 
             let blocks: Vec<_> = db
                 .iter_metadata()
@@ -1086,7 +1185,6 @@ pub mod words {
                 .collect();
             let empty = RawWord::default();
             for block_nr in blocks {
-                // let block_type = db.block_type(block_nr);
                 let block = db.get(block_nr)?;
                 let raw = block.cast::<RawWordList>();
                 for (i, r) in raw.iter().enumerate() {
@@ -1108,6 +1206,12 @@ pub mod words {
                             }
                             Err(e) => return Err(e),
                         };
+
+                        // remember
+                        last_word_id = r.id;
+                        last_block_nr = block_nr;
+                        last_block_idx = i as u32 + 1; // next insert goes here. should exist?
+
                         // block_nr == 0 means we have only one file-id and it is stored
                         // as file_map_idx.
                         if r.file_map_block_nr == 0 {
@@ -1137,22 +1241,19 @@ pub mod words {
                         }
                     }
                 }
-                // db.discard(block_nr);
             }
 
-            Ok(words)
+            Ok((
+                words,
+                LastRef {
+                    id: last_word_id,
+                    block_nr: last_block_nr,
+                    block_idx: last_block_idx,
+                },
+            ))
         }
 
-        /// Reorder the word list due to histogram data.
-        /// Does not store to disk.
-        pub fn reorder(&mut self, _db: &mut WordFileBlocks) -> Result<(), IndexError> {
-            // the linked list is created within the word-map, instead of always
-            // rewriting the head here. keeps the necessary writes mostly to the
-            // head-blocks and newly added words.
-            Ok(())
-        }
-
-        pub fn store(
+        pub(crate) fn store(
             &mut self,
             db: &mut WordFileBlocks,
             last_block_nr: &mut u32,
@@ -1217,6 +1318,7 @@ pub mod id {
     use crate::index2::{
         byte_to_str, copy_clip, Id, IndexError, WordBlockType, WordFileBlocks, BLOCK_SIZE,
     };
+    use blockfile::{BlockStore, Recovered};
     use std::collections::HashMap;
     use std::mem::size_of;
 
@@ -1245,15 +1347,29 @@ pub mod id {
 
     impl Ids {
         pub const TY: WordBlockType = WordBlockType::Ids;
+        pub const TY_HIGH: WordBlockType = WordBlockType::IdsHigh;
+
+        pub fn recover(db: &mut WordFileBlocks) -> Result<Ids, IndexError> {
+            match db.recovered() {
+                Recovered::RolledBack => Self::do_load(db, Self::TY),
+                Recovered::Recovered => Self::do_load(db, Self::TY_HIGH),
+                Recovered::AllIsWell => Self::do_load(db, Self::TY),
+            }
+        }
 
         pub fn load(db: &mut WordFileBlocks) -> Result<Ids, IndexError> {
+            let ids = Self::do_load(db, Self::TY)?;
+            Ok(ids)
+        }
+
+        fn do_load(db: &mut WordFileBlocks, ty: WordBlockType) -> Result<Ids, IndexError> {
             let mut ids = Ids {
                 ids: Default::default(),
             };
 
             let blocks: Vec<_> = db
                 .iter_metadata()
-                .filter(|v| v.1 == Self::TY)
+                .filter(|v| v.1 == ty)
                 .map(|v| v.0)
                 .collect();
 
@@ -1267,14 +1383,24 @@ pub mod id {
                     }
                 }
             }
-
             Ok(ids)
         }
 
         pub fn store(&self, db: &mut WordFileBlocks) -> Result<(), IndexError> {
+            self.store_copy(db, Self::TY, BlockStore::UserMetadataLow)?;
+            self.store_copy(db, Self::TY_HIGH, BlockStore::UserMetadataHigh)?;
+            Ok(())
+        }
+
+        fn store_copy(
+            &self,
+            db: &mut WordFileBlocks,
+            ty: WordBlockType,
+            store: BlockStore,
+        ) -> Result<(), IndexError> {
             let mut blocks: Vec<_> = db
                 .iter_metadata()
-                .filter(|v| v.1 == Self::TY)
+                .filter(|v| v.1 == ty)
                 .map(|v| v.0)
                 .collect();
 
@@ -1283,11 +1409,11 @@ pub mod id {
                 let block = if let Some(block_nr) = blocks.pop() {
                     db.get_mut(block_nr)?
                 } else {
-                    db.alloc(Self::TY)
+                    db.alloc(ty)
                 };
                 block.clear();
                 block.set_dirty(true);
-                // block.discard();
+                block.set_store(store);
 
                 let id_list = block.cast_mut::<RawIdMap>();
                 for id_rec in id_list.iter_mut() {
