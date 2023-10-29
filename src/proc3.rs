@@ -43,7 +43,7 @@ pub struct Data {
 
 impl Data {
     pub fn write(&'static self) -> Result<(), AppError> {
-        if let Ok(mut wrl) = self.words.try_write() {
+        if let Ok(mut wrl) = self.words.write() {
             wrl.write()?;
             Ok(())
         } else {

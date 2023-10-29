@@ -252,7 +252,21 @@ impl Words {
         let wordmap_block_nr_tail = ids.get("wordmap_tail");
 
         println!("load wordmap");
-        let wordmap = WordMap::load(&mut db, wordmap_block_nr_head, wordmap_block_nr_tail)?;
+        let wordmap = match WordMap::load(&mut db, wordmap_block_nr_head, wordmap_block_nr_tail) {
+            Ok(v) => v,
+            Err(e) => {
+                println!(
+                    "head {} tail {}",
+                    wordmap_block_nr_head, wordmap_block_nr_tail
+                );
+                for m in db.iter_metadata_blocks() {
+                    if m.contains(wordmap_block_nr_head) || m.contains(wordmap_block_nr_tail) {
+                        println!("{:?}", m);
+                    }
+                }
+                return Err(e);
+            }
+        };
 
         Ok(Self {
             db,
@@ -288,6 +302,12 @@ impl Words {
         let (wordmap_block_nr_head, wordmap_block_nr_tail) = self.wordmap.store(&mut self.db)?;
         self.ids.set("wordmap_head", wordmap_block_nr_head);
         self.ids.set("wordmap_tail", wordmap_block_nr_tail);
+
+        println!(
+            "STORE WORDMAP head={:?} tail={:?}",
+            self.db.block_type(wordmap_block_nr_head),
+            self.db.block_type(wordmap_block_nr_tail)
+        );
 
         self.ids.store(&mut self.db)?;
         Ok(())
@@ -571,7 +591,7 @@ pub mod word_map {
         pub last_idx_tail: BlkNr,
     }
 
-    pub type RawWordMapList = [RawWordMap; BLOCK_SIZE as usize / size_of::<RawWordMap>()];
+    pub type RawWordMapList = [RawWordMap; BLOCK_SIZE / size_of::<RawWordMap>()];
 
     pub const FILE_ID_LEN: usize = 6;
 
@@ -610,7 +630,8 @@ pub mod word_map {
             let empty = RawWordMap::default();
 
             let last_idx_head = if last_block_nr_head > 0 {
-                let last = db.get(last_block_nr_head)?.cast::<RawWordMapList>();
+                let block = db.get(last_block_nr_head)?;
+                let last = block.cast::<RawWordMapList>();
                 if let Some(empty_pos) = last.iter().position(|v| *v == empty) {
                     empty_pos as u32
                 } else {
@@ -954,7 +975,7 @@ pub mod files {
 
                     let mut block = db.get_mut(*last_block_nr)?;
                     let mut idx = *last_block_idx as usize;
-                    if idx + buf.len() > BLOCK_SIZE as usize {
+                    if idx + buf.len() > BLOCK_SIZE {
                         block = db.alloc(Self::TY);
                         *last_block_nr = block.block_nr();
                         *last_block_idx = 0;
@@ -993,8 +1014,8 @@ pub mod files {
 
 pub mod words {
     use crate::index2::{
-        byte_to_str, copy_fix, BlkIdx, BlkNr, FileId, IndexError, WordBlockType, WordFileBlocks,
-        WordId, BLOCK_SIZE,
+        byte_to_str, byte_to_string, copy_fix, BlkIdx, BlkNr, FileId, IndexError, WordBlockType,
+        WordFileBlocks, WordId, BLOCK_SIZE,
     };
     use blockfile::Length;
     use std::collections::BTreeMap;
@@ -1017,7 +1038,7 @@ pub mod words {
         pub first_file_id: FileId,
     }
 
-    pub type RawWordList = [RawWord; BLOCK_SIZE as usize / size_of::<RawWord>()];
+    pub type RawWordList = [RawWord; BLOCK_SIZE / size_of::<RawWord>()];
 
     #[derive(Clone, Copy, PartialEq)]
     #[repr(C)]
@@ -1065,19 +1086,25 @@ pub mod words {
                 .collect();
             let empty = RawWord::default();
             for block_nr in blocks {
-                let block_type = db.block_type(block_nr);
+                // let block_type = db.block_type(block_nr);
                 let block = db.get(block_nr)?;
                 let raw = block.cast::<RawWordList>();
                 for (i, r) in raw.iter().enumerate() {
                     if r.word != empty.word {
                         let word = match byte_to_str(&r.word) {
-                            Ok(v) => v,
-                            Err(IndexError::Utf8Error(b)) => {
-                                println!(
-                                    "Utf8Error in block_nr={} block_type={:?} idx={} data={:?} block={:1?}",
-                                    block_nr, block_type, i, b, block
-                                );
-                                return Err(IndexError::Utf8Error(b));
+                            Ok(v) => v.to_string(),
+                            Err(IndexError::Utf8Error(_b)) => {
+                                // we cut the words to 20 bytes, so there will be some
+                                // errors when reading the data.
+
+                                // println!(
+                                //     "Utf8Error in block_nr={} block_type={:?} idx={} data={:?}",
+                                //     block_nr,
+                                //     block_type,
+                                //     i,
+                                //     String::from_utf8_lossy(b.as_ref())
+                                // );
+                                byte_to_string(&r.word)
                             }
                             Err(e) => return Err(e),
                         };
@@ -1198,7 +1225,7 @@ pub mod id {
         pub ids: HashMap<String, Id>,
     }
 
-    pub type RawIdMap = [RawId; BLOCK_SIZE as usize / size_of::<RawId>()];
+    pub type RawIdMap = [RawId; BLOCK_SIZE / size_of::<RawId>()];
 
     #[derive(Debug, Clone, Copy, PartialEq)]
     #[repr(C)]
@@ -1239,7 +1266,6 @@ pub mod id {
                         ids.ids.insert(name.into(), r.id);
                     }
                 }
-                // db.discard(block_nr);
             }
 
             Ok(ids)
@@ -1346,4 +1372,10 @@ fn byte_to_str<const N: usize>(src: &[u8; N]) -> Result<&str, IndexError> {
     };
     let word = word.trim_end_matches('\0');
     Ok(word)
+}
+
+fn byte_to_string<const N: usize>(src: &[u8; N]) -> String {
+    let word = String::from_utf8_lossy(src.as_ref()).to_string();
+    let word = word.trim_end_matches('\0');
+    word.to_string()
 }
