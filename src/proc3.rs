@@ -6,7 +6,6 @@ use rustyline::ExternalPrinter;
 use std::borrow::Cow;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
-use std::io::Write;
 use std::iter::Flatten;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
@@ -495,12 +494,12 @@ fn indexing(
 
     match filter {
         FileFilter::Text => {
-            timing(printer, format!("indexing {:?}", relative), 1000, || {
+            timing(printer, format!("indexing {:?}", relative), 200, || {
                 index_txt(&mut words, &txt)
             });
         }
         FileFilter::Html => {
-            timing(printer, format!("indexing {:?}", relative), 100, || {
+            timing(printer, format!("indexing {:?}", relative), 200, || {
                 index_html(&mut words, &txt)
             });
         }
@@ -573,15 +572,6 @@ fn merge_words(
     words_buffer: TmpWords,
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
-    if words_buffer.words.len() > 5000 {
-        writeln!(
-            data.log.try_clone()?,
-            "{}<={}",
-            words_buffer.words.len(),
-            words_buffer.file
-        )?;
-    }
-
     let do_auto_save = {
         state.lock().unwrap().state = 100;
         let mut write = data.words.write()?;

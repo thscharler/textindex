@@ -71,6 +71,20 @@ pub enum WordBlockType {
     IdsHigh = BlockType::User16 as isize,
 }
 
+impl TryFrom<u8> for WordBlockType {
+    type Error = u8;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let result = BlockType::try_from(value);
+        result.map(WordBlockType::ubt)
+    }
+}
+
+impl Display for WordBlockType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
 impl Debug for WordBlockType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let v = match self {
@@ -219,7 +233,7 @@ pub(crate) struct LastRef {
 }
 
 impl Words {
-    pub fn new(file: &Path) -> Result<Self, IndexError> {
+    pub fn create(file: &Path) -> Result<Self, IndexError> {
         let _ = fs::remove_file(file);
         Self::read(file)
     }
@@ -301,7 +315,7 @@ impl Words {
     }
 
     /// Write everything to FileBlocks but don't actually store anything.
-    pub fn store(&mut self) -> Result<(), IndexError> {
+    pub fn store_to_db(&mut self) -> Result<(), IndexError> {
         let mut word_nr = self.ids.get("word_block_nr");
         let mut word_idx = self.ids.get("word_block_idx");
         self.words
@@ -320,31 +334,22 @@ impl Words {
         self.ids.set("wordmap_head", wordmap_block_nr_head);
         self.ids.set("wordmap_tail", wordmap_block_nr_tail);
 
-        println!(
-            "STORE WORDMAP head={:?} tail={:?}",
-            self.db.block_type(wordmap_block_nr_head),
-            self.db.block_type(wordmap_block_nr_tail)
-        );
-
         self.ids.store(&mut self.db)?;
         Ok(())
     }
 
     pub fn write(&mut self) -> Result<(), IndexError> {
-        self.store()?;
+        self.store_to_db()?;
         self.write_stats();
         self.db.store()?;
-
-        // write!(self.log, "{:?}", self.db)?;
-
         self.cleanup()?;
-
         Ok(())
     }
 
     fn cleanup(&mut self) -> Result<(), IndexError> {
         let generation = self.db.generation();
 
+        // retain some datablocks in memory.
         self.db
             .retain_blocks(|_k, v| match WordBlockType::ubt(v.block_type()) {
                 WordBlockType::NotAllocated => false,
@@ -361,71 +366,41 @@ impl Words {
     }
 
     fn write_stats(&mut self) {
-        let mut n1 = 0;
-        let mut n11 = 0;
-        let mut n2 = 0;
-        let mut n22 = 0;
-        let mut n3 = 0;
-        let mut n33 = 0;
-        let mut n4 = 0;
-        let mut n44 = 0;
-        let mut n5 = 0;
-        let mut n55 = 0;
-        let mut n6 = 0;
-        let mut n66 = 0;
+        let mut dirty = [0u32; 32];
+        let mut clean = [0u32; 32];
         for block in self.db.iter_blocks() {
-            if block.block_type() == BlockType::User1 {
-                if block.dirty() {
-                    n1 += 1;
-                } else {
-                    n11 += 1;
-                }
-            }
-            if block.block_type() == BlockType::User2 {
-                if block.dirty() {
-                    n2 += 1;
-                } else {
-                    n22 += 1;
-                }
-            }
-            if block.block_type() == BlockType::User3 {
-                if block.dirty() {
-                    n3 += 1;
-                } else {
-                    n33 += 1;
-                }
-            }
-            if block.block_type() == BlockType::User4 {
-                if block.dirty() {
-                    n4 += 1;
-                } else {
-                    n44 += 1;
-                }
-            }
-            if block.block_type() == BlockType::User5 {
-                if block.dirty() {
-                    n5 += 1;
-                } else {
-                    n55 += 1;
-                }
+            if block.dirty() {
+                dirty[block.block_type() as usize] += 1;
+            } else {
+                dirty[block.block_type() as usize] += 1;
             }
         }
         for block in self.db.iter_metadata_blocks() {
             if block.dirty() {
-                n6 += 1;
+                dirty[BlockType::BlockMap as usize] += 1;
             } else {
-                n66 += 1;
+                clean[BlockType::BlockMap as usize] += 1;
             }
         }
-        println!(
-            "write blocks: ids {}/{} wrd {}/{} fil {}/{} map {}/{} ret {}/{} bmp {}/{}",
-            n1, n11, n2, n22, n3, n33, n4, n44, n5, n55, n6, n66
-        );
-        println!(
-            "write words {} files {}",
+        print!(
+            "write {} words {} files: ",
             self.words.list.len(),
             self.files.list.len()
         );
+        for i in 0..32 {
+            if dirty[i] > 0 || clean[i] > 0 {
+                print!(
+                    "{} {}/{} ",
+                    match WordBlockType::try_from(i as u8) {
+                        Ok(v) => v.to_string(),
+                        Err(e) => e.to_string(),
+                    },
+                    dirty[i],
+                    clean[i]
+                );
+            }
+        }
+        println!();
     }
 
     /// Adds a new file.
@@ -456,7 +431,7 @@ impl Words {
     }
 
     pub fn remove_file(&mut self, _name: String) {
-        // no removes
+        // todo: no removes
     }
 
     /// Iterate words.
@@ -531,6 +506,7 @@ impl Words {
         Ok(())
     }
 
+    /// Append a temp buffer for a file.
     pub fn append(&mut self, other: TmpWords) -> Result<(), IndexError> {
         let f_idx = self.add_file(other.file);
         for a_txt in other.words.iter() {
@@ -539,6 +515,7 @@ impl Words {
         Ok(())
     }
 
+    /// Find words.
     pub fn find(&mut self, txt: &[&str]) -> Result<BTreeSet<String>, IndexError> {
         let mut collect = BTreeSet::<FileId>::new();
         let mut first = true;
@@ -573,10 +550,6 @@ impl Words {
 
     pub fn should_auto_save(&mut self) -> bool {
         self.auto_save += 1;
-        self.auto_save % 1000 == 0
-    }
-
-    pub fn should_reorg(&mut self) -> bool {
         self.auto_save % 1000 == 0
     }
 }
@@ -661,21 +634,27 @@ pub mod word_map {
                             }
                         }
 
-                        block_nr = map.next_block_nr;
-                        block_idx = map.next_idx;
-
-                        if block_nr == 0 {
-                            break;
-                        }
+                        let mut next_block_nr = map.next_block_nr;
+                        let mut next_block_idx = map.next_idx;
 
                         // lost the rest?
-                        if db.block_type(block_nr) != WordBlockType::WordMapTail {
+                        if db.block_type(next_block_nr) != WordBlockType::WordMapTail {
                             let block = db.get_mut(block_nr)?;
                             let list = block.cast_mut::<RawWordMapList>();
                             let map = &mut list[block_idx as usize];
 
                             map.next_block_nr = 0;
                             map.next_idx = 0;
+
+                            next_block_nr = 0;
+                            next_block_idx = 0;
+                        }
+
+                        block_nr = next_block_nr;
+                        block_idx = next_block_idx;
+
+                        if block_nr == 0 {
+                            break;
                         }
                     }
                 }
@@ -840,7 +819,6 @@ pub mod word_map {
                     // retire
                     let retire_block = db.get_mut(self.last_block_nr_tail)?;
                     retire_block.set_dirty(true);
-                    // retire_block.discard();
                     let retire_map_list = retire_block.cast_mut::<RawWordMapList>();
                     let retire_map = &mut retire_map_list[retire_idx as usize];
 
