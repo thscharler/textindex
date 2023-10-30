@@ -9,6 +9,7 @@ use blockfile::{BlockType, FileBlocks, Recovered, UserBlockType};
 use std::collections::BTreeSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
+use std::fs::File;
 use std::path::Path;
 use std::str::from_utf8;
 use wildmatch::WildMatch;
@@ -233,12 +234,12 @@ pub(crate) struct LastRef {
 }
 
 impl Words {
-    pub fn create(file: &Path) -> Result<Self, IndexError> {
+    pub fn create(file: &Path, log: &mut File) -> Result<Self, IndexError> {
         let _ = fs::remove_file(file);
-        Self::read(file)
+        Self::read(file, log)
     }
 
-    pub fn read(file: &Path) -> Result<Self, IndexError> {
+    pub fn read(file: &Path, log: &mut File) -> Result<Self, IndexError> {
         // 382_445 Dateien, 16_218 Ordner
         // 8,56 GB (9_194_861_782 Bytes)
 
@@ -267,10 +268,17 @@ impl Words {
                     ids.store(&mut db)?;
                 }
 
-                println!("load words");
-                let (words, _) = WordList::load(&mut db)?;
                 println!("load files");
-                let (files, _) = FileList::load(&mut db)?;
+                let (files, last_file) = FileList::load(&mut db)?;
+                ids.set("file", last_file.id);
+                ids.set("file_block_nr", last_file.block_nr);
+                ids.set("file_block_idx", last_file.block_idx);
+
+                println!("load words");
+                let (words, last_word) = WordList::load(&mut db)?;
+                ids.set("word", last_word.id);
+                ids.set("word_block_nr", last_word.block_nr);
+                ids.set("word_block_idx", last_word.block_idx);
 
                 println!("load wordmap");
                 let wordmap_block_nr_head = ids.get("wordmap_head");
@@ -305,7 +313,7 @@ impl Words {
                 words.recover(last_file.id)?;
 
                 println!("recover wordmap");
-                let wordmap = WordMap::recover(&words, &files, &mut db)?;
+                let wordmap = WordMap::recover(log, &mut words, &files, &mut db)?;
                 ids.set("wordmap_head", wordmap.last_block_nr_head);
                 ids.set("wordmap_tail", wordmap.last_block_nr_tail);
 
@@ -468,7 +476,7 @@ impl Words {
         file_id: FileId,
     ) -> Result<(), IndexError> {
         if let Some(data) = self.words.list.get_mut(word.as_ref()) {
-            if data.first_file_id == 0 && data.block_nr == 0 {
+            if data.first_file_id == 0 && data.file_map_block_nr == 0 {
                 // Recovery lost the file refs.
                 data.first_file_id = file_id;
             } else {
@@ -570,6 +578,8 @@ pub mod word_map {
     use blockfile::{FBErrorKind, Length};
     use std::cmp::max;
     use std::fmt::{Debug, Formatter};
+    use std::fs::File;
+    use std::io::Write;
     use std::mem::size_of;
 
     #[derive(Debug)]
@@ -612,25 +622,39 @@ pub mod word_map {
         pub const TY_LISTTAIL: WordBlockType = WordBlockType::WordMapTail;
 
         pub fn recover(
-            words: &WordList,
+            log: &mut File,
+            words: &mut WordList,
             files: &FileList,
             db: &mut WordFileBlocks,
         ) -> Result<WordMap, IndexError> {
-            for (_word, data) in &words.list {
+            for (word, data) in &mut words.list {
                 if data.file_map_block_nr != 0 {
-                    match db.block_type(data.file_map_block_nr) {
-                        WordBlockType::NotAllocated | WordBlockType::Free => {
-                            println!("realloc filemap {} -> {}", _word, data.file_map_block_nr);
-                            let block =
-                                db.try_alloc(data.file_map_block_nr, WordBlockType::WordMapHead)?;
-                            block.set_dirty(true);
+                    // reset block-nr if lost.
+                    if let Some(block_type) = db.try_block_type(data.file_map_block_nr) {
+                        match block_type {
+                            WordBlockType::NotAllocated | WordBlockType::Free => {
+                                let _ = writeln!(
+                                    log,
+                                    "lost filemap {} -> {}",
+                                    word, data.file_map_block_nr
+                                );
+                                data.file_map_block_nr = 0;
+                                data.file_map_idx = 0;
+                            }
+                            WordBlockType::WordMapHead => {
+                                // ok
+                            }
+                            _ => {
+                                return Err(blockfile::Error::err(FBErrorKind::RecoverFailed).into())
+                            }
                         }
-                        WordBlockType::WordMapHead => {
-                            // ok
-                        }
-                        _ => return Err(blockfile::Error::err(FBErrorKind::RecoverFailed).into()),
+                    } else {
+                        data.file_map_block_nr = 0;
+                        data.file_map_idx = 0;
                     }
+                }
 
+                if data.file_map_block_nr != 0 {
                     let mut block_nr = data.file_map_block_nr;
                     let mut block_idx = data.file_map_idx;
                     loop {
@@ -640,7 +664,8 @@ pub mod word_map {
 
                         let mut dirty = false;
                         for f in &mut map.file_id {
-                            if !files.list.contains_key(&f) {
+                            if *f != 0 && !files.list.contains_key(f) {
+                                println!("lost file {} -> {}", word, f);
                                 // we can handle some gaps in the data.
                                 *f = 0;
                                 dirty = true;
@@ -653,7 +678,10 @@ pub mod word_map {
                         block.set_dirty(dirty);
 
                         // lost the rest?
-                        if db.block_type(next_block_nr) != WordBlockType::WordMapTail {
+                        if next_block_nr != 0
+                            && db.try_block_type(next_block_nr) != Some(WordBlockType::WordMapTail)
+                        {
+                            println!("lost filemap {} -> {}", word, next_block_nr);
                             let block = db.get_mut(block_nr)?;
                             let list = block.cast_mut::<RawWordMapList>();
                             let map = &mut list[block_idx as usize];
@@ -1219,7 +1247,7 @@ pub mod words {
                         // remember
                         last_word_id = r.id;
                         last_block_nr = block_nr;
-                        last_block_idx = i as u32 + 1; // next insert goes here. should exist?
+                        last_block_idx = i as u32 + 1;
 
                         // block_nr == 0 means we have only one file-id and it is stored
                         // as file_map_idx.
@@ -1250,6 +1278,12 @@ pub mod words {
                         }
                     }
                 }
+            }
+
+            // Check overflow
+            if last_block_idx >= RawWordList::LEN as u32 {
+                last_block_nr = db.alloc(Self::TY).block_nr();
+                last_block_idx = 0;
             }
 
             Ok((
@@ -1305,7 +1339,7 @@ pub mod words {
                     block.set_dirty(true);
                     // block.discard();
                     let word_list = block.cast_mut::<RawWordList>();
-                    word_list[*last_block_idx as usize] = w;
+                    word_list[*last_block_idx as usize] = w; //todo: XXS!
                     word_data.block_nr = *last_block_nr;
                     word_data.block_idx = *last_block_idx;
 

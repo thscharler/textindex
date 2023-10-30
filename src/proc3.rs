@@ -6,6 +6,7 @@ use rustyline::ExternalPrinter;
 use std::borrow::Cow;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
+use std::io::Write;
 use std::iter::Flatten;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
@@ -51,11 +52,12 @@ impl Data {
     }
 
     pub fn read(path: &Path) -> Result<&'static Data, AppError> {
-        let words = Words::read(path)?;
-        let log = OpenOptions::new()
+        let mut log = OpenOptions::new()
             .create(true)
             .append(true)
             .open("log.txt")?;
+
+        let words = Words::read(path, &mut log)?;
 
         let data: &'static Data = Box::leak(Box::new(Data {
             words: RwLock::new(words),
@@ -229,6 +231,7 @@ fn spawn_walking(
     thread::spawn(move || {
         print_err_(
             &printer,
+            data.log.try_clone().unwrap(),
             "walker",
             walk_proc(recv, send, state, data, &printer),
         );
@@ -369,6 +372,7 @@ fn spawn_loading(
     thread::spawn(move || {
         print_err_(
             &printer,
+            data.log.try_clone().unwrap(),
             "loading",
             load_proc(recv, send, state, data, &printer),
         );
@@ -440,6 +444,7 @@ fn spawn_indexing(
     thread::spawn(move || {
         print_err_(
             &printer,
+            data.log.try_clone().unwrap(),
             "indexing",
             index_proc(recv, send, state, data, &printer),
         );
@@ -521,6 +526,7 @@ fn spawn_merge_words(
     thread::spawn(move || {
         print_err_(
             &printer,
+            data.log.try_clone().unwrap(),
             "merge_words",
             merge_words_proc(recv, send, state, data, &printer),
         )
@@ -553,6 +559,7 @@ fn merge_words_proc(
                 last_count = count;
                 print_err_(
                     printer,
+                    data.log.try_clone().unwrap(),
                     "merge_words",
                     merge_words(data, &state, words, printer),
                 );
@@ -598,6 +605,7 @@ fn spawn_terminal(
     thread::spawn(move || {
         print_err_(
             &printer,
+            data.log.try_clone().unwrap(),
             "terminal",
             terminal_proc(&recv, state, data, &printer),
         );
@@ -622,11 +630,21 @@ fn terminal_proc(
             }
             Msg::AutoSave => {
                 state.lock().unwrap().state = 3;
-                print_err_(&printer, "auto_save", auto_save(printer, data));
+                print_err_(
+                    &printer,
+                    data.log.try_clone().unwrap(),
+                    "auto_save",
+                    auto_save(printer, data),
+                );
             }
             Msg::DeleteFile(file) => {
                 state.lock().unwrap().state = 4;
-                print_err_(&printer, "delete_file", delete_file(printer, data, file));
+                print_err_(
+                    &printer,
+                    data.log.try_clone().unwrap(),
+                    "delete_file",
+                    delete_file(printer, data, file),
+                );
             }
             Msg::WalkFinished(file) => {
                 state.lock().unwrap().state = 5;
@@ -756,10 +774,12 @@ fn print_<S: Into<String>>(printer: &Arc<Mutex<dyn ExternalPrinter + Send>>, msg
 
 fn print_err_(
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
+    mut log: File,
     task: &str,
     res: Result<(), AppError>,
 ) {
     if let Err(err) = res {
+        let _ = writeln!(log, "{} {:#?}", task, err);
         if let Ok(mut print) = printer.lock() {
             let _ = print.print(format!("{} {:?}", task, err));
         }
