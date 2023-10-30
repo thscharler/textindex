@@ -290,26 +290,33 @@ impl Words {
                 println!("recover ids");
                 let mut ids = Ids::recover(&mut db)?;
 
-                println!("load words");
-                let (mut words, last_word) = WordList::load(&mut db)?;
-                println!("load files");
-                let (mut files, last_file) = FileList::load(&mut db)?;
-
-                println!("recover words");
-                words.recover(last_file.id)?;
-                ids.set("word", last_word.id);
-                ids.set("word_block_nr", last_word.block_nr);
-                ids.set("word_block_idx", last_word.block_idx);
-
                 println!("recover files");
-                files.recover()?;
+                let (mut files, last_file) = FileList::load(&mut db)?;
                 ids.set("file", last_file.id);
                 ids.set("file_block_nr", last_file.block_nr);
                 ids.set("file_block_idx", last_file.block_idx);
+                files.recover()?;
 
-                WordMap::recover(&words, &files, &mut db)?;
+                println!("recover words");
+                let (mut words, last_word) = WordList::load(&mut db)?;
+                ids.set("word", last_word.id);
+                ids.set("word_block_nr", last_word.block_nr);
+                ids.set("word_block_idx", last_word.block_idx);
+                words.recover(last_file.id)?;
 
-                todo!()
+                println!("recover wordmap");
+                let wordmap = WordMap::recover(&words, &files, &mut db)?;
+                ids.set("wordmap_head", wordmap.last_block_nr_head);
+                ids.set("wordmap_tail", wordmap.last_block_nr_tail);
+
+                Ok(Self {
+                    db,
+                    ids,
+                    words,
+                    files,
+                    wordmap,
+                    auto_save: 0,
+                })
             }
         }
     }
@@ -561,6 +568,7 @@ pub mod word_map {
         BlkIdx, BlkNr, FIdx, FileId, IndexError, WordBlockType, WordFileBlocks, BLOCK_SIZE,
     };
     use blockfile::{FBErrorKind, Length};
+    use std::cmp::max;
     use std::fmt::{Debug, Formatter};
     use std::mem::size_of;
 
@@ -607,12 +615,15 @@ pub mod word_map {
             words: &WordList,
             files: &FileList,
             db: &mut WordFileBlocks,
-        ) -> Result<(), IndexError> {
-            for (_, data) in &words.list {
+        ) -> Result<WordMap, IndexError> {
+            for (_word, data) in &words.list {
                 if data.file_map_block_nr != 0 {
                     match db.block_type(data.file_map_block_nr) {
                         WordBlockType::NotAllocated | WordBlockType::Free => {
-                            db.try_alloc(data.file_map_block_nr, WordBlockType::WordMapHead)?;
+                            println!("realloc filemap {} -> {}", _word, data.file_map_block_nr);
+                            let block =
+                                db.try_alloc(data.file_map_block_nr, WordBlockType::WordMapHead)?;
+                            block.set_dirty(true);
                         }
                         WordBlockType::WordMapHead => {
                             // ok
@@ -627,15 +638,19 @@ pub mod word_map {
                         let list = block.cast_mut::<RawWordMapList>();
                         let map = &mut list[block_idx as usize];
 
+                        let mut dirty = false;
                         for f in &mut map.file_id {
                             if !files.list.contains_key(&f) {
                                 // we can handle some gaps in the data.
                                 *f = 0;
+                                dirty = true;
                             }
                         }
 
                         let mut next_block_nr = map.next_block_nr;
                         let mut next_block_idx = map.next_idx;
+
+                        block.set_dirty(dirty);
 
                         // lost the rest?
                         if db.block_type(next_block_nr) != WordBlockType::WordMapTail {
@@ -645,6 +660,7 @@ pub mod word_map {
 
                             map.next_block_nr = 0;
                             map.next_idx = 0;
+                            block.set_dirty(true);
 
                             next_block_nr = 0;
                             next_block_idx = 0;
@@ -660,9 +676,31 @@ pub mod word_map {
                 }
             }
 
-            // TODO: recover insert block-nr
+            let mut max_head_nr = 0u32;
+            let mut max_tail_nr = 0u32;
+            for (block_nr, block_type) in db.iter_metadata() {
+                match block_type {
+                    WordBlockType::WordMapHead => {
+                        max_head_nr = max(max_head_nr, block_nr);
+                    }
+                    WordBlockType::WordMapTail => {
+                        max_tail_nr = max(max_tail_nr, block_nr);
+                    }
+                    _ => {
+                        // dont need this
+                    }
+                }
+            }
 
-            Ok(())
+            let max_head_idx = Self::load_free_idx(db, max_head_nr)?;
+            let max_tail_idx = Self::load_free_idx(db, max_tail_nr)?;
+
+            Ok(Self {
+                last_block_nr_head: max_head_nr,
+                last_idx_head: max_head_idx,
+                last_block_nr_tail: max_tail_nr,
+                last_idx_tail: max_tail_idx,
+            })
         }
 
         pub fn load(
@@ -670,30 +708,8 @@ pub mod word_map {
             last_block_nr_head: BlkNr,
             last_block_nr_tail: BlkNr,
         ) -> Result<WordMap, IndexError> {
-            let empty = RawWordMap::default();
-
-            let last_idx_head = if last_block_nr_head > 0 {
-                let block = db.get(last_block_nr_head)?;
-                let last = block.cast::<RawWordMapList>();
-                if let Some(empty_pos) = last.iter().position(|v| *v == empty) {
-                    empty_pos as u32
-                } else {
-                    unreachable!();
-                }
-            } else {
-                0u32
-            };
-
-            let last_idx_tail = if last_block_nr_tail > 0 {
-                let last = db.get(last_block_nr_tail)?.cast::<RawWordMapList>();
-                if let Some(empty_pos) = last.iter().position(|v| *v == empty) {
-                    empty_pos as u32
-                } else {
-                    unreachable!();
-                }
-            } else {
-                0u32
-            };
+            let last_idx_head = Self::load_free_idx(db, last_block_nr_head)?;
+            let last_idx_tail = Self::load_free_idx(db, last_block_nr_tail)?;
 
             Ok(Self {
                 last_block_nr_head,
@@ -701,6 +717,21 @@ pub mod word_map {
                 last_block_nr_tail,
                 last_idx_tail,
             })
+        }
+
+        fn load_free_idx(db: &mut WordFileBlocks, block_nr: u32) -> Result<u32, IndexError> {
+            let empty = RawWordMap::default();
+            if block_nr > 0 {
+                let block = db.get(block_nr)?;
+                let last = block.cast::<RawWordMapList>();
+                if let Some(empty_pos) = last.iter().position(|v| *v == empty) {
+                    Ok(empty_pos as u32)
+                } else {
+                    Ok(RawWordMapList::LEN as u32 - 1)
+                }
+            } else {
+                Ok(0u32)
+            }
         }
 
         pub fn store(&mut self, _db: &mut WordFileBlocks) -> Result<(BlkNr, BlkNr), IndexError> {
