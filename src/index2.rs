@@ -126,8 +126,8 @@ impl Debug for Words {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if f.width().unwrap_or(0) == 0 {
             f.debug_struct("Words")
-                .field("words", &self.words.list.len())
-                .field("files", &self.files.list.len())
+                .field("words", &self.words.len())
+                .field("files", &self.files.len())
                 .field("wordmap", &self.wordmap)
                 .field("db", &self.db)
                 .finish()?;
@@ -248,7 +248,7 @@ impl Words {
                 let files = FileList::recover(&mut db)?;
 
                 println!("recover words");
-                let mut words = WordList::recover(&mut db, files.last_file_id)?;
+                let mut words = WordList::recover(&mut db, files.last_file_id())?;
 
                 println!("recover wordmap");
                 let wordmap = WordMap::recover(&mut words, &files, &mut db)?;
@@ -320,8 +320,8 @@ impl Words {
         }
         print!(
             "write {} words {} files: ",
-            self.words.list.len(),
-            self.files.list.len()
+            self.words.len(),
+            self.files.len()
         );
         for i in 0..32 {
             if dirty[i] > 0 || clean[i] > 0 {
@@ -347,21 +347,25 @@ impl Words {
     }
 
     pub fn have_file(&self, txt: &String) -> bool {
-        self.files.list.values().find(|v| &v.name == txt).is_some()
+        self.files
+            .list()
+            .values()
+            .find(|v| &v.name == txt)
+            .is_some()
     }
 
     pub fn files(&self) -> &BTreeMap<FileId, FileData> {
-        &self.files.list
+        &self.files.list()
     }
 
     pub fn words(&self) -> &BTreeMap<String, WordData> {
-        &self.words.list
+        &self.words.list()
     }
 
     pub fn find_file(&self, txt: &str) -> BTreeSet<&String> {
         let find = WildMatch::new(txt);
         self.files
-            .list
+            .list()
             .values()
             .filter(|v| find.matches(v.name.as_str()))
             .map(|v| &v.name)
@@ -369,7 +373,7 @@ impl Words {
     }
 
     pub fn file(&self, file_id: FileId) -> Option<String> {
-        self.files.list.get(&file_id).map(|v| v.name.clone())
+        self.files.list().get(&file_id).map(|v| v.name.clone())
     }
 
     pub fn remove_file(&mut self, _name: String) {
@@ -378,7 +382,7 @@ impl Words {
 
     /// Iterate words.
     pub fn iter_words(&mut self) -> impl Iterator<Item = (&String, &WordData)> {
-        self.words.list.iter()
+        self.words.iter_words()
     }
 
     /// Iterate all files for a word.
@@ -397,12 +401,8 @@ impl Words {
     /// Add a word and a file reference.
     /// It is not checked, if the reference was already inserted.
     /// Duplicates are acceptable.
-    pub fn add_word<S: AsRef<str> + Into<String>>(
-        &mut self,
-        word: S,
-        file_id: FileId,
-    ) -> Result<(), IndexError> {
-        if let Some(data) = self.words.list.get_mut(word.as_ref()) {
+    pub fn add_word<S: AsRef<str>>(&mut self, word: S, file_id: FileId) -> Result<(), IndexError> {
+        if let Some(data) = self.words.get_mut(word.as_ref()) {
             if data.first_file_id == 0 && data.file_map_block_nr == 0 {
                 // Recovery lost the file refs.
                 data.first_file_id = file_id;
@@ -431,18 +431,7 @@ impl Words {
                 )?;
             }
         } else {
-            self.words.last_word_id += 1;
-            self.words.list.insert(
-                word.as_ref().into(),
-                WordData {
-                    id: self.words.last_word_id,
-                    block_nr: 0,
-                    block_idx: 0,
-                    file_map_block_nr: 0,
-                    file_map_idx: 0,
-                    first_file_id: file_id,
-                },
-            );
+            self.words.insert(word, file_id);
         };
         Ok(())
     }
@@ -508,10 +497,10 @@ pub mod word_map {
 
     #[derive(Debug)]
     pub struct WordMap {
-        pub last_block_nr_head: BlkNr,
-        pub last_idx_head: BlkIdx,
-        pub last_block_nr_tail: BlkNr,
-        pub last_idx_tail: BlkNr,
+        last_block_nr_head: BlkNr,
+        last_idx_head: BlkIdx,
+        last_block_nr_tail: BlkNr,
+        last_idx_tail: BlkNr,
     }
 
     pub type RawWordMapList = [RawWordMap; BLOCK_SIZE / size_of::<RawWordMap>()];
@@ -550,7 +539,7 @@ pub mod word_map {
             files: &FileList,
             db: &mut WordFileBlocks,
         ) -> Result<WordMap, IndexError> {
-            for (word, data) in &mut words.list {
+            for (word, data) in words.list_mut() {
                 if data.file_map_block_nr != 0 {
                     // reset block-nr if lost.
                     if let Some(block_type) = db.try_block_type(data.file_map_block_nr) {
@@ -583,7 +572,7 @@ pub mod word_map {
 
                         let mut dirty = false;
                         for f in &mut map.file_id {
-                            if *f != 0 && !files.list.contains_key(f) {
+                            if *f != 0 && !files.list().contains_key(f) {
                                 println!("lost file {} -> {}", word, f);
                                 // we can handle some gaps in the data.
                                 *f = 0;
@@ -894,10 +883,10 @@ pub mod files {
 
     #[derive(Debug)]
     pub struct FileList {
-        pub last_file_id: u32,
-        pub last_block_nr: u32,
-        pub last_block_idx: u32,
-        pub list: BTreeMap<FileId, FileData>,
+        last_file_id: u32,
+        last_block_nr: u32,
+        last_block_idx: u32,
+        list: BTreeMap<FileId, FileData>,
     }
 
     #[derive(Debug)]
@@ -1034,6 +1023,18 @@ pub mod files {
             );
             self.last_file_id
         }
+
+        pub fn list(&self) -> &BTreeMap<FileId, FileData> {
+            &self.list
+        }
+
+        pub fn len(&self) -> usize {
+            self.list.len()
+        }
+
+        pub fn last_file_id(&self) -> FileId {
+            self.last_file_id
+        }
     }
 }
 
@@ -1050,10 +1051,10 @@ pub mod words {
 
     #[derive(Debug)]
     pub struct WordList {
-        pub last_block_nr: u32,
-        pub last_block_idx: u32,
-        pub last_word_id: u32,
-        pub list: BTreeMap<String, WordData>,
+        last_block_nr: u32,
+        last_block_idx: u32,
+        last_word_id: u32,
+        list: BTreeMap<String, WordData>,
     }
 
     #[derive(Debug, Clone, Copy)]
@@ -1247,6 +1248,42 @@ pub mod words {
             }
 
             Ok(())
+        }
+
+        /// Iterate words.
+        pub fn iter_words(&mut self) -> impl Iterator<Item = (&String, &WordData)> {
+            self.list.iter()
+        }
+
+        pub fn len(&self) -> usize {
+            self.list.len()
+        }
+
+        pub fn list(&self) -> &BTreeMap<String, WordData> {
+            &self.list
+        }
+
+        pub fn list_mut(&mut self) -> &mut BTreeMap<String, WordData> {
+            &mut self.list
+        }
+
+        pub fn get_mut(&mut self, word: &str) -> Option<&mut WordData> {
+            self.list.get_mut(word)
+        }
+
+        pub fn insert<S: AsRef<str>>(&mut self, word: S, file_id: FileId) {
+            self.last_word_id += 1;
+            self.list.insert(
+                word.as_ref().into(),
+                WordData {
+                    id: self.last_word_id,
+                    block_nr: 0,
+                    block_idx: 0,
+                    file_map_block_nr: 0,
+                    file_map_idx: 0,
+                    first_file_id: file_id,
+                },
+            );
         }
     }
 }
