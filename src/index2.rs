@@ -1,14 +1,13 @@
 #![allow(dead_code)]
 
-use crate::index2::files::FileList;
+use crate::index2::files::{FileData, FileList};
 use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use crate::tmp_index::TmpWords;
 use blockfile::{BlockType, FileBlocks, Recovered, UserBlockType};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
-use std::fs::File;
 use std::path::Path;
 use std::str::from_utf8;
 use wildmatch::WildMatch;
@@ -46,11 +45,11 @@ impl std::error::Error for IndexError {}
 const BLOCK_SIZE: usize = 4096;
 
 pub struct Words {
-    pub db: WordFileBlocks,
-    pub words: WordList,
-    pub files: FileList,
-    pub wordmap: WordMap,
-    pub auto_save: u32,
+    db: WordFileBlocks,
+    words: WordList,
+    files: FileList,
+    wordmap: WordMap,
+    auto_save: u32,
 }
 
 pub type WordFileBlocks = FileBlocks<WordBlockType>;
@@ -207,12 +206,12 @@ pub(crate) struct LastRef {
 }
 
 impl Words {
-    pub fn create(file: &Path, log: &mut File) -> Result<Self, IndexError> {
+    pub fn create(file: &Path) -> Result<Self, IndexError> {
         let _ = fs::remove_file(file);
-        Self::read(file, log)
+        Self::read(file)
     }
 
-    pub fn read(file: &Path, log: &mut File) -> Result<Self, IndexError> {
+    pub fn read(file: &Path) -> Result<Self, IndexError> {
         // 382_445 Dateien, 16_218 Ordner
         // 8,56 GB (9_194_861_782 Bytes)
 
@@ -252,7 +251,7 @@ impl Words {
                 let mut words = WordList::recover(&mut db, files.last_file_id)?;
 
                 println!("recover wordmap");
-                let wordmap = WordMap::recover(log, &mut words, &files, &mut db)?;
+                let wordmap = WordMap::recover(&mut words, &files, &mut db)?;
 
                 Ok(Self {
                     db,
@@ -279,6 +278,10 @@ impl Words {
         self.db.store()?;
         self.cleanup()?;
         Ok(())
+    }
+
+    pub fn compact_blocks(&mut self) {
+        self.db.compact_blocks()
     }
 
     fn cleanup(&mut self) -> Result<(), IndexError> {
@@ -345,6 +348,14 @@ impl Words {
 
     pub fn have_file(&self, txt: &String) -> bool {
         self.files.list.values().find(|v| &v.name == txt).is_some()
+    }
+
+    pub fn files(&self) -> &BTreeMap<FileId, FileData> {
+        &self.files.list
+    }
+
+    pub fn words(&self) -> &BTreeMap<String, WordData> {
+        &self.words.list
     }
 
     pub fn find_file(&self, txt: &str) -> BTreeSet<&String> {
@@ -493,8 +504,6 @@ pub mod word_map {
     use blockfile::{FBErrorKind, Length};
     use std::cmp::max;
     use std::fmt::{Debug, Formatter};
-    use std::fs::File;
-    use std::io::Write;
     use std::mem::size_of;
 
     #[derive(Debug)]
@@ -537,7 +546,6 @@ pub mod word_map {
         pub const TY_LISTTAIL: WordBlockType = WordBlockType::WordMapTail;
 
         pub fn recover(
-            log: &mut File,
             words: &mut WordList,
             files: &FileList,
             db: &mut WordFileBlocks,
@@ -548,11 +556,7 @@ pub mod word_map {
                     if let Some(block_type) = db.try_block_type(data.file_map_block_nr) {
                         match block_type {
                             WordBlockType::NotAllocated | WordBlockType::Free => {
-                                let _ = writeln!(
-                                    log,
-                                    "lost filemap {} -> {}",
-                                    word, data.file_map_block_nr
-                                );
+                                println!("lost filemap {} -> {}", word, data.file_map_block_nr);
                                 data.file_map_block_nr = 0;
                                 data.file_map_idx = 0;
                             }

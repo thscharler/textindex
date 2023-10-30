@@ -52,12 +52,12 @@ impl Data {
     }
 
     pub fn read(path: &Path) -> Result<&'static Data, AppError> {
-        let mut log = OpenOptions::new()
+        let log = OpenOptions::new()
             .create(true)
             .append(true)
             .open("log.txt")?;
 
-        let words = Words::read(path, &mut log)?;
+        let words = Words::read(path)?;
 
         let data: &'static Data = Box::leak(Box::new(Data {
             words: RwLock::new(words),
@@ -653,7 +653,7 @@ fn terminal_proc(
 
                 let mut words = data.words.write()?;
                 words.write()?;
-                words.db.compact_blocks();
+                words.compact_blocks();
 
                 print_(&printer, format!("*** {:?} finished ***", file));
             }

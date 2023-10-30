@@ -118,7 +118,7 @@ fn test_merge() -> Result<(), io::Error> {
     let sample = "samples/index";
     let path = Path::new(sample);
 
-    let mut words = Words::new(Path::new("tmp/merge.db")).unwrap();
+    let mut words = Words::read(Path::new("tmp/merge.db")).unwrap();
 
     let mut buf = Vec::new();
 

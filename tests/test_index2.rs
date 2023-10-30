@@ -4,7 +4,6 @@ use std::mem::size_of;
 use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
-use textindex::index2::id::{RawId, RawIdMap};
 use textindex::index2::word_map::{RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
 use textindex::index2::Words;
@@ -19,16 +18,11 @@ fn test_sizes() {
     println!("RawWordList {}", size_of::<RawWordList>());
     println!("RawWordList::LEN {}", RawWordList::LEN);
     println!("RawWord {}", size_of::<RawWord>());
-    println!("RawIdMap {}", size_of::<RawIdMap>());
-    println!("RawIdMap::LEN {}", RawIdMap::LEN);
-    println!("RawSingleId {}", size_of::<RawId>());
 
     assert_eq!(BLOCK_SIZE, size_of::<RawWordMapList>());
     assert_eq!(0, BLOCK_SIZE % size_of::<RawWordMap>());
     assert_eq!(BLOCK_SIZE, size_of::<RawWordList>());
     assert_eq!(0, BLOCK_SIZE % size_of::<RawWord>());
-    assert_eq!(BLOCK_SIZE, size_of::<RawIdMap>());
-    assert_eq!(0, BLOCK_SIZE % size_of::<RawId>());
 }
 
 #[test]
@@ -49,9 +43,9 @@ fn test_init() -> Result<(), AppError> {
 
     let _ = fs::remove_file(&path);
 
-    let mut w = Words::new(&path)?;
+    let mut w = Words::create(&path)?;
     dbg!(&w);
-    w.store()?;
+    w.store_to_db()?;
     dbg!(&w);
     w.write()?;
     let w = Words::read(&path)?;
@@ -70,7 +64,7 @@ fn test_files() -> Result<(), AppError> {
     w.write()?;
     let w = Words::read(&path)?;
 
-    assert!(w.files.list.contains_key(&1));
+    assert!(w.files().contains_key(&1));
 
     Ok(())
 }
@@ -87,36 +81,36 @@ fn test_files2() -> Result<(), AppError> {
     let _fid = w.add_file("file2".into());
     let _fid = w.add_file("file3".into());
 
-    w.store()?;
+    w.store_to_db()?;
     println!("{:#?}", w);
     w.write()?;
 
     let w = Words::read(&path)?;
     // println!("{:#?}", w);
 
-    let mut it = w.files.list.iter();
+    let mut it = w.files().iter();
     let f0 = it.next().unwrap();
     assert_eq!(*f0.0, 1);
     assert_eq!(f0.1.name, "file0");
-    assert_eq!(f0.1.block_nr, 3);
+    assert_eq!(f0.1.block_nr, 1);
     assert_eq!(f0.1.block_idx, 0);
 
     let f1 = it.next().unwrap();
     assert_eq!(*f1.0, 2);
     assert_eq!(f1.1.name, "file1");
-    assert_eq!(f1.1.block_nr, 3);
+    assert_eq!(f1.1.block_nr, 1);
     assert_eq!(f1.1.block_idx, 10);
 
     let f2 = it.next().unwrap();
     assert_eq!(*f2.0, 3);
     assert_eq!(f2.1.name, "file2");
-    assert_eq!(f2.1.block_nr, 3);
+    assert_eq!(f2.1.block_nr, 1);
     assert_eq!(f2.1.block_idx, 20);
 
     let f3 = it.next().unwrap();
     assert_eq!(*f3.0, 4);
     assert_eq!(f3.1.name, "file3");
-    assert_eq!(f3.1.block_nr, 3);
+    assert_eq!(f3.1.block_nr, 1);
     assert_eq!(f3.1.block_idx, 30);
 
     Ok(())
@@ -135,8 +129,8 @@ fn test_word() -> Result<(), AppError> {
 
     let mut w = Words::read(&path)?;
 
-    assert!(w.words.list.get("alpha").is_some());
-    if let Some(word) = w.words.list.get("alpha").cloned() {
+    assert!(w.words().get("alpha").is_some());
+    if let Some(word) = w.words().get("alpha").cloned() {
         assert_eq!(word.file_map_block_nr, 0);
         assert_eq!(word.file_map_idx, 0);
         assert_eq!(word.first_file_id, 1);
@@ -166,11 +160,11 @@ fn test_word2() -> Result<(), AppError> {
 
     let w = Words::read(&path)?;
 
-    assert!(w.words.list.get("alpha").is_some());
-    assert!(w.words.list.get("beta").is_some());
-    assert!(w.words.list.get("gamma").is_some());
-    assert!(w.words.list.get("delta").is_some());
-    assert!(w.words.list.get("epsilon").is_some());
+    assert!(w.words().get("alpha").is_some());
+    assert!(w.words().get("beta").is_some());
+    assert!(w.words().get("gamma").is_some());
+    assert!(w.words().get("delta").is_some());
+    assert!(w.words().get("epsilon").is_some());
 
     Ok(())
 }
@@ -197,14 +191,14 @@ fn test_word3() -> Result<(), AppError> {
     let mut w = Words::read(&path)?;
     // println!("{:#1?}", w);
 
-    assert!(w.words.list.get("alpha").is_some());
-    assert!(w.words.list.get("beta").is_some());
-    assert!(w.words.list.get("gamma").is_some());
-    assert!(w.words.list.get("delta").is_some());
-    assert!(w.words.list.get("epsilon").is_some());
+    assert!(w.words().get("alpha").is_some());
+    assert!(w.words().get("beta").is_some());
+    assert!(w.words().get("gamma").is_some());
+    assert!(w.words().get("delta").is_some());
+    assert!(w.words().get("epsilon").is_some());
 
-    let wdata = w.words.list.get("alpha").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 3);
+    let wdata = w.words().get("alpha").cloned().unwrap();
+    assert_eq!(wdata.file_map_block_nr, 1);
     assert_eq!(wdata.file_map_idx, 0);
     assert_eq!(wdata.first_file_id, 0);
     {
@@ -214,8 +208,8 @@ fn test_word3() -> Result<(), AppError> {
         assert!(it.next().is_none());
     }
 
-    let wdata = w.words.list.get("beta").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 3);
+    let wdata = w.words().get("beta").cloned().unwrap();
+    assert_eq!(wdata.file_map_block_nr, 1);
     assert_eq!(wdata.file_map_idx, 1);
     let mut it = w.iter_word_files(wdata);
     assert_eq!(it.next().unwrap()?, 1);
@@ -239,27 +233,27 @@ fn test_word4() -> Result<(), AppError> {
     w.add_word("delta", fid)?;
     w.add_word("epsilon", fid)?;
 
-    let _wdata = w.words.list.get("gamma").cloned().unwrap();
+    let _wdata = w.words().get("gamma").cloned().unwrap();
 
     let fid = w.add_file("file1".into());
     w.add_word("alpha", fid)?;
     w.add_word("beta", fid)?;
     w.add_word("gamma", fid)?;
 
-    let _wdata = w.words.list.get("gamma").cloned().unwrap();
+    let _wdata = w.words().get("gamma").cloned().unwrap();
 
     for i in 0..14 {
         let fid = w.add_file(format!("file-x{}", i));
         w.add_word("gamma", fid)?;
 
-        let _wdata = w.words.list.get("gamma").cloned().unwrap();
+        let _wdata = w.words().get("gamma").cloned().unwrap();
     }
     // dbg!(&w);
     w.write()?;
 
     let mut w = Words::read(&path)?;
 
-    let wdata = w.words.list.get("gamma").cloned().unwrap();
+    let wdata = w.words().get("gamma").cloned().unwrap();
 
     let fid = w
         .iter_word_files(wdata)

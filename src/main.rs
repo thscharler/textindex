@@ -179,12 +179,12 @@ fn parse_cmd(
             }
 
             let words = data.words.write()?;
-            println!("words: {}", words.words.list.len());
-            println!("files: {}", words.files.list.len());
+            println!("words: {}", words.words().len());
+            println!("files: {}", words.files().len());
 
             let mut log = data.log.try_clone()?;
-            for (word, data) in words.words.list.iter() {
-                let f = words.files.list.get(&data.first_file_id).map(|v| &v.name);
+            for (word, data) in words.words().iter() {
+                let f = words.files().get(&data.first_file_id).map(|v| &v.name);
                 writeln!(
                     log,
                     "{}: [{}] => {} | {:?}",
