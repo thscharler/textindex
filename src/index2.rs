@@ -4,7 +4,7 @@ use crate::index2::files::{FileData, FileList};
 use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use crate::tmp_index::TmpWords;
-use blockfile::{BlockType, FileBlocks, MapState, UserBlockType};
+use blockfile::{BlockType, FileBlockState, FileBlocks, UserBlockType};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
@@ -225,7 +225,7 @@ impl Words {
         };
 
         match db.recovered_state() {
-            MapState::Consistent => {
+            FileBlockState::Consistent => {
                 println!("load files");
                 let files = FileList::load(&mut db)?;
 
