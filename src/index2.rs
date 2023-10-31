@@ -310,7 +310,7 @@ impl Words {
             if block.dirty() {
                 dirty[block.block_type() as usize] += 1;
             } else {
-                dirty[block.block_type() as usize] += 1;
+                clean[block.block_type() as usize] += 1;
             }
         }
         for block in self.db.iter_metadata_blocks() {
@@ -1224,7 +1224,6 @@ pub mod words {
                     if word_list[word_data.block_idx as usize] != w {
                         word_list[word_data.block_idx as usize] = w;
                         block.set_dirty(true);
-                        // block.discard();
                     }
                 } else {
                     if self.last_block_nr == 0 {

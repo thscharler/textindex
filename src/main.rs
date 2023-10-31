@@ -182,16 +182,6 @@ fn parse_cmd(
             println!("words: {}", words.words().len());
             println!("files: {}", words.files().len());
 
-            let mut log = data.log.try_clone()?;
-            for (word, data) in words.words().iter() {
-                let f = words.files().get(&data.first_file_id).map(|v| &v.name);
-                writeln!(
-                    log,
-                    "{}: [{}] => {} | {:?}",
-                    word, data.id, data.first_file_id, f
-                )?;
-            }
-
             work.send.send(Msg::Debug)?;
         }
         BCommand::Stats(Stats::Word(txt)) => {
@@ -217,8 +207,18 @@ fn parse_cmd(
             }
         }
         BCommand::Stats(Stats::Debug) => {
-            let rd = data.words.read()?;
-            println!("{:?}", *rd);
+            let words = data.words.read()?;
+            println!("{:?}", *words);
+
+            let mut log = data.log.try_clone()?;
+            for (word, data) in words.words().iter() {
+                let f = words.files().get(&data.first_file_id).map(|v| &v.name);
+                writeln!(
+                    log,
+                    "{}: [{}] => {} | {:?}",
+                    word, data.id, data.first_file_id, f
+                )?;
+            }
         }
         BCommand::Store() => {
             work.send.send(Msg::AutoSave)?;
