@@ -1,6 +1,6 @@
-use blockfile::Length;
+use blockfile2::Length;
 use std::fs;
-use std::mem::size_of;
+use std::mem::{align_of, size_of};
 use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
@@ -8,16 +8,21 @@ use textindex::index2::word_map::{RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
 use textindex::index2::Words;
 
-const BLOCK_SIZE: usize = 4096;
+const BLOCK_SIZE: usize = 128;
 
 #[test]
 fn test_sizes() {
+    const BLOCK_SIZE: usize = 4096;
     println!("RawWordmapList {}", size_of::<RawWordMapList>());
+    println!("RawWordmapList {}", align_of::<RawWordMapList>());
     println!("RawWordmapList::LEN {}", RawWordMapList::LEN);
     println!("RawWordMap {}", size_of::<RawWordMap>());
+    println!("RawWordMap {}", align_of::<RawWordMap>());
     println!("RawWordList {}", size_of::<RawWordList>());
+    println!("RawWordList {}", align_of::<RawWordList>());
     println!("RawWordList::LEN {}", RawWordList::LEN);
     println!("RawWord {}", size_of::<RawWord>());
+    println!("RawWord {}", align_of::<RawWord>());
 
     assert_eq!(BLOCK_SIZE, size_of::<RawWordMapList>());
     assert_eq!(0, BLOCK_SIZE % size_of::<RawWordMap>());
@@ -41,8 +46,6 @@ fn test_numeric() {
 fn test_init() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/init.idx")?;
 
-    let _ = fs::remove_file(&path);
-
     let mut w = Words::create(&path)?;
     dbg!(&w);
     w.store_to_db()?;
@@ -57,9 +60,7 @@ fn test_init() -> Result<(), AppError> {
 fn test_files() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/files.idx")?;
 
-    let _ = fs::remove_file(&path);
-
-    let mut w = Words::read(&path)?;
+    let mut w = Words::create(&path)?;
     let _fid = w.add_file("file0".into());
     w.write()?;
     let w = Words::read(&path)?;
@@ -73,9 +74,7 @@ fn test_files() -> Result<(), AppError> {
 fn test_files2() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/files2.idx")?;
 
-    let _ = fs::remove_file(&path);
-
-    let mut w = Words::read(&path)?;
+    let mut w = Words::create(&path)?;
     let _fid = w.add_file("file0".into());
     let _fid = w.add_file("file1".into());
     let _fid = w.add_file("file2".into());
@@ -86,31 +85,30 @@ fn test_files2() -> Result<(), AppError> {
     w.write()?;
 
     let w = Words::read(&path)?;
-    // println!("{:#?}", w);
 
     let mut it = w.files().iter();
     let f0 = it.next().unwrap();
     assert_eq!(*f0.0, 1);
     assert_eq!(f0.1.name, "file0");
-    assert_eq!(f0.1.block_nr, 1);
+    assert_eq!(f0.1.block_nr, 3);
     assert_eq!(f0.1.block_idx, 0);
 
     let f1 = it.next().unwrap();
     assert_eq!(*f1.0, 2);
     assert_eq!(f1.1.name, "file1");
-    assert_eq!(f1.1.block_nr, 1);
+    assert_eq!(f1.1.block_nr, 3);
     assert_eq!(f1.1.block_idx, 10);
 
     let f2 = it.next().unwrap();
     assert_eq!(*f2.0, 3);
     assert_eq!(f2.1.name, "file2");
-    assert_eq!(f2.1.block_nr, 1);
+    assert_eq!(f2.1.block_nr, 3);
     assert_eq!(f2.1.block_idx, 20);
 
     let f3 = it.next().unwrap();
     assert_eq!(*f3.0, 4);
     assert_eq!(f3.1.name, "file3");
-    assert_eq!(f3.1.block_nr, 1);
+    assert_eq!(f3.1.block_nr, 3);
     assert_eq!(f3.1.block_idx, 30);
 
     Ok(())
@@ -120,9 +118,7 @@ fn test_files2() -> Result<(), AppError> {
 fn test_word() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/word.idx")?;
 
-    let _ = fs::remove_file(&path);
-
-    let mut w = Words::read(&path)?;
+    let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
     w.add_word("alpha", fid)?;
     w.write()?;
@@ -147,9 +143,7 @@ fn test_word() -> Result<(), AppError> {
 fn test_word2() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/word2.idx")?;
 
-    let _ = fs::remove_file(&path);
-
-    let mut w = Words::read(&path)?;
+    let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
     w.add_word("alpha", fid)?;
     w.add_word("beta", fid)?;
@@ -173,9 +167,7 @@ fn test_word2() -> Result<(), AppError> {
 fn test_word3() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/word3.idx")?;
 
-    let _ = fs::remove_file(&path);
-
-    let mut w = Words::read(&path)?;
+    let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
     w.add_word("alpha", fid)?;
     w.add_word("beta", fid)?;
@@ -198,7 +190,7 @@ fn test_word3() -> Result<(), AppError> {
     assert!(w.words().get("epsilon").is_some());
 
     let wdata = w.words().get("alpha").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 1);
+    assert_eq!(wdata.file_map_block_nr, 3);
     assert_eq!(wdata.file_map_idx, 0);
     assert_eq!(wdata.first_file_id, 0);
     {
@@ -209,7 +201,7 @@ fn test_word3() -> Result<(), AppError> {
     }
 
     let wdata = w.words().get("beta").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 1);
+    assert_eq!(wdata.file_map_block_nr, 3);
     assert_eq!(wdata.file_map_idx, 1);
     let mut it = w.iter_word_files(wdata);
     assert_eq!(it.next().unwrap()?, 1);
@@ -223,9 +215,7 @@ fn test_word3() -> Result<(), AppError> {
 fn test_word4() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/word4.idx")?;
 
-    let _ = fs::remove_file(&path);
-
-    let mut w = Words::read(&path)?;
+    let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
     w.add_word("alpha", fid)?;
     w.add_word("beta", fid)?;
