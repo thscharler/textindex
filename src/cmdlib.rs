@@ -39,7 +39,6 @@ impl<T, const N: usize> CmdParse<T, N>
 where
     T: Clone,
 {
-    #[allow(clippy::needless_return)]
     pub fn parse<'s>(&self, input: CSpan<'s>) -> CParserResult<'s, T> {
         Track.enter(CCommandLoop, input);
 
@@ -111,7 +110,6 @@ impl<T> Cmd<T>
 where
     T: Clone,
 {
-    #[allow(clippy::needless_return)]
     fn parse_p1<'s>(
         input: CSpan<'s>,
         tok1: &str,
@@ -134,7 +132,6 @@ where
         }
     }
 
-    #[allow(clippy::needless_return)]
     fn parse_p1p<'s>(
         input: CSpan<'s>,
         tok1: &str,
@@ -159,7 +156,6 @@ where
         }
     }
 
-    #[allow(clippy::needless_return)]
     fn parse_p2<'s>(
         input: CSpan<'s>,
         tok1: &str,
@@ -185,7 +181,6 @@ where
         }
     }
 
-    #[allow(clippy::needless_return)]
     fn parse_p2_cont<'s>(
         input: CSpan<'s>,
         tok2: &str,
@@ -211,7 +206,6 @@ where
         }
     }
 
-    #[allow(clippy::needless_return)]
     fn parse_p2p<'s>(
         input: CSpan<'s>,
         tok1: &str,
@@ -238,7 +232,6 @@ where
         }
     }
 
-    #[allow(clippy::needless_return)]
     fn parse_p2p_cont<'s>(
         input: CSpan<'s>,
         tok2: &str,
@@ -350,7 +343,6 @@ fn nom_ws1(i: CSpan<'_>) -> CTokenizerResult<'_, CSpan<'_>> {
         .with_code(CWhitespace)
 }
 
-#[allow(clippy::needless_return)]
 fn consumed_all(i: CSpan<'_>, c: CCode) -> CParserResult<'_, ()> {
     let rest = nom_ws_span(i);
     if !rest.is_empty() {

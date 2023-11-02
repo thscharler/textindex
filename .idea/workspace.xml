@@ -9,8 +9,15 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="change the index types to proper newtypes instead of type aliases.">
-      <change beforePath="$PROJECT_DIR$/tests/test_1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_1.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_index2.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/index2/ids.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/cmdlib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmdlib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/cmds.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmds.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -83,7 +90,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Tests in 'tests'">
+  <component name="RunManager" selected="Cargo.Build">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -138,6 +145,23 @@
     <configuration name="Doc" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="doc" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="build --release" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
@@ -242,6 +266,7 @@
       <item itemvalue="Cargo.Build" />
       <item itemvalue="Cargo.Doc" />
       <item itemvalue="Cargo.Clippy" />
+      <item itemvalue="Cargo.Release" />
       <item itemvalue="Cargo.Tests in 'tests'" />
       <item itemvalue="Cargo.Test test_index2" />
       <item itemvalue="Cargo.Test test_recover" />
@@ -418,8 +443,26 @@
       <option name="project" value="LOCAL" />
       <updated>1698949328821</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="change the index types to proper newtypes instead of type aliases.">
+      <option name="closed" value="true" />
+      <created>1698949412726</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1698949412726</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
+  </component>
+  <component name="Vcs.Log.History.Properties">
+    <option name="COLUMN_ID_ORDER">
+      <list>
+        <option value="Default.Root" />
+        <option value="Default.Author" />
+        <option value="Default.Date" />
+        <option value="Default.Subject" />
+      </list>
+    </option>
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">

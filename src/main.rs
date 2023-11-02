@@ -51,7 +51,7 @@ fn main() -> Result<(), AppError> {
     let mut break_flag = false;
     loop {
         match rl.readline("> ") {
-            Ok(txt_input) if txt_input.is_empty() => {
+            Ok(txt_input) if txt_input.len() > 0 => {
                 break_flag = false;
                 rl.add_history_entry(txt_input.as_str())?;
                 match parse_cmd(data, work, &txt_input, &mut rl) {
@@ -208,9 +208,9 @@ fn parse_cmd(
         }
         BCommand::Stats(Stats::Debug) => {
             let words = data.words.read()?;
-            println!("{:?}", *words);
 
             let mut log = data.log.try_clone()?;
+            writeln!(log, "{:#?}", *words)?;
             for (word, data) in words.words().iter() {
                 let f = words.files().get(&data.first_file_id).map(|v| &v.name);
                 writeln!(

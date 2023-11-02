@@ -1,217 +1,21 @@
 #![allow(dead_code)]
 
+mod ids;
+
+use ids::{BlkIdx, FIdx, FileId, WordId};
+
 use crate::index2::files::{FileData, FileList};
 use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use crate::tmp_index::TmpWords;
 use blockfile2::{BlockType, FileBlocks, UserBlockType};
-use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use std::mem::align_of;
-use std::ops::{Add, AddAssign};
 use std::path::Path;
 use std::str::from_utf8;
 use wildmatch::WildMatch;
-
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct BlkIdx(pub u32);
-
-impl BlkIdx {
-    pub fn as_usize(&self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl Display for BlkIdx {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}]", self.0)
-    }
-}
-
-impl Debug for BlkIdx {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}]", self.0)
-    }
-}
-
-impl Add<u32> for BlkIdx {
-    type Output = BlkIdx;
-
-    fn add(self, rhs: u32) -> Self::Output {
-        BlkIdx(self.0 + rhs)
-    }
-}
-
-impl AddAssign<u32> for BlkIdx {
-    fn add_assign(&mut self, rhs: u32) {
-        self.0 += rhs;
-    }
-}
-
-impl PartialEq<u32> for BlkIdx {
-    fn eq(&self, other: &u32) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialOrd<u32> for BlkIdx {
-    fn partial_cmp(&self, other: &u32) -> Option<Ordering> {
-        self.0.partial_cmp(other)
-    }
-}
-
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct FIdx(pub u32);
-
-impl FIdx {
-    pub fn as_usize(&self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl Display for FIdx {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}]", self.0)
-    }
-}
-
-impl Debug for FIdx {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{}]", self.0)
-    }
-}
-
-impl Add<u32> for FIdx {
-    type Output = FIdx;
-
-    fn add(self, rhs: u32) -> Self::Output {
-        FIdx(self.0 + rhs)
-    }
-}
-
-impl AddAssign<u32> for FIdx {
-    fn add_assign(&mut self, rhs: u32) {
-        self.0 += rhs;
-    }
-}
-
-impl PartialEq<u32> for FIdx {
-    fn eq(&self, other: &u32) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialOrd<u32> for FIdx {
-    fn partial_cmp(&self, other: &u32) -> Option<Ordering> {
-        self.0.partial_cmp(other)
-    }
-}
-
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct FileId(pub u32);
-
-impl FileId {
-    pub fn as_usize(&self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl Display for FileId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({})", self.0)
-    }
-}
-
-impl Debug for FileId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({})", self.0)
-    }
-}
-
-impl Add<u32> for FileId {
-    type Output = FileId;
-
-    fn add(self, rhs: u32) -> Self::Output {
-        FileId(self.0 + rhs)
-    }
-}
-
-impl AddAssign<u32> for FileId {
-    fn add_assign(&mut self, rhs: u32) {
-        self.0 += rhs;
-    }
-}
-
-impl PartialEq<u32> for FileId {
-    fn eq(&self, other: &u32) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialOrd<u32> for FileId {
-    fn partial_cmp(&self, other: &u32) -> Option<Ordering> {
-        self.0.partial_cmp(other)
-    }
-}
-
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct WordId(pub u32);
-
-impl WordId {
-    pub fn as_usize(&self) -> usize {
-        self.0 as usize
-    }
-}
-
-impl Display for WordId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({})", self.0)
-    }
-}
-
-impl Debug for WordId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({})", self.0)
-    }
-}
-
-impl Add<u32> for WordId {
-    type Output = FileId;
-
-    fn add(self, rhs: u32) -> Self::Output {
-        FileId(self.0 + rhs)
-    }
-}
-
-impl AddAssign<u32> for WordId {
-    fn add_assign(&mut self, rhs: u32) {
-        self.0 += rhs;
-    }
-}
-
-impl PartialEq<u32> for WordId {
-    fn eq(&self, other: &u32) -> bool {
-        self.0 == *other
-    }
-}
-
-impl PartialOrd<u32> for WordId {
-    fn partial_cmp(&self, other: &u32) -> Option<Ordering> {
-        self.0.partial_cmp(other)
-    }
-}
-
-// type BlkIdx = u32;
-// type FIdx = u32;
-// type FileId = u32;
-// type WordId = u32;
-// type Id = u32;
 
 #[derive(Debug)]
 pub enum IndexError {
@@ -256,9 +60,9 @@ pub enum WordBlockType {
     WordMapTail = BlockType::User4 as isize,
 }
 
-impl TryFrom<u8> for WordBlockType {
-    type Error = u8;
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+impl TryFrom<u32> for WordBlockType {
+    type Error = u32;
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
             16 => Ok(WordBlockType::WordList),
             17 => Ok(WordBlockType::FileList),
@@ -290,19 +94,19 @@ impl Debug for WordBlockType {
 impl UserBlockType for WordBlockType {
     fn block_type(self) -> BlockType {
         match self {
-            WordBlockType::WordList => BlockType::User2,
-            WordBlockType::FileList => BlockType::User3,
-            WordBlockType::WordMapHead => BlockType::User4,
-            WordBlockType::WordMapTail => BlockType::User5,
+            WordBlockType::WordList => BlockType::User1,
+            WordBlockType::FileList => BlockType::User2,
+            WordBlockType::WordMapHead => BlockType::User3,
+            WordBlockType::WordMapTail => BlockType::User4,
         }
     }
 
     fn user_type(block_type: BlockType) -> Option<Self> {
         match block_type {
-            BlockType::User2 => Some(Self::WordList),
-            BlockType::User3 => Some(Self::FileList),
-            BlockType::User4 => Some(Self::WordMapHead),
-            BlockType::User5 => Some(Self::WordMapTail),
+            BlockType::User1 => Some(Self::WordList),
+            BlockType::User2 => Some(Self::FileList),
+            BlockType::User3 => Some(Self::WordMapHead),
+            BlockType::User4 => Some(Self::WordMapTail),
             _ => None,
         }
     }
@@ -522,9 +326,12 @@ impl Words {
             if dirty[i] > 0 || clean[i] > 0 {
                 print!(
                     "{} {}/{} ",
-                    match WordBlockType::try_from(i as u8) {
+                    match WordBlockType::try_from(i as u32) {
                         Ok(v) => v.to_string(),
-                        Err(e) => e.to_string(),
+                        Err(e) => match BlockType::try_from(e) {
+                            Ok(v) => v.to_string(),
+                            Err(e) => e.to_string(),
+                        },
                     },
                     dirty[i],
                     clean[i]
@@ -934,7 +741,7 @@ pub mod word_map {
 
             let block = db.get_mut(new_blk_nr)?;
             block.set_dirty(true);
-            dbg!(&block);
+
             let word_map_list = block.cast_mut::<RawWordMapList>();
             let word_map = &mut word_map_list[new_idx.as_usize()];
 
