@@ -51,7 +51,7 @@ fn main() -> Result<(), AppError> {
     let mut break_flag = false;
     loop {
         match rl.readline("> ") {
-            Ok(txt_input) if txt_input.len() > 0 => {
+            Ok(txt_input) if txt_input.is_empty() => {
                 break_flag = false;
                 rl.add_history_entry(txt_input.as_str())?;
                 match parse_cmd(data, work, &txt_input, &mut rl) {
@@ -191,7 +191,7 @@ fn parse_cmd(
             let w: Vec<_> = words
                 .iter_words()
                 .filter(|(k, _)| match_find.matches(k))
-                .map(|(k, v)| (k, v.clone()))
+                .map(|(k, v)| (k, *v))
                 .collect();
             for (k, v) in w {
                 println!(

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::index2::files::{FileData, FileList};
-use crate::index2::word_map::{RawWordMap, RawWordMapList, WordMap};
+use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use crate::tmp_index::TmpWords;
 use blockfile2::{BlockType, FileBlocks, UserBlockType};
@@ -348,19 +348,15 @@ impl Words {
     }
 
     pub fn have_file(&self, txt: &String) -> bool {
-        self.files
-            .list()
-            .values()
-            .find(|v| &v.name == txt)
-            .is_some()
+        self.files.list().values().any(|v| &v.name == txt)
     }
 
     pub fn files(&self) -> &BTreeMap<FileId, FileData> {
-        &self.files.list()
+        self.files.list()
     }
 
     pub fn words(&self) -> &BTreeMap<String, WordData> {
-        &self.words.list()
+        self.words.list()
     }
 
     pub fn find_file(&self, txt: &str) -> BTreeSet<&String> {
@@ -457,13 +453,12 @@ impl Words {
             let words: Vec<_> = self
                 .iter_words()
                 .filter(|(k, _)| match_find.matches(k))
-                .map(|(_, v)| v.clone())
+                .map(|(_, v)| *v)
                 .collect();
 
             let files = words
                 .into_iter()
-                .map(|v| self.iter_word_files(v).flatten().collect::<Vec<FileId>>())
-                .flatten();
+                .flat_map(|v| self.iter_word_files(v).flatten().collect::<Vec<FileId>>());
 
             if first {
                 collect = files.collect();
@@ -474,7 +469,7 @@ impl Words {
             first = false;
         }
 
-        let names = collect.iter().map(|v| self.file(*v)).flatten().collect();
+        let names = collect.iter().flat_map(|v| self.file(*v)).collect();
 
         Ok(names)
     }
@@ -647,7 +642,7 @@ pub mod word_map {
         fn load_free_idx(db: &mut WordFileBlocks, block_nr: LogicalNr) -> Result<u32, IndexError> {
             let empty = RawWordMap::default();
             if block_nr > 0 {
-                let block = db.get(block_nr.into())?;
+                let block = db.get(block_nr)?;
                 let last = block.cast::<RawWordMapList>();
                 if let Some(empty_pos) = last.iter().position(|v| *v == empty) {
                     Ok(empty_pos as u32)
@@ -673,6 +668,7 @@ pub mod word_map {
             &mut self,
             db: &mut WordFileBlocks,
         ) -> Result<(LogicalNr, BlkIdx), IndexError> {
+            #[allow(clippy::collapsible_else_if)]
             let v = if self.last_block_nr_head == 0 {
                 let new_block_nr = db.alloc(Self::TY_LISTHEAD)?.block_nr();
 
@@ -706,6 +702,7 @@ pub mod word_map {
             &mut self,
             db: &mut WordFileBlocks,
         ) -> Result<(LogicalNr, BlkIdx), IndexError> {
+            #[allow(clippy::collapsible_else_if)]
             let v = if self.last_block_nr_tail == 0 {
                 let new_block_nr = db.alloc(Self::TY_LISTTAIL)?.block_nr();
 
@@ -858,6 +855,7 @@ pub mod word_map {
                 let map = &map_list[self.map_idx as usize];
                 let file_id = map.file_id[self.file_idx as usize];
 
+                #[allow(clippy::collapsible_else_if)]
                 if file_id != 0 {
                     // next
                     self.file_idx += 1;
@@ -881,7 +879,7 @@ pub mod word_map {
                 }
             };
 
-            file_id.map(|v| Ok(v))
+            file_id.map(Ok)
         }
     }
 }
@@ -1043,6 +1041,10 @@ pub mod files {
             self.list.len()
         }
 
+        pub fn is_empty(&self) -> bool {
+            self.list.is_empty()
+        }
+
         pub fn last_file_id(&self) -> FileId {
             self.last_file_id
         }
@@ -1120,7 +1122,7 @@ pub mod words {
         ) -> Result<WordList, IndexError> {
             let mut words = Self::load(db)?;
 
-            for (_word, data) in &mut words.list {
+            for data in words.list.values_mut() {
                 if data.first_file_id > max_file_id {
                     data.first_file_id = 0;
                 }
@@ -1166,7 +1168,7 @@ pub mod words {
                         // as file_map_idx.
                         if r.file_map_block_nr == 0 {
                             list.insert(
-                                word.into(),
+                                word,
                                 WordData {
                                     id: r.id,
                                     block_nr,
@@ -1178,7 +1180,7 @@ pub mod words {
                             );
                         } else {
                             list.insert(
-                                word.into(),
+                                word,
                                 WordData {
                                     id: r.id,
                                     block_nr,
@@ -1267,6 +1269,10 @@ pub mod words {
 
         pub fn len(&self) -> usize {
             self.list.len()
+        }
+
+        pub fn is_empty(&self) -> bool {
+            self.list.is_empty()
         }
 
         pub fn list(&self) -> &BTreeMap<String, WordData> {

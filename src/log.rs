@@ -14,11 +14,8 @@ pub fn log_input(line: &str, pos: usize) {
     if !log.exists() {
         let _ = File::create(&log);
     }
-    match OpenOptions::new().append(true).open(log) {
-        Ok(mut f) => {
-            let _ = writeln!(f, "{}\t{}", line, pos);
-        }
-        Err(_) => {}
+    if let Ok(mut f) = OpenOptions::new().append(true).open(log) {
+        let _ = writeln!(f, "{}\t{}", line, pos);
     };
 }
 
@@ -28,11 +25,8 @@ pub fn log_trace(trace: &TrackedDataVec<CCode, &str>) {
     if !log.exists() {
         let _ = File::create(&log);
     }
-    match OpenOptions::new().append(true).open(log) {
-        Ok(mut f) => {
-            let _ = writeln!(f, "{:?}", trace);
-        }
-        Err(_) => {}
+    if let Ok(mut f) = OpenOptions::new().append(true).open(log) {
+        let _ = writeln!(f, "{:?}", trace);
     };
 }
 

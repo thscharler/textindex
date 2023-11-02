@@ -4,15 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="CargoProjects">
-    <cargoProject FILE="$PROJECT_DIR$/../blockfile/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/../blockfile2/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="debug for block.&#10;&#10;split off load_raw_0 for safety.&#10;&#10;freelist for types better.&#10;&#10;store_panic runs clean!! M8/10">
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/err.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/log.txt" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="adapt to blockfile2">
       <change afterPath="$PROJECT_DIR$/samples/all/.stored" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/samples/all/01.txt" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/samples/all/02.txt" afterDir="false" />
@@ -6848,21 +6844,22 @@
       <change afterPath="$PROJECT_DIR$/samples/strange/5853.txt" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/samples/strange/ctur_seven2^4.html" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/samples/strange/my_hot_little_sister.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block_io.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block_io.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TextIndex.iml" beforeDir="false" afterPath="$PROJECT_DIR$/TextIndex.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/cmdlib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmdlib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/cmds.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmds.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_1.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_index2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/log.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/log.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/tmp_index.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -6884,7 +6881,19 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="PUSH_TAGS">
+      <GitPushTagMode>
+        <option name="argument" value="--tags" />
+        <option name="title" value="All" />
+      </GitPushTagMode>
+    </option>
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$/../blockfile2" value="blockfile2" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="ROOT_SYNC" value="DONT_SYNC" />
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/../blockfile/src/core.rs" root0="FORCE_HIGHLIGHTING" />
@@ -6902,19 +6911,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/blockfile2",
-    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "editor.preferences.folding"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/stommy/Documents/IdeaProjects/blockfile&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;editor.preferences.folding&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src" />
@@ -6923,7 +6932,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Test test_index2">
+  <component name="RunManager" selected="Cargo.Clippy">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -6960,7 +6969,7 @@
     </configuration>
     <configuration name="Clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="clippy" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
@@ -7072,10 +7081,10 @@
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Cargo.Test test_index2" />
         <item itemvalue="Cargo.Test test_1" />
         <item itemvalue="Cargo.Test test_sizes" />
         <item itemvalue="Cargo.Test test_recover" />
+        <item itemvalue="Cargo.Test test_index2" />
         <item itemvalue="Cargo.Test test_illegal" />
       </list>
     </recent_temporary>
@@ -7176,7 +7185,23 @@
       <option name="project" value="LOCAL" />
       <updated>1698913021744</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="minor fixes">
+      <option name="closed" value="true" />
+      <created>1698938513682</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1698938513682</updated>
+    </task>
+    <task id="LOCAL-00012" summary="adapt to blockfile2">
+      <option name="closed" value="true" />
+      <created>1698938648879</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1698938648879</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -7184,7 +7209,26 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="master" />
+                      </list>
+                    </value>
+                  </entry>
+                  <entry key="roots">
+                    <value>
+                      <list>
+                        <option value="$PROJECT_DIR$/../blockfile2" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -7201,6 +7245,8 @@
     <MESSAGE value="renaming stuff.&#10;testing write/read" />
     <MESSAGE value="error handling. &#10;almost no panics left.&#10;&#10;debug output ..." />
     <MESSAGE value="debug for block.&#10;&#10;split off load_raw_0 for safety.&#10;&#10;freelist for types better.&#10;&#10;store_panic runs clean!! M8/10" />
-    <option name="LAST_COMMIT_MESSAGE" value="debug for block.&#10;&#10;split off load_raw_0 for safety.&#10;&#10;freelist for types better.&#10;&#10;store_panic runs clean!! M8/10" />
+    <MESSAGE value="minor fixes" />
+    <MESSAGE value="adapt to blockfile2" />
+    <option name="LAST_COMMIT_MESSAGE" value="adapt to blockfile2" />
   </component>
 </project>

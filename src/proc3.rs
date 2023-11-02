@@ -204,20 +204,16 @@ pub fn shut_down(work: &Work) {
         }
     }
 
-    loop {
-        if let Ok(mut print) = work.printer.lock() {
-            let _ = print.print("wait on shutdown".into());
+    if let Ok(mut print) = work.printer.lock() {
+        let _ = print.print("wait on shutdown".into());
+    }
+
+    sleep(Duration::from_millis(100));
+
+    for w in work.workers.iter() {
+        if !w.handle.is_finished() {
+            continue;
         }
-
-        sleep(Duration::from_millis(100));
-
-        for w in work.workers.iter() {
-            if !w.handle.is_finished() {
-                continue;
-            }
-        }
-
-        break;
     }
 }
 
@@ -298,9 +294,9 @@ fn walk_proc(
                     Ok(Msg::WalkTree(_)) => {
                         state.lock().unwrap().state = 7;
                         if let Ok(mut print) = printer.lock() {
-                            let _ = print.print(format!(
-                                "new tree walk ignored, still working on the last one."
-                            ));
+                            let _ = print.print(
+                                "new tree walk ignored, still working on the last one.".to_string(),
+                            );
                         }
                     }
                     Ok(msg) => {
@@ -328,7 +324,7 @@ fn walk_proc(
                             .to_string_lossy()
                             .to_string();
 
-                        let filter = name_filter(&absolute);
+                        let filter = name_filter(absolute);
 
                         if filter == FileFilter::Ignore {
                             // print_(&printer, format!("ignore {:?}", relative));
@@ -492,7 +488,7 @@ fn indexing(
     filter: FileFilter,
     _absolute: PathBuf,
     relative: String,
-    txt: &String,
+    txt: &str,
     send: &Sender<Msg>,
 ) -> Result<(), AppError> {
     let mut words = TmpWords::new(relative.clone());
@@ -500,12 +496,12 @@ fn indexing(
     match filter {
         FileFilter::Text => {
             timing(printer, format!("indexing {:?}", relative), 200, || {
-                index_txt(&mut words, &txt)
+                index_txt(&mut words, txt)
             });
         }
         FileFilter::Html => {
             timing(printer, format!("indexing {:?}", relative), 200, || {
-                index_html(&mut words, &txt)
+                index_html(&mut words, txt)
             });
         }
         FileFilter::Ignore => {}
@@ -631,7 +627,7 @@ fn terminal_proc(
             Msg::AutoSave => {
                 state.lock().unwrap().state = 3;
                 print_err_(
-                    &printer,
+                    printer,
                     data.log.try_clone().unwrap(),
                     "auto_save",
                     auto_save(printer, data),
@@ -640,7 +636,7 @@ fn terminal_proc(
             Msg::DeleteFile(file) => {
                 state.lock().unwrap().state = 4;
                 print_err_(
-                    &printer,
+                    printer,
                     data.log.try_clone().unwrap(),
                     "delete_file",
                     delete_file(printer, data, file),
@@ -649,17 +645,17 @@ fn terminal_proc(
             Msg::WalkFinished(file) => {
                 state.lock().unwrap().state = 5;
 
-                print_(&printer, format!("*** final store ***"));
+                print_(printer, "*** final store ***");
 
                 let mut words = data.words.write()?;
                 words.write()?;
                 words.compact_blocks();
 
-                print_(&printer, format!("*** {:?} finished ***", file));
+                print_(printer, format!("*** {:?} finished ***", file));
             }
             msg => {
                 state.lock().unwrap().state = 6;
-                print_(&printer, format!("invalid terminal message {:?}", msg));
+                print_(printer, format!("invalid terminal message {:?}", msg));
             }
         }
     }
@@ -706,14 +702,9 @@ pub fn name_filter(path: &Path) -> FileFilter {
     ];
     const PREFIX_IGNORE: &[&str] = &["week"];
 
-    if EXT_IGNORE.contains(&ext.as_str()) {
-        FileFilter::Ignore
-    } else if NAME_IGNORE.contains(&name.as_str()) {
-        FileFilter::Ignore
-    } else if PREFIX_IGNORE
-        .iter()
-        .find(|v| name.starts_with(*v))
-        .is_some()
+    if EXT_IGNORE.contains(&ext.as_str())
+        || NAME_IGNORE.contains(&name.as_str())
+        || PREFIX_IGNORE.iter().any(|v| name.starts_with(*v))
     {
         FileFilter::Ignore
     } else {
@@ -736,11 +727,7 @@ pub fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
         "_<!DOCTYPE",
     ];
 
-    if HTML_RECOGNIZE
-        .iter()
-        .find(|v| txt.starts_with(*v))
-        .is_some()
-    {
+    if HTML_RECOGNIZE.iter().any(|v| txt.starts_with(*v)) {
         FileFilter::Html
     } else {
         FileFilter::Text

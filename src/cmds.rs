@@ -65,7 +65,7 @@ fn eval_hint_tokens(
     txt: &SourceStr,
     err: ParserError<CCode, CSpan>,
 ) -> (Option<String>, usize, Vec<String>) {
-    let hint = if txt.len() == 0 {
+    let hint = if txt.is_empty() {
         // don't hint for the empty input
         None
     } else if let Some(sug) = err.iter_expected().next() {
@@ -118,6 +118,7 @@ fn eval_hint_tokens(
 
 /// ----------------------------------------------------------------------
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CCode {
     CNomError,

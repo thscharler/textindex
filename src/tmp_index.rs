@@ -21,7 +21,10 @@ impl TmpWords {
     }
 
     pub fn add_word<S: AsRef<str>>(&mut self, word: S) {
-        if let Ok(_) = STOP_WORDS.binary_search_by(|probe| (*probe).cmp(word.as_ref())) {
+        if STOP_WORDS
+            .binary_search_by(|probe| (*probe).cmp(word.as_ref()))
+            .is_ok()
+        {
             return;
         }
 
@@ -68,7 +71,7 @@ pub fn index_txt(tmp_words: &mut TmpWords, text: &str) -> usize {
         if base64_section && line.starts_with("end") {
             base64_section = false;
         }
-        if base64_section && line.starts_with("M") {
+        if base64_section && line.starts_with('M') {
             continue;
         }
         if line.contains("-----BEGIN PGP SIGNATURE-----") {
