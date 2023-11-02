@@ -8,16 +8,15 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="bug with blocktypes.&#10;&#10;cleanup">
-      <change afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="split index2">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/word_map.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_1.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_index2.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,7 +90,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Tests in 'tests'">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -468,7 +467,15 @@
       <option name="project" value="LOCAL" />
       <updated>1698952726792</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="split index2">
+      <option name="closed" value="true" />
+      <created>1698953213506</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1698953213506</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -530,6 +537,7 @@
     <MESSAGE value="change the index types to proper newtypes instead of type aliases." />
     <MESSAGE value="TryFrom for BlockType" />
     <MESSAGE value="bug with blocktypes.&#10;&#10;cleanup" />
-    <option name="LAST_COMMIT_MESSAGE" value="bug with blocktypes.&#10;&#10;cleanup" />
+    <MESSAGE value="split index2" />
+    <option name="LAST_COMMIT_MESSAGE" value="split index2" />
   </component>
 </project>

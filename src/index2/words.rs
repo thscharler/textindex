@@ -5,6 +5,8 @@ use crate::index2::{
 use blockfile2::{Length, LogicalNr};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::mem::size_of;
 use std::str::from_utf8;
 
@@ -19,11 +21,11 @@ pub struct WordList {
 #[derive(Debug, Clone, Copy)]
 pub struct WordData {
     pub id: WordId,
+    pub count: usize,
     pub block_nr: LogicalNr,
     pub block_idx: BlkIdx,
     pub file_map_block_nr: LogicalNr,
     pub file_map_idx: BlkIdx,
-    pub first_file_id: FileId,
 }
 
 pub type RawWordList = [RawWord; BLOCK_SIZE / size_of::<RawWord>()];
@@ -32,10 +34,9 @@ pub type RawWordList = [RawWord; BLOCK_SIZE / size_of::<RawWord>()];
 #[repr(C)]
 pub struct RawWord {
     pub word: [u8; 20],
-    //?
     pub id: WordId,
     pub file_map_block_nr: LogicalNr,
-    pub file_map_idx_or_file_id: u32,
+    pub file_map_idx: BlkIdx,
 }
 
 impl Debug for RawWord {
@@ -44,7 +45,7 @@ impl Debug for RawWord {
         write!(
             f,
             "{} {} -> {} {}",
-            w, self.id, self.file_map_block_nr, self.file_map_idx_or_file_id
+            w, self.id, self.file_map_block_nr, self.file_map_idx
         )
     }
 }
@@ -55,28 +56,13 @@ impl Default for RawWord {
             word: Default::default(),
             id: WordId(0),
             file_map_block_nr: LogicalNr(0),
-            file_map_idx_or_file_id: 0,
+            file_map_idx: BlkIdx(0),
         }
     }
 }
 
 impl WordList {
     pub const TY: WordBlockType = WordBlockType::WordList;
-
-    pub(crate) fn recover(
-        db: &mut WordFileBlocks,
-        max_file_id: u32,
-    ) -> Result<WordList, IndexError> {
-        let mut words = Self::load(db)?;
-
-        for data in words.list.values_mut() {
-            if data.first_file_id > max_file_id {
-                data.first_file_id = FileId(0);
-            }
-        }
-
-        Ok(words)
-    }
 
     pub(crate) fn load(db: &mut WordFileBlocks) -> Result<WordList, IndexError> {
         let mut list = BTreeMap::new();
@@ -111,33 +97,17 @@ impl WordList {
                     last_block_nr = block_nr;
                     last_block_idx = BlkIdx(i as u32 + 1);
 
-                    // block_nr == 0 means we have only one file-id and it is stored
-                    // as file_map_idx.
-                    if r.file_map_block_nr == 0 {
-                        list.insert(
-                            word,
-                            WordData {
-                                id: r.id,
-                                block_nr,
-                                block_idx: BlkIdx(i as u32),
-                                file_map_block_nr: LogicalNr(0),
-                                file_map_idx: BlkIdx(0),
-                                first_file_id: FileId(r.file_map_idx_or_file_id),
-                            },
-                        );
-                    } else {
-                        list.insert(
-                            word,
-                            WordData {
-                                id: r.id,
-                                block_nr,
-                                block_idx: BlkIdx(i as u32),
-                                file_map_block_nr: r.file_map_block_nr,
-                                file_map_idx: BlkIdx(r.file_map_idx_or_file_id),
-                                first_file_id: FileId(0),
-                            },
-                        );
-                    }
+                    list.insert(
+                        word,
+                        WordData {
+                            id: r.id,
+                            count: 0,
+                            block_nr,
+                            block_idx: BlkIdx(i as u32),
+                            file_map_block_nr: r.file_map_block_nr,
+                            file_map_idx: r.file_map_idx,
+                        },
+                    );
                 }
             }
         }
@@ -159,20 +129,11 @@ impl WordList {
     pub(crate) fn store(&mut self, db: &mut WordFileBlocks) -> Result<(), IndexError> {
         // assume append only
         for (word, word_data) in self.list.iter_mut() {
-            let w = if word_data.first_file_id != 0 {
-                RawWord {
-                    word: copy_fix::<20>(word.as_bytes()),
-                    id: word_data.id,
-                    file_map_block_nr: LogicalNr(0),
-                    file_map_idx_or_file_id: word_data.first_file_id.0,
-                }
-            } else {
-                RawWord {
-                    word: copy_fix::<20>(word.as_bytes()),
-                    id: word_data.id,
-                    file_map_block_nr: word_data.file_map_block_nr,
-                    file_map_idx_or_file_id: word_data.file_map_idx.0,
-                }
+            let w = RawWord {
+                word: copy_fix::<20>(word.as_bytes()),
+                id: word_data.id,
+                file_map_block_nr: word_data.file_map_block_nr,
+                file_map_idx: word_data.file_map_idx,
             };
 
             if word_data.block_nr != 0 {
@@ -234,17 +195,23 @@ impl WordList {
         self.list.get_mut(word)
     }
 
-    pub fn insert<S: AsRef<str>>(&mut self, word: S, file_id: FileId) {
+    pub fn insert<S: AsRef<str>>(
+        &mut self,
+        word: S,
+        count: usize,
+        file_map_block_nr: LogicalNr,
+        file_map_idx: BlkIdx,
+    ) {
         self.last_word_id += 1;
         self.list.insert(
             word.as_ref().into(),
             WordData {
                 id: self.last_word_id,
+                count,
                 block_nr: LogicalNr(0),
                 block_idx: BlkIdx(0),
-                file_map_block_nr: LogicalNr(0),
-                file_map_idx: BlkIdx(0),
-                first_file_id: file_id,
+                file_map_block_nr,
+                file_map_idx,
             },
         );
     }

@@ -1,19 +1,17 @@
 #![allow(dead_code)]
 
-mod files;
-mod ids;
-mod word_map;
-mod words;
-
+pub mod files;
+pub mod ids;
 pub mod tmp_index;
-
-use ids::{BlkIdx, FIdx, FileId, WordId};
+pub mod word_map;
+pub mod words;
 
 use crate::index2::files::{FileData, FileList};
 use crate::index2::tmp_index::TmpWords;
 use crate::index2::word_map::{RawWordMapList, WordMap};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use blockfile2::{BlockType, FileBlocks, UserBlockType};
+use ids::{BlkIdx, FIdx, FileId, WordId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
@@ -50,6 +48,7 @@ const BLOCK_SIZE: usize = 4096;
 pub struct Words {
     db: WordFileBlocks,
     words: WordList,
+    word_count: usize,
     files: FileList,
     wordmap: WordMap,
     auto_save: u32,
@@ -158,7 +157,7 @@ impl Debug for Words {
                                 from_utf8(&d.word).unwrap_or(""),
                                 d.id,
                                 d.file_map_block_nr,
-                                d.file_map_idx_or_file_id
+                                d.file_map_idx
                             )?;
                         }
                     }
@@ -233,6 +232,7 @@ impl Words {
         Ok(Self {
             db,
             words,
+            word_count: 0,
             files,
             wordmap,
             auto_save: 0,
@@ -373,44 +373,42 @@ impl Words {
             &mut self.db,
             word_data.file_map_block_nr,
             word_data.file_map_idx,
-            word_data.first_file_id,
         )
+    }
+
+    /// Total word count.
+    pub fn add_word_count(&mut self, count: usize) {
+        self.word_count += count;
     }
 
     /// Add a word and a file reference.
     /// It is not checked, if the reference was already inserted.
     /// Duplicates are acceptable.
-    pub fn add_word<S: AsRef<str>>(&mut self, word: S, file_id: FileId) -> Result<(), IndexError> {
+    pub fn add_word<S: AsRef<str>>(
+        &mut self,
+        word: S,
+        count: usize,
+        file_id: FileId,
+    ) -> Result<(), IndexError> {
         if let Some(data) = self.words.get_mut(word.as_ref()) {
-            if data.first_file_id == 0 && data.file_map_block_nr == 0 {
-                // Recovery lost the file refs.
-                data.first_file_id = file_id;
-            } else {
-                // first file-id is stored directly with the word. this covers a surprisingly
-                // large number of cases.
-                if data.first_file_id != 0 {
-                    let (file_map_block_nr, file_map_idx) = self.wordmap.add_initial(
-                        &mut self.db,
-                        word.as_ref(),
-                        data.first_file_id,
-                    )?;
+            data.count += count;
 
-                    data.first_file_id = FileId(0);
-                    data.file_map_block_nr = file_map_block_nr;
-                    data.file_map_idx = file_map_idx;
-                }
-
-                // add second file-id. (and any further).
-                self.wordmap.add(
-                    &mut self.db,
-                    word.as_ref(),
-                    data.file_map_block_nr,
-                    data.file_map_idx,
-                    file_id,
-                )?;
-            }
+            // add second file-id. (and any further).
+            self.wordmap.add(
+                &mut self.db,
+                word.as_ref(),
+                data.file_map_block_nr,
+                data.file_map_idx,
+                file_id,
+            )?;
         } else {
-            self.words.insert(word, file_id);
+            // Initial references get a special block.
+            let (file_map_block_nr, file_map_idx) =
+                self.wordmap
+                    .add_initial(&mut self.db, word.as_ref(), file_id)?;
+
+            self.words
+                .insert(word, count, file_map_block_nr, file_map_idx);
         };
         Ok(())
     }
@@ -418,8 +416,9 @@ impl Words {
     /// Append a temp buffer for a file.
     pub fn append(&mut self, other: TmpWords) -> Result<(), IndexError> {
         let f_idx = self.add_file(other.file);
-        for a_txt in other.words.iter() {
-            self.add_word(a_txt, f_idx)?;
+        self.add_word_count(other.count);
+        for (a_txt, a_n) in other.words.iter() {
+            self.add_word(a_txt, *a_n, f_idx)?;
         }
         Ok(())
     }

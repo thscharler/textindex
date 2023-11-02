@@ -315,11 +315,9 @@ impl WordMap {
         db: &mut WordFileBlocks,
         block_nr: LogicalNr,
         block_idx: BlkIdx,
-        first_file_id: FileId,
     ) -> IterFileId {
         IterFileId {
             db,
-            first_file_id,
             map_block_nr: block_nr,
             map_idx: block_idx,
             file_idx: FIdx(0),
@@ -329,7 +327,6 @@ impl WordMap {
 
 pub struct IterFileId<'a> {
     db: &'a mut WordFileBlocks,
-    first_file_id: FileId,
     map_block_nr: LogicalNr,
     map_idx: BlkIdx,
     file_idx: FIdx,
@@ -337,11 +334,10 @@ pub struct IterFileId<'a> {
 
 impl<'a> IterFileId<'a> {
     fn is_clear(&self) -> bool {
-        self.map_block_nr == 0 && self.first_file_id == 0
+        self.map_block_nr == 0
     }
 
     fn clear(&mut self) {
-        self.first_file_id = FileId(0);
         self.map_block_nr = LogicalNr(0);
         self.map_idx = BlkIdx(0);
         self.file_idx = FIdx(0);
@@ -354,12 +350,6 @@ impl<'a> Iterator for IterFileId<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_clear() {
             return None;
-        }
-
-        if self.first_file_id != 0 {
-            let first_file_id = self.first_file_id;
-            self.clear();
-            return Some(Ok(first_file_id));
         }
 
         let file_id = loop {

@@ -194,14 +194,8 @@ fn parse_cmd(
                 .collect();
             for (k, v) in w {
                 println!(
-                    "{}: [{}] -> {}|{} => {} | {}|{}",
-                    k,
-                    v.id,
-                    v.block_nr,
-                    v.block_idx,
-                    v.first_file_id,
-                    v.file_map_block_nr,
-                    v.file_map_idx
+                    "{}: [{}] -> {}|{} => {}|{}",
+                    k, v.id, v.block_nr, v.block_idx, v.file_map_block_nr, v.file_map_idx
                 );
             }
         }
@@ -211,12 +205,7 @@ fn parse_cmd(
             let mut log = data.log.try_clone()?;
             writeln!(log, "{:#?}", *words)?;
             for (word, data) in words.words().iter() {
-                let f = words.files().get(&data.first_file_id).map(|v| &v.name);
-                writeln!(
-                    log,
-                    "{}: [{}] => {} | {:?}",
-                    word, data.id, data.first_file_id, f
-                )?;
+                writeln!(log, "{}: [{}] n={}", word, data.id, data.count)?;
             }
         }
         BCommand::Store() => {

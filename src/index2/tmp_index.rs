@@ -2,14 +2,15 @@ use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
 use html5ever::tendril::{StrTendril, TendrilSink};
 use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
 use std::borrow::Cow;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct TmpWords {
     pub file: String,
-    pub words: BTreeSet<String>,
+    pub words: BTreeMap<String, usize>,
+    pub count: usize,
 }
 
 impl TmpWords {
@@ -17,6 +18,7 @@ impl TmpWords {
         Self {
             file: path.into(),
             words: Default::default(),
+            count: 0,
         }
     }
 
@@ -28,9 +30,13 @@ impl TmpWords {
             return;
         }
 
-        if !self.words.contains(word.as_ref()) {
-            self.words.insert(word.as_ref().to_string());
+        if self.words.contains_key(word.as_ref()) {
+            *self.words.get_mut(word.as_ref()).expect("word") += 1;
+        } else {
+            self.words.insert(word.as_ref().to_string(), 1);
         }
+
+        self.count += 1;
     }
 }
 

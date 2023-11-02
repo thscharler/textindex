@@ -3,9 +3,10 @@ use std::mem::{align_of, size_of};
 use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
+use textindex::index2::ids::FileId;
 use textindex::index2::word_map::{RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
-use textindex::index2::{FileId, Words};
+use textindex::index2::Words;
 
 #[test]
 fn test_sizes() {
@@ -117,16 +118,15 @@ fn test_word() -> Result<(), AppError> {
 
     let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
-    w.add_word("alpha", fid)?;
+    w.add_word("alpha", 0, fid)?;
     w.write()?;
 
     let mut w = Words::read(&path)?;
 
     assert!(w.words().get("alpha").is_some());
     if let Some(word) = w.words().get("alpha").cloned() {
-        assert_eq!(word.file_map_block_nr, 0);
+        assert_eq!(word.file_map_block_nr, 3);
         assert_eq!(word.file_map_idx, 0);
-        assert_eq!(word.first_file_id, 1);
         assert_eq!(word.id, 1);
         let mut it = w.iter_word_files(word);
         assert_eq!(it.next().unwrap()?, 1);
@@ -142,11 +142,11 @@ fn test_word2() -> Result<(), AppError> {
 
     let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
-    w.add_word("alpha", fid)?;
-    w.add_word("beta", fid)?;
-    w.add_word("gamma", fid)?;
-    w.add_word("delta", fid)?;
-    w.add_word("epsilon", fid)?;
+    w.add_word("alpha", 0, fid)?;
+    w.add_word("beta", 0, fid)?;
+    w.add_word("gamma", 0, fid)?;
+    w.add_word("delta", 0, fid)?;
+    w.add_word("epsilon", 0, fid)?;
     w.write()?;
 
     let w = Words::read(&path)?;
@@ -166,15 +166,15 @@ fn test_word3() -> Result<(), AppError> {
 
     let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
-    w.add_word("alpha", fid)?;
-    w.add_word("beta", fid)?;
-    w.add_word("gamma", fid)?;
-    w.add_word("delta", fid)?;
-    w.add_word("epsilon", fid)?;
+    w.add_word("alpha", 0, fid)?;
+    w.add_word("beta", 0, fid)?;
+    w.add_word("gamma", 0, fid)?;
+    w.add_word("delta", 0, fid)?;
+    w.add_word("epsilon", 0, fid)?;
     let fid = w.add_file("file1".into());
-    w.add_word("alpha", fid)?;
-    w.add_word("beta", fid)?;
-    w.add_word("gamma", fid)?;
+    w.add_word("alpha", 0, fid)?;
+    w.add_word("beta", 0, fid)?;
+    w.add_word("gamma", 0, fid)?;
     w.write()?;
 
     let mut w = Words::read(&path)?;
@@ -189,7 +189,6 @@ fn test_word3() -> Result<(), AppError> {
     let wdata = w.words().get("alpha").cloned().unwrap();
     assert_eq!(wdata.file_map_block_nr, 3);
     assert_eq!(wdata.file_map_idx, 0);
-    assert_eq!(wdata.first_file_id, 0);
     {
         let mut it = w.iter_word_files(wdata);
         assert_eq!(it.next().unwrap()?, 1);
@@ -214,24 +213,24 @@ fn test_word4() -> Result<(), AppError> {
 
     let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
-    w.add_word("alpha", fid)?;
-    w.add_word("beta", fid)?;
-    w.add_word("gamma", fid)?;
-    w.add_word("delta", fid)?;
-    w.add_word("epsilon", fid)?;
+    w.add_word("alpha", 0, fid)?;
+    w.add_word("beta", 0, fid)?;
+    w.add_word("gamma", 0, fid)?;
+    w.add_word("delta", 0, fid)?;
+    w.add_word("epsilon", 0, fid)?;
 
     let _wdata = w.words().get("gamma").cloned().unwrap();
 
     let fid = w.add_file("file1".into());
-    w.add_word("alpha", fid)?;
-    w.add_word("beta", fid)?;
-    w.add_word("gamma", fid)?;
+    w.add_word("alpha", 0, fid)?;
+    w.add_word("beta", 0, fid)?;
+    w.add_word("gamma", 0, fid)?;
 
     let _wdata = w.words().get("gamma").cloned().unwrap();
 
     for i in 0..14 {
         let fid = w.add_file(format!("file-x{}", i));
-        w.add_word("gamma", fid)?;
+        w.add_word("gamma", 0, fid)?;
 
         let _wdata = w.words().get("gamma").cloned().unwrap();
     }

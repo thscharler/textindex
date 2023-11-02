@@ -3,9 +3,9 @@ use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::path::Path;
+use textindex::index2::tmp_index::{index_html, index_txt, TmpWords};
 use textindex::index2::Words;
 use textindex::proc3::{content_filter, name_filter, FileFilter};
-use textindex::tmp_index::{index_html, index_txt, TmpWords};
 use walkdir::WalkDir;
 
 #[test]
@@ -88,7 +88,7 @@ fn test_index() -> Result<(), io::Error> {
             }
         }
 
-        for word in words.words {
+        for (word, n) in words.words {
             word_stat.entry(word).and_modify(|v| *v += 1).or_insert(1);
         }
     }
