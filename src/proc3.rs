@@ -1,6 +1,6 @@
 use crate::error::AppError;
+use crate::index2::tmp_index::{index_html, index_txt, TmpWords};
 use crate::index2::Words;
-use crate::tmp_index::{index_html, index_txt, TmpWords};
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;

@@ -23,7 +23,6 @@ mod error;
 pub mod index2;
 mod log;
 pub mod proc3;
-pub mod tmp_index;
 
 fn main() -> Result<(), AppError> {
     let tmp = PathBuf::from(".tmp_stored");

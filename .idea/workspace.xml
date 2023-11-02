@@ -8,16 +8,16 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="change the index types to proper newtypes instead of type aliases.">
-      <change afterPath="$PROJECT_DIR$/src/index2/ids.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="bug with blocktypes.&#10;&#10;cleanup">
+      <change afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/cmdlib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmdlib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/cmds.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmds.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -87,6 +87,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\stommy\Documents\IdeaProjects\textindex\src\index2" />
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
@@ -451,7 +452,23 @@
       <option name="project" value="LOCAL" />
       <updated>1698949412726</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="TryFrom for BlockType">
+      <option name="closed" value="true" />
+      <created>1698952673578</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1698952673578</updated>
+    </task>
+    <task id="LOCAL-00021" summary="bug with blocktypes.&#10;&#10;cleanup">
+      <option name="closed" value="true" />
+      <created>1698952726792</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1698952726792</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -511,6 +528,8 @@
     <MESSAGE value="doc" />
     <MESSAGE value="cleanup" />
     <MESSAGE value="change the index types to proper newtypes instead of type aliases." />
-    <option name="LAST_COMMIT_MESSAGE" value="change the index types to proper newtypes instead of type aliases." />
+    <MESSAGE value="TryFrom for BlockType" />
+    <MESSAGE value="bug with blocktypes.&#10;&#10;cleanup" />
+    <option name="LAST_COMMIT_MESSAGE" value="bug with blocktypes.&#10;&#10;cleanup" />
   </component>
 </project>
