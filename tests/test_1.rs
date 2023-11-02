@@ -122,15 +122,12 @@ fn test_merge() -> Result<(), io::Error> {
 
     let mut buf = Vec::new();
 
-    let mut cnt_file: usize = 0;
     for f in WalkDir::new(path).into_iter().flatten() {
         if !f.metadata()?.is_file() {
             println!("-- DIR {:?}", f.path().file_name().unwrap());
             continue;
         }
         println!("{:?}", f.path().file_name().unwrap());
-
-        cnt_file += 1;
 
         let filter = name_filter(&f.path());
         buf.clear();

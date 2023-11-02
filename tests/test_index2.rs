@@ -1,14 +1,11 @@
 use blockfile2::Length;
-use std::fs;
 use std::mem::{align_of, size_of};
 use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
 use textindex::index2::word_map::{RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
-use textindex::index2::Words;
-
-const BLOCK_SIZE: usize = 128;
+use textindex::index2::{FileId, Words};
 
 #[test]
 fn test_sizes() {
@@ -65,7 +62,7 @@ fn test_files() -> Result<(), AppError> {
     w.write()?;
     let w = Words::read(&path)?;
 
-    assert!(w.files().contains_key(&1));
+    assert!(w.files().contains_key(&FileId(1)));
 
     Ok(())
 }
