@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
 use textindex::index2::ids::FileId;
-use textindex::index2::word_map::{RawWordMap, RawWordMapList};
+use textindex::index2::word_map::{RawBags, RawWordMap, RawWordMapList};
 use textindex::index2::words::{RawWord, RawWordList};
 use textindex::index2::Words;
 
@@ -21,6 +21,8 @@ fn test_sizes() {
     println!("RawWordList::LEN {}", RawWordList::LEN);
     println!("RawWord {}", size_of::<RawWord>());
     println!("RawWord {}", align_of::<RawWord>());
+    println!("RawBags {}", size_of::<RawBags>());
+    println!("RawBags {}", align_of::<RawBags>());
 
     assert_eq!(BLOCK_SIZE, size_of::<RawWordMapList>());
     assert_eq!(0, BLOCK_SIZE % size_of::<RawWordMap>());
@@ -234,7 +236,7 @@ fn test_word4() -> Result<(), AppError> {
 
         let _wdata = w.words().get("gamma").cloned().unwrap();
     }
-    // dbg!(&w);
+    println!("{:#2?}", w);
     w.write()?;
 
     let mut w = Words::read(&path)?;
@@ -249,8 +251,7 @@ fn test_word4() -> Result<(), AppError> {
         fid.as_slice(),
         &[13, 14, 15, 16, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6,]
     );
-
-    println!("{:2?}", w);
+    // println!("{:#2?}", w);
 
     Ok(())
 }

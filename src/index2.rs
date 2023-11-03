@@ -8,7 +8,7 @@ pub mod words;
 
 use crate::index2::files::{FileData, FileList};
 use crate::index2::tmp_index::TmpWords;
-use crate::index2::word_map::{RawWordMapList, WordMap};
+use crate::index2::word_map::{RawBags, RawWordMapList, WordMap, BAG_LEN};
 use crate::index2::words::{RawWordList, WordData, WordList};
 use blockfile2::{BlockType, FileBlocks, UserBlockType};
 use ids::{BlkIdx, FIdx, FileId, WordId};
@@ -49,6 +49,7 @@ pub struct Words {
     db: WordFileBlocks,
     words: WordList,
     word_count: usize,
+    bag_stats: [usize; BAG_LEN],
     files: FileList,
     wordmap: WordMap,
     auto_save: u32,
@@ -62,6 +63,7 @@ pub enum WordBlockType {
     FileList = BlockType::User2 as isize,
     WordMapHead = BlockType::User3 as isize,
     WordMapTail = BlockType::User4 as isize,
+    WordMapBags = BlockType::User5 as isize,
 }
 
 impl TryFrom<u32> for WordBlockType {
@@ -72,6 +74,7 @@ impl TryFrom<u32> for WordBlockType {
             17 => Ok(WordBlockType::FileList),
             18 => Ok(WordBlockType::WordMapHead),
             19 => Ok(WordBlockType::WordMapTail),
+            20 => Ok(WordBlockType::WordMapBags),
             _ => Err(value),
         }
     }
@@ -90,6 +93,7 @@ impl Debug for WordBlockType {
             WordBlockType::FileList => "FIL",
             WordBlockType::WordMapHead => "WHD",
             WordBlockType::WordMapTail => "WTL",
+            WordBlockType::WordMapBags => "WBG",
         };
         write!(f, "{}", v)
     }
@@ -102,6 +106,7 @@ impl UserBlockType for WordBlockType {
             WordBlockType::FileList => BlockType::User2,
             WordBlockType::WordMapHead => BlockType::User3,
             WordBlockType::WordMapTail => BlockType::User4,
+            WordBlockType::WordMapBags => BlockType::User5,
         }
     }
 
@@ -111,6 +116,7 @@ impl UserBlockType for WordBlockType {
             BlockType::User2 => Some(Self::FileList),
             BlockType::User3 => Some(Self::WordMapHead),
             BlockType::User4 => Some(Self::WordMapTail),
+            BlockType::User5 => Some(Self::WordMapBags),
             _ => None,
         }
     }
@@ -121,6 +127,7 @@ impl UserBlockType for WordBlockType {
             WordBlockType::FileList => align_of::<[u8; 0]>(),
             WordBlockType::WordMapHead => align_of::<RawWordMapList>(),
             WordBlockType::WordMapTail => align_of::<RawWordMapList>(),
+            WordBlockType::WordMapBags => align_of::<RawBags>(),
         }
     }
 }
@@ -132,6 +139,8 @@ impl Debug for Words {
                 .field("words", &self.words.len())
                 .field("files", &self.files.len())
                 .field("wordmap", &self.wordmap)
+                .field("word_count", &self.word_count)
+                .field("bag_stats", &RefSlice(&self.bag_stats, 0))
                 .field("db", &self.db)
                 .finish()?;
         } else if f.width().unwrap_or(0) >= 1 {
@@ -139,8 +148,31 @@ impl Debug for Words {
                 .field("words", &self.words)
                 .field("files", &self.files)
                 .field("wordmap", &self.wordmap)
+                .field("word_count", &self.word_count)
+                .field("bag_stats", &RefSlice(&self.bag_stats, 0))
                 .field("db", &self.db)
                 .finish()?;
+        }
+
+        struct RefSlice<'a, T>(&'a [T], usize);
+        impl<'a, T> Debug for RefSlice<'a, T>
+        where
+            T: Debug,
+        {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                for r in 0..(self.0.len() + 16) / 16 {
+                    writeln!(f)?;
+                    write!(f, "{:9}: ", self.1 + r * 16)?;
+                    for c in 0..16 {
+                        let i = r * 16 + c;
+
+                        if i < self.0.len() {
+                            write!(f, "{:4?} ", self.0[i])?;
+                        }
+                    }
+                }
+                Ok(())
+            }
         }
 
         writeln!(f)?;
@@ -183,6 +215,22 @@ impl Debug for Words {
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
                             writeln!(f, "{:?} -> {} {}", d.file_id, d.next_block_nr, d.next_idx)?;
+                        }
+                    }
+                }
+                Some(WordBlockType::WordMapBags) => {
+                    let data = block.cast::<RawBags>();
+                    writeln!(f, "WordMapBags {}", block.block_nr())?;
+                    if f.width().unwrap_or(0) >= 1 {
+                        for i in 0..BAG_LEN {
+                            writeln!(
+                                f,
+                                "H{}:{} T{}:{}",
+                                data.head_nr[i],
+                                data.head_idx[i],
+                                data.tail_nr[i],
+                                data.tail_idx[i]
+                            )?;
                         }
                     }
                 }
@@ -233,6 +281,7 @@ impl Words {
             db,
             words,
             word_count: 0,
+            bag_stats: [0usize; BAG_LEN],
             files,
             wordmap,
             auto_save: 0,
@@ -269,6 +318,7 @@ impl Words {
                 Some(WordBlockType::FileList) => false,
                 Some(WordBlockType::WordMapHead) => true,
                 Some(WordBlockType::WordMapTail) => v.generation() + 2 >= generation,
+                Some(WordBlockType::WordMapBags) => true,
                 None => false, // doesn't matter
             });
         Ok(())
@@ -381,6 +431,10 @@ impl Words {
         self.word_count += count;
     }
 
+    fn clamp(min: usize, max: usize, val: usize) -> usize {
+        usize::max(min, usize::min(val, max))
+    }
+
     /// Add a word and a file reference.
     /// It is not checked, if the reference was already inserted.
     /// Duplicates are acceptable.
@@ -393,19 +447,38 @@ impl Words {
         if let Some(data) = self.words.get_mut(word.as_ref()) {
             data.count += count;
 
+            let bag = if self.word_count == 0 {
+                0
+            } else {
+                // a single word should hardly have more than 5% of total word count.
+                let v = (data.count * 256 * 20) / self.word_count;
+                Self::clamp(0, 255, v)
+            };
+            self.bag_stats[bag] += 1;
+
             // add second file-id. (and any further).
             self.wordmap.add(
                 &mut self.db,
                 word.as_ref(),
+                bag,
                 data.file_map_block_nr,
                 data.file_map_idx,
                 file_id,
             )?;
         } else {
+            let bag = if self.word_count == 0 {
+                0
+            } else {
+                // a single word should hardly have more than 5% of total word count.
+                let v = (count * 256 * 20) / self.word_count;
+                Self::clamp(0, 255, v)
+            };
+            self.bag_stats[bag] += 1;
+
             // Initial references get a special block.
             let (file_map_block_nr, file_map_idx) =
                 self.wordmap
-                    .add_initial(&mut self.db, word.as_ref(), file_id)?;
+                    .add_initial(&mut self.db, bag, word.as_ref(), file_id)?;
 
             self.words
                 .insert(word, count, file_map_block_nr, file_map_idx);

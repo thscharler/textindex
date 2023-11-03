@@ -1,15 +1,17 @@
 use crate::index2::{BlkIdx, FIdx, FileId, IndexError, WordBlockType, WordFileBlocks, BLOCK_SIZE};
-use blockfile2::{Length, LogicalNr};
+use blockfile2::{Error, FBErrorKind, Length, LogicalNr};
+use std::backtrace::Backtrace;
 use std::cmp::max;
 use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 use std::mem::size_of;
 
-#[derive(Debug)]
 pub struct WordMap {
-    last_block_nr_head: LogicalNr,
-    last_idx_head: BlkIdx,
-    last_block_nr_tail: LogicalNr,
-    last_idx_tail: BlkIdx,
+    pub bag_nr: LogicalNr,
+    pub last_head_nr: [LogicalNr; BAG_LEN],
+    pub last_head_idx: [BlkIdx; BAG_LEN],
+    pub last_tail_nr: [LogicalNr; BAG_LEN],
+    pub last_tail_idx: [BlkIdx; BAG_LEN],
 }
 
 pub type RawWordMapList = [RawWordMap; BLOCK_SIZE / size_of::<RawWordMap>()];
@@ -22,6 +24,28 @@ pub struct RawWordMap {
     pub file_id: [FileId; FILE_ID_LEN],
     pub next_block_nr: LogicalNr,
     pub next_idx: BlkIdx,
+}
+
+pub const BAG_LEN: usize = 256;
+
+#[derive(Clone, Copy, PartialEq)]
+#[repr(C)]
+pub struct RawBags {
+    pub head_nr: [LogicalNr; BAG_LEN],
+    pub head_idx: [BlkIdx; BAG_LEN],
+    pub tail_nr: [LogicalNr; BAG_LEN],
+    pub tail_idx: [BlkIdx; BAG_LEN],
+}
+
+impl Default for RawBags {
+    fn default() -> Self {
+        RawBags {
+            head_nr: [LogicalNr(0); BAG_LEN],
+            head_idx: [BlkIdx(0); BAG_LEN],
+            tail_nr: [LogicalNr(0); BAG_LEN],
+            tail_idx: [BlkIdx(0); BAG_LEN],
+        }
+    }
 }
 
 impl Debug for RawWordMap {
@@ -40,102 +64,24 @@ impl Debug for RawWordMap {
 }
 
 impl WordMap {
+    pub const TY_BAGS: WordBlockType = WordBlockType::WordMapBags;
     pub const TY_LISTHEAD: WordBlockType = WordBlockType::WordMapHead;
     pub const TY_LISTTAIL: WordBlockType = WordBlockType::WordMapTail;
 
-    // pub fn recover(
-    //     words: &mut WordList,
-    //     files: &FileList,
-    //     db: &mut WordFileBlocks,
-    // ) -> Result<WordMap, IndexError> {
-    //     for (word, data) in words.list_mut() {
-    //         if data.file_map_block_nr != 0 {
-    //             // reset block-nr if lost.
-    //             if let Some(block_type) = db.try_block_type(data.file_map_block_nr) {
-    //                 match block_type {
-    //                     WordBlockType::NotAllocated | WordBlockType::Free => {
-    //                         println!("lost filemap {} -> {}", word, data.file_map_block_nr);
-    //                         data.file_map_block_nr = 0;
-    //                         data.file_map_idx = 0;
-    //                     }
-    //                     WordBlockType::WordMapHead => {
-    //                         // ok
-    //                     }
-    //                     _ => {
-    //                         return Err(
-    //                             blockfile2::Error::err(FBErrorKind::RecoverFailed).into()
-    //                         )
-    //                     }
-    //                 }
-    //             } else {
-    //                 data.file_map_block_nr = 0;
-    //                 data.file_map_idx = 0;
-    //             }
-    //         }
-    //
-    //         if data.file_map_block_nr != 0 {
-    //             let mut block_nr = data.file_map_block_nr;
-    //             let mut block_idx = data.file_map_idx;
-    //             loop {
-    //                 let block = db.get_mut(block_nr)?;
-    //                 let list = block.cast_mut::<RawWordMapList>();
-    //                 let map = &mut list[block_idx as usize];
-    //
-    //                 let mut dirty = false;
-    //                 for f in &mut map.file_id {
-    //                     if *f != 0 && !files.list().contains_key(f) {
-    //                         println!("lost file {} -> {}", word, f);
-    //                         // we can handle some gaps in the data.
-    //                         *f = 0;
-    //                         dirty = true;
-    //                     }
-    //                 }
-    //
-    //                 let mut next_block_nr = map.next_block_nr;
-    //                 let mut next_block_idx = map.next_idx;
-    //
-    //                 block.set_dirty(dirty);
-    //
-    //                 // lost the rest?
-    //                 if next_block_nr != 0
-    //                     && db.try_block_type(next_block_nr) != Some(WordBlockType::WordMapTail)
-    //                 {
-    //                     println!("lost filemap {} -> {}", word, next_block_nr);
-    //                     let block = db.get_mut(block_nr)?;
-    //                     let list = block.cast_mut::<RawWordMapList>();
-    //                     let map = &mut list[block_idx as usize];
-    //
-    //                     map.next_block_nr = 0;
-    //                     map.next_idx = 0;
-    //                     block.set_dirty(true);
-    //
-    //                     next_block_nr = 0;
-    //                     next_block_idx = 0;
-    //                 }
-    //
-    //                 block_nr = next_block_nr;
-    //                 block_idx = next_block_idx;
-    //
-    //                 if block_nr == 0 {
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //
-    //     Self::load(db)
-    // }
-
     pub fn load(db: &mut WordFileBlocks) -> Result<WordMap, IndexError> {
-        let mut max_head_nr = LogicalNr(0u32);
-        let mut max_tail_nr = LogicalNr(0u32);
         for (block_nr, block_type) in db.iter_metadata() {
             match block_type {
-                WordBlockType::WordMapHead => {
-                    max_head_nr = max(max_head_nr, block_nr);
-                }
-                WordBlockType::WordMapTail => {
-                    max_tail_nr = max(max_tail_nr, block_nr);
+                WordBlockType::WordMapBags => {
+                    let block = db.get(block_nr)?;
+                    let bags = block.cast::<RawBags>();
+
+                    return Ok(Self {
+                        bag_nr: block_nr,
+                        last_head_nr: bags.head_nr,
+                        last_head_idx: bags.head_idx,
+                        last_tail_nr: bags.tail_nr,
+                        last_tail_idx: bags.tail_idx,
+                    });
                 }
                 _ => {
                     // dont need this
@@ -143,98 +89,98 @@ impl WordMap {
             }
         }
 
-        let max_head_idx = Self::load_free_idx(db, max_head_nr)?;
-        let max_tail_idx = Self::load_free_idx(db, max_tail_nr)?;
-
         Ok(Self {
-            last_block_nr_head: max_head_nr,
-            last_idx_head: max_head_idx,
-            last_block_nr_tail: max_tail_nr,
-            last_idx_tail: max_tail_idx,
+            bag_nr: LogicalNr(0),
+            last_head_nr: [LogicalNr(0); BAG_LEN],
+            last_head_idx: [BlkIdx(0); BAG_LEN],
+            last_tail_nr: [LogicalNr(0); BAG_LEN],
+            last_tail_idx: [BlkIdx(0); BAG_LEN],
         })
     }
 
-    fn load_free_idx(db: &mut WordFileBlocks, block_nr: LogicalNr) -> Result<BlkIdx, IndexError> {
-        let empty = RawWordMap::default();
-        if block_nr > 0 {
-            let block = db.get(block_nr)?;
-            let last = block.cast::<RawWordMapList>();
-            if let Some(empty_pos) = last.iter().position(|v| *v == empty) {
-                Ok(BlkIdx(empty_pos as u32))
-            } else {
-                Ok(BlkIdx(RawWordMapList::LEN as u32 - 1))
-            }
+    pub fn store(&mut self, db: &mut WordFileBlocks) -> Result<(), IndexError> {
+        let block = if self.bag_nr != 0 {
+            db.get_mut(self.bag_nr)?
         } else {
-            Ok(BlkIdx(0u32))
-        }
-    }
+            let block = db.alloc(Self::TY_BAGS)?;
+            self.bag_nr = block.block_nr();
+            block
+        };
+        block.set_dirty(true);
+        let bags = block.cast_mut::<RawBags>();
 
-    pub fn store(&mut self, _db: &mut WordFileBlocks) -> Result<(), IndexError> {
+        bags.head_nr = self.last_head_nr;
+        bags.head_idx = self.last_head_idx;
+        bags.tail_nr = self.last_tail_nr;
+        bags.tail_idx = self.last_tail_idx;
+
         Ok(())
     }
 
-    fn confirm_add_head(&mut self, last_block_nr_head: LogicalNr, last_idx_head: BlkIdx) {
-        self.last_block_nr_head = last_block_nr_head;
-        self.last_idx_head = last_idx_head;
+    fn confirm_add_head(&mut self, bag: usize, last_head_nr: LogicalNr, last_head_idx: BlkIdx) {
+        self.last_head_nr[bag] = last_head_nr;
+        self.last_head_idx[bag] = last_head_idx;
     }
 
     // Ensures we can add at least 1 new region.
     fn ensure_add_head(
         &mut self,
         db: &mut WordFileBlocks,
+        bag: usize,
     ) -> Result<(LogicalNr, BlkIdx), IndexError> {
         #[allow(clippy::collapsible_else_if)]
-        let v = if self.last_block_nr_head == 0 {
+        let v = if self.last_head_nr[bag] == 0 {
             let new_block_nr = db.alloc(Self::TY_LISTHEAD)?.block_nr();
 
-            self.last_block_nr_head = new_block_nr;
-            self.last_idx_head = BlkIdx(0);
+            self.last_head_nr[bag] = new_block_nr;
+            self.last_head_idx[bag] = BlkIdx(0);
 
-            (self.last_block_nr_head, self.last_idx_head)
+            (self.last_head_nr[bag], self.last_head_idx[bag])
         } else {
-            if self.last_idx_head + 1 >= RawWordMapList::LEN as u32 {
+            if self.last_head_idx[bag] + 1 >= RawWordMapList::LEN as u32 {
                 let new_block_nr = db.alloc(Self::TY_LISTHEAD)?.block_nr();
 
-                self.last_block_nr_head = new_block_nr;
-                self.last_idx_head = BlkIdx(0);
+                self.last_head_nr[bag] = new_block_nr;
+                self.last_head_idx[bag] = BlkIdx(0);
 
-                (self.last_block_nr_head, self.last_idx_head)
+                (self.last_head_nr[bag], self.last_head_idx[bag])
             } else {
-                (self.last_block_nr_head, self.last_idx_head + 1)
+                (self.last_head_nr[bag], self.last_head_idx[bag] + 1)
             }
         };
 
         Ok(v)
     }
 
-    fn confirm_add_tail(&mut self, last_block_nr_tail: LogicalNr, last_idx_tail: BlkIdx) {
-        self.last_block_nr_tail = last_block_nr_tail;
-        self.last_idx_tail = last_idx_tail;
+    fn confirm_add_tail(&mut self, bag: usize, last_tail_nr: LogicalNr, last_tail_idx: BlkIdx) {
+        self.last_tail_nr[bag] = last_tail_nr;
+        self.last_tail_idx[bag] = last_tail_idx;
     }
 
     // Ensures we can add at least 1 new region.
     fn ensure_add_tail(
         &mut self,
         db: &mut WordFileBlocks,
+        bag: usize,
     ) -> Result<(LogicalNr, BlkIdx), IndexError> {
         #[allow(clippy::collapsible_else_if)]
-        let v = if self.last_block_nr_tail == 0 {
+        let v = if self.last_tail_nr[bag] == 0 {
             let new_block_nr = db.alloc(Self::TY_LISTTAIL)?.block_nr();
 
-            self.last_block_nr_tail = new_block_nr;
-            self.last_idx_tail = BlkIdx(0);
+            self.last_tail_nr[bag] = new_block_nr;
+            self.last_tail_idx[bag] = BlkIdx(0);
 
-            (self.last_block_nr_tail, self.last_idx_tail)
+            (self.last_tail_nr[bag], self.last_tail_idx[bag])
         } else {
-            if self.last_idx_tail + 1 >= RawWordMapList::LEN as u32 {
+            if self.last_tail_idx[bag] + 1 >= RawWordMapList::LEN as u32 {
                 let new_block_nr = db.alloc(Self::TY_LISTTAIL)?.block_nr();
 
-                self.last_block_nr_tail = new_block_nr;
-                self.last_idx_tail = BlkIdx(0);
+                self.last_tail_nr[bag] = new_block_nr;
+                self.last_tail_idx[bag] = BlkIdx(0);
 
-                (self.last_block_nr_tail, self.last_idx_tail)
+                (self.last_tail_nr[bag], self.last_tail_idx[bag])
             } else {
-                (self.last_block_nr_tail, self.last_idx_tail + 1)
+                (self.last_tail_nr[bag], self.last_tail_idx[bag] + 1)
             }
         };
 
@@ -245,10 +191,11 @@ impl WordMap {
     pub fn add_initial(
         &mut self,
         db: &mut WordFileBlocks,
+        bag: usize,
         _word: &str,
         file_id: FileId,
     ) -> Result<(LogicalNr, BlkIdx), IndexError> {
-        let (new_blk_nr, new_idx) = self.ensure_add_head(db)?;
+        let (new_blk_nr, new_idx) = self.ensure_add_head(db, bag)?;
 
         let block = db.get_mut(new_blk_nr)?;
         block.set_dirty(true);
@@ -258,7 +205,7 @@ impl WordMap {
 
         word_map.file_id[0] = file_id;
 
-        self.confirm_add_head(new_blk_nr, new_idx);
+        self.confirm_add_head(bag, new_blk_nr, new_idx);
 
         Ok((new_blk_nr, new_idx))
     }
@@ -268,13 +215,14 @@ impl WordMap {
         &mut self,
         db: &mut WordFileBlocks,
         _word: &str,
+        bag: usize,
         blk_nr: LogicalNr,
         blk_idx: BlkIdx,
         file_id: FileId,
     ) -> Result<(), IndexError> {
         // append to given region list.
         {
-            let (retire_block_nr, retire_idx) = self.ensure_add_tail(db)?;
+            let (retire_block_nr, retire_idx) = self.ensure_add_tail(db, bag)?;
 
             let block = db.get_mut(blk_nr)?;
             block.set_dirty(true);
@@ -296,7 +244,7 @@ impl WordMap {
                 word_map.file_id[0] = file_id;
 
                 // retire
-                let retire_block = db.get_mut(self.last_block_nr_tail)?;
+                let retire_block = db.get_mut(self.last_tail_nr[bag])?;
                 retire_block.set_dirty(true);
                 let retire_map_list = retire_block.cast_mut::<RawWordMapList>();
                 let retire_map = &mut retire_map_list[retire_idx.as_usize()];
@@ -305,7 +253,7 @@ impl WordMap {
                 retire_map.next_block_nr = retire_next_block_nr;
                 retire_map.next_idx = retire_next_idx;
 
-                self.confirm_add_tail(retire_block_nr, retire_idx);
+                self.confirm_add_tail(bag, retire_block_nr, retire_idx);
             }
         }
         Ok(())
@@ -385,5 +333,40 @@ impl<'a> Iterator for IterFileId<'a> {
         };
 
         file_id.map(Ok)
+    }
+}
+
+impl Debug for WordMap {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WordMap")
+            .field("bag_nr", &self.bag_nr)
+            .field("last_head_nr", &RefSlice(&self.last_head_nr, 0))
+            .field("last_head_idx", &RefSlice(&self.last_head_idx, 0))
+            .field("last_tail_nr", &RefSlice(&self.last_tail_nr, 0))
+            .field("last_tail_idx", &RefSlice(&self.last_tail_idx, 0))
+            .finish()?;
+
+        struct RefSlice<'a, T>(&'a [T], usize);
+        impl<'a, T> Debug for RefSlice<'a, T>
+        where
+            T: Debug,
+        {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                for r in 0..(self.0.len() + 16) / 16 {
+                    writeln!(f)?;
+                    write!(f, "{:9}: ", self.1 + r * 16)?;
+                    for c in 0..16 {
+                        let i = r * 16 + c;
+
+                        if i < self.0.len() {
+                            write!(f, "{:8?} ", self.0[i])?;
+                        }
+                    }
+                }
+                Ok(())
+            }
+        }
+
+        Ok(())
     }
 }
