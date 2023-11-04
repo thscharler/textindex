@@ -1,4 +1,4 @@
-use crate::cmdlib::{nom_last_token, nom_ws, CParserResult, CSpan, Cmd, CmdParse};
+use crate::cmdlib::{nom_last_token, nom_usize, nom_ws, CParserResult, CSpan, Cmd, CmdParse};
 use kparse::combinators::track;
 use kparse::prelude::*;
 use kparse::source::SourceStr;
@@ -131,12 +131,15 @@ pub enum CCode {
     CDebug,
     CDelete,
     CFiles,
+    CSummary,
+    CNext,
     CFind,
     CHelp,
     CIndex,
     CStats,
     CStore,
     CWhitespace,
+    CNumber,
 
     CFindMatch,
     CFilesMatch,
@@ -178,6 +181,9 @@ impl CCode {
             CDebug => "debug",
             CStore => "store",
             CStatMatch => "stats",
+            CSummary => "summary",
+            CNumber => "number",
+            CNext => "next",
         }
     }
 }
@@ -187,6 +193,8 @@ pub enum BCommand {
     Index(),
     Find(Find),
     Files(Files),
+    Next(),
+    Summary(Summary),
     Delete(Delete),
     Stats(Stats),
     Store(),
@@ -212,6 +220,16 @@ pub enum Files {
 }
 
 #[derive(Debug, Clone)]
+pub enum Summary {
+    Files(usize),
+}
+
+#[derive(Debug, Clone)]
+pub enum Next {
+    Next,
+}
+
+#[derive(Debug, Clone)]
 pub enum Find {
     Find(Vec<String>),
 }
@@ -227,7 +245,7 @@ pub fn parse_cmds(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
 // -----------------------------------------------------------------------
 // -----------------------------------------------------------------------
 
-const ALL_PARSERS: CmdParse<BCommand, 10> = CmdParse {
+const ALL_PARSERS: CmdParse<BCommand, 12> = CmdParse {
     parse: [
         Cmd::P1("index", CIndex, BCommand::Index()),
         Cmd::P2(
@@ -244,6 +262,8 @@ const ALL_PARSERS: CmdParse<BCommand, 10> = CmdParse {
         Cmd::P1p("delete", CDelete, parse_delete),
         Cmd::P1p("find", CFind, parse_find),
         Cmd::P1p("files", CFiles, parse_files),
+        Cmd::P1p("summary", CSummary, parse_usize),
+        Cmd::P1("next", CNext, BCommand::Next()),
         Cmd::P1("store", CStore, BCommand::Store()),
         Cmd::P1("help", CHelp, BCommand::Help),
         Cmd::P1("?", CHelp, BCommand::Help),
@@ -286,6 +306,14 @@ fn parse_find(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
             ))
         })
         .with_code(CFindMatch)
+        .err_into()
+        .parse(input)
+}
+
+fn parse_usize(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
+    track(CSummary, preceded(nom_ws, nom_usize))
+        .map(|spans| BCommand::Summary(Summary::Files(spans)))
+        .with_code(CSummary)
         .err_into()
         .parse(input)
 }

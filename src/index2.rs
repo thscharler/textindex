@@ -391,13 +391,14 @@ impl Words {
         self.words.list()
     }
 
-    pub fn find_file(&self, txt: &str) -> BTreeSet<&String> {
+    pub fn find_file(&self, txt: &str) -> Vec<String> {
         let find = WildMatch::new(txt);
         self.files
             .list()
             .values()
             .filter(|v| find.matches(v.name.as_str()))
             .map(|v| &v.name)
+            .cloned()
             .collect()
     }
 
@@ -493,16 +494,18 @@ impl Words {
     }
 
     /// Find words.
-    pub fn find(&mut self, txt: &[&str]) -> Result<BTreeSet<String>, IndexError> {
+    pub fn find(&mut self, terms: &[String]) -> Result<Vec<String>, IndexError> {
         let mut collect = BTreeSet::<FileId>::new();
         let mut first = true;
 
-        for t in txt {
-            let match_find = WildMatch::new(t);
+        let terms: Vec<_> = terms.iter().map(|v| WildMatch::new(v)).collect();
 
+        // find the words and the files where they are contained.
+        // each consecutive search-term *reduces* the list of viable files.
+        for matcher in terms {
             let words: Vec<_> = self
                 .iter_words()
-                .filter(|(k, _)| match_find.matches(k))
+                .filter(|(k, _)| matcher.matches(k))
                 .map(|(_, v)| *v)
                 .collect();
 
@@ -519,6 +522,7 @@ impl Words {
             first = false;
         }
 
+        // map the found file-id to the file-name.
         let names = collect.iter().flat_map(|v| self.file(*v)).collect();
 
         Ok(names)

@@ -14,6 +14,7 @@ use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};
 use walkdir::WalkDir;
+use wildmatch::WildMatch;
 
 #[derive(Debug)]
 pub enum Msg {
@@ -36,8 +37,19 @@ pub enum FileFilter {
     Html,
 }
 
+#[derive(Default)]
+pub struct Found {
+    pub terms: Vec<String>,
+
+    pub files: Vec<String>,
+
+    pub lines_idx: usize,
+    pub lines: Vec<(String, Vec<String>)>,
+}
+
 pub struct Data {
     pub words: RwLock<Words>,
+    pub found: Mutex<Found>,
     pub log: File,
 }
 
@@ -61,6 +73,7 @@ impl Data {
 
         let data: &'static Data = Box::leak(Box::new(Data {
             words: RwLock::new(words),
+            found: Default::default(),
             log,
         }));
 
@@ -399,7 +412,10 @@ fn load_proc(
             Msg::Load(count, filter, absolute, relative) => {
                 state.lock().unwrap().state = 3;
                 last_count = count;
-                loading(printer, count, filter, absolute, relative, &send)?;
+                let (filter, txt) = load_file(filter, &absolute)?;
+                if filter != FileFilter::Ignore {
+                    send.send(Msg::Index(count, filter, absolute, relative, txt))?;
+                }
             }
             msg => {
                 state.lock().unwrap().state = 4;
@@ -410,24 +426,13 @@ fn load_proc(
     Ok(())
 }
 
-fn loading(
-    _printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    count: u32,
-    filter: FileFilter,
-    absolute: PathBuf,
-    relative: String,
-    send: &Sender<Msg>,
-) -> Result<(), AppError> {
+pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, String), AppError> {
     let mut buf = Vec::new();
     File::open(&absolute)?.read_to_end(&mut buf)?;
     let str = String::from_utf8_lossy(buf.as_slice());
-
     let filter = content_filter(filter, str.as_ref());
 
-    if filter != FileFilter::Ignore {
-        send.send(Msg::Index(count, filter, absolute, relative, str.into()))?;
-    }
-    Ok(())
+    Ok((filter, str.into()))
 }
 
 fn spawn_indexing(
@@ -468,10 +473,11 @@ fn index_proc(
                 print_(printer, format!("indexing {}", last_count));
                 send.send(Msg::Debug)?;
             }
-            Msg::Index(count, filter, absolute, relative, txt) => {
+            Msg::Index(count, filter, _absolute, relative, txt) => {
                 state.lock().unwrap().state = 3;
                 last_count = count;
-                indexing(printer, count, filter, absolute, relative, &txt, &send)?;
+                let words = indexing(filter, &relative, &txt);
+                send.send(Msg::MergeWords(count, words))?;
             }
             msg => {
                 state.lock().unwrap().state = 4;
@@ -482,34 +488,21 @@ fn index_proc(
     Ok(())
 }
 
-fn indexing(
-    printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
-    count: u32,
-    filter: FileFilter,
-    _absolute: PathBuf,
-    relative: String,
-    txt: &str,
-    send: &Sender<Msg>,
-) -> Result<(), AppError> {
-    let mut words = TmpWords::new(relative.clone());
+pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> TmpWords {
+    let mut words = TmpWords::new(relative);
 
     match filter {
         FileFilter::Text => {
-            timing(printer, format!("indexing {:?}", relative), 200, || {
-                index_txt(&mut words, txt)
-            });
+            index_txt(&mut words, txt);
         }
         FileFilter::Html => {
-            timing(printer, format!("indexing {:?}", relative), 200, || {
-                index_html(&mut words, txt)
-            });
+            index_html(&mut words, txt);
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
     }
 
-    send.send(Msg::MergeWords(count, words))?;
-    Ok(())
+    words
 }
 
 fn spawn_merge_words(
@@ -789,4 +782,42 @@ pub fn timing<S: AsRef<str>, R>(
     }
 
     result
+}
+
+// Search the result files and return matching text-lines.
+pub fn find_matched_lines(
+    terms: &[String],
+    files: &Vec<String>,
+) -> Result<Vec<(String, Vec<String>)>, AppError> {
+    let terms: Vec<_> = terms.iter().map(|v| WildMatch::new(v)).collect();
+
+    // get the text-lines that contain any of the search-terms.
+    let mut result = Vec::new();
+    for file in files {
+        let path = PathBuf::from(".");
+        let path = path.join(&file);
+
+        let (_filter, txt) = load_file(FileFilter::Inspect, &path)?;
+        let mut text_lines = Vec::new();
+        for line in txt.split('\n') {
+            let mut print_line = false;
+
+            'line: for word in line.split(' ') {
+                for term in &terms {
+                    if term.matches(word) {
+                        print_line = true;
+                        break 'line;
+                    }
+                }
+            }
+
+            if print_line {
+                text_lines.push(line.to_string());
+            }
+        }
+
+        result.push((file.clone(), text_lines));
+    }
+
+    Ok(result)
 }

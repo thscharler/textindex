@@ -38,6 +38,16 @@ impl TmpWords {
 
         self.count += 1;
     }
+
+    pub fn invert(&self) -> BTreeMap<usize, Vec<String>> {
+        let mut r = BTreeMap::new();
+        for (k, v) in &self.words {
+            r.entry(*v)
+                .and_modify(|v: &mut Vec<String>| v.push(k.clone()))
+                .or_insert(vec![k.clone()]);
+        }
+        r
+    }
 }
 
 pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {

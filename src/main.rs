@@ -1,10 +1,13 @@
 extern crate core;
 
-use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats};
+use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats, Summary};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::log::dump_diagnostics;
-use crate::proc3::{auto_save, init_work, shut_down, Data, Msg, Work};
+use crate::proc3::{
+    auto_save, find_matched_lines, indexing, init_work, load_file, shut_down, Data, FileFilter,
+    Msg, Work,
+};
 use kparse::prelude::*;
 use kparse::Track;
 use rustyline::error::ReadlineError;
@@ -117,16 +120,70 @@ fn parse_cmd(
         BCommand::Find(Find::Find(v)) => {
             let mut words = data.words.write()?;
 
-            let v = v.iter().map(|v| v.as_str()).collect::<Vec<_>>();
-            for ff in words.find(v.as_slice())? {
-                println!("         {}", ff);
+            let find_terms = v.iter().map(|v| v.clone()).collect::<Vec<_>>();
+            let found = words.find(find_terms.as_slice())?;
+            let found_lines = find_matched_lines(find_terms.as_slice(), &found)?;
+            for (idx, (file, lines)) in found_lines.iter().take(20).enumerate() {
+                println!("  {}:{}", idx, file);
+                for line in lines {
+                    println!("    {}", line);
+                }
             }
+
+            let mut found_guard = data.found.lock()?;
+            found_guard.terms = find_terms;
+            found_guard.files = found;
+            found_guard.lines_idx = 20;
+            found_guard.lines = found_lines;
         }
         BCommand::Files(Files::Files(v)) => {
             let words = data.words.read()?;
+            let found = words.find_file(v.as_str());
+            for (idx, file) in found.iter().enumerate() {
+                println!("  {}:{}", idx, file);
+            }
 
-            for file in words.find_file(v.as_str()) {
-                println!("    {}", file);
+            let mut found_guard = data.found.lock()?;
+            found_guard.terms.clear();
+            found_guard.files = found;
+            found_guard.lines_idx = 0;
+            found_guard.lines.clear();
+        }
+        BCommand::Next() => {
+            let mut found_guard = data.found.lock()?;
+            for (idx, (file, lines)) in found_guard
+                .lines
+                .iter()
+                .enumerate()
+                .skip(found_guard.lines_idx)
+                .take(20)
+            {
+                println!("  {}:{}", idx, file);
+                for line in lines {
+                    println!("    {}", line);
+                }
+            }
+            found_guard.lines_idx += 20;
+        }
+        BCommand::Summary(Summary::Files(v)) => {
+            let found_guard = data.found.lock().expect("found");
+            if let Some(file) = found_guard.files.get(v) {
+                let path = PathBuf::from(".");
+                let path = path.join(file);
+
+                let (filter, txt) = load_file(FileFilter::Inspect, &path)?;
+                let words = indexing(filter, file, &txt);
+                let occurance = words.invert();
+
+                for (k, v) in occurance.iter().rev() {
+                    println!("{}:", k);
+                    for s in v {
+                        print!("{} ", s);
+                    }
+                    println!();
+                }
+            } else {
+                println!("Invalid index {}", v);
             }
         }
         BCommand::Delete(Delete::Delete(v)) => {
@@ -193,10 +250,7 @@ fn parse_cmd(
                 .map(|(k, v)| (k, *v))
                 .collect();
             for (k, v) in w {
-                println!(
-                    "{}: [{}] -> {}|{} => {}|{}",
-                    k, v.id, v.block_nr, v.block_idx, v.file_map_block_nr, v.file_map_idx
-                );
+                println!("{}: [{}] -> {}", k, v.id, v.count);
             }
         }
         BCommand::Stats(Stats::Debug) => {
@@ -218,10 +272,12 @@ fn parse_cmd(
             eprintln!(
                 "
 index
-stats base | debug
+stats base | debug | <word>
 find <match>
 files <match>
+summary <nr>
 delete <file-match>
+store
 help | ?
 "
             );

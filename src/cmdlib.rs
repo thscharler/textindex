@@ -8,6 +8,7 @@ use nom::bytes::complete::{tag, take_till1, take_while1};
 use nom::combinator::recognize;
 use nom::InputTake;
 use nom::{AsChar, InputTakeAtPosition};
+use std::str::FromStr;
 
 define_span!(pub CSpan = CCode, str);
 pub type CParserResult<'s, O> = ParserResult<CCode, CSpan<'s>, O>;
@@ -310,6 +311,16 @@ pub fn nom_last_token(i: CSpan<'_>) -> CTokenizerResult<'_, CSpan<'_>> {
     match recognize::<_, _, CTokenizerError<'_>, _>(take_till1(|c: char| c == ' ' || c == '\t'))(i)
     {
         Ok((rest, tok)) => Ok((rest, tok)),
+        _ => Err(nom::Err::Error(CTokenizerError::new(CNomError, i))),
+    }
+}
+
+pub fn nom_usize(i: CSpan<'_>) -> CTokenizerResult<'_, usize> {
+    match recognize::<_, _, CTokenizerError<'_>, _>(take_while1(|c: char| c.is_ascii_digit()))(i) {
+        Ok((rest, tok)) => match usize::from_str(tok.fragment()) {
+            Ok(v) => Ok((rest, v)),
+            Err(_) => Err(nom::Err::Error(CTokenizerError::new(CNumber, i))),
+        },
         _ => Err(nom::Err::Error(CTokenizerError::new(CNomError, i))),
     }
 }
