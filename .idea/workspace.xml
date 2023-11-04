@@ -8,14 +8,13 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="undo first occurance hack.">
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="add new cast variants to make usage easier.">
       <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2/word_map.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_index2.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -49,7 +48,7 @@
         <entry key="$PROJECT_DIR$/../blockfile2" value="blockfile2" />
       </map>
     </option>
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../blockfile2" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="ROOT_SYNC" value="DONT_SYNC" />
   </component>
   <component name="HighlightingSettingsPerFile">
@@ -90,7 +89,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Test test_word_utf8">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -193,25 +192,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_index2" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_index2 &quot;&quot;" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test test_recover" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package blockfile2 --test test_blockmap test_recover -- --exact" />
+    <configuration name="Test test_blockmap" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package blockfile2 --test test_blockmap &quot;&quot;" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -227,8 +209,25 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_sizes" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_index2 test_sizes -- --exact" />
+    <configuration name="Test test_size" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package blockfile2 --test test_blockmap test_size -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test test_word_utf8" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_index2 test_word_utf8 -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -267,19 +266,19 @@
       <item itemvalue="Cargo.Doc" />
       <item itemvalue="Cargo.Clippy" />
       <item itemvalue="Cargo.Release" />
+      <item itemvalue="Cargo.Test test_blockmap" />
+      <item itemvalue="Cargo.Test test_size" />
+      <item itemvalue="Cargo.Test test_word_utf8" />
       <item itemvalue="Cargo.Tests in 'tests'" />
-      <item itemvalue="Cargo.Test test_index2" />
-      <item itemvalue="Cargo.Test test_recover" />
-      <item itemvalue="Cargo.Test test_sizes" />
       <item itemvalue="Cargo.Test test_1" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test test_word_utf8" />
+        <item itemvalue="Cargo.Test test_blockmap" />
+        <item itemvalue="Cargo.Test test_size" />
         <item itemvalue="Cargo.Tests in 'tests'" />
         <item itemvalue="Cargo.Test test_1" />
-        <item itemvalue="Cargo.Test test_sizes" />
-        <item itemvalue="Cargo.Test test_recover" />
-        <item itemvalue="Cargo.Test test_index2" />
       </list>
     </recent_temporary>
   </component>
@@ -483,7 +482,39 @@
       <option name="project" value="LOCAL" />
       <updated>1698956341762</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="error handling">
+      <option name="closed" value="true" />
+      <created>1699034008172</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1699034008172</updated>
+    </task>
+    <task id="LOCAL-00025" summary="new wordmap layout&#10;&#10;distribute according to word count.">
+      <option name="closed" value="true" />
+      <created>1699034057848</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1699034057848</updated>
+    </task>
+    <task id="LOCAL-00026" summary="add new cast variants to make usage easier.">
+      <option name="closed" value="true" />
+      <created>1699109814019</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1699109814019</updated>
+    </task>
+    <task id="LOCAL-00027" summary="add new cast variants to make usage easier.">
+      <option name="closed" value="true" />
+      <created>1699111293341</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1699111293341</updated>
+    </task>
+    <option name="localTasksCounter" value="28" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -547,6 +578,9 @@
     <MESSAGE value="bug with blocktypes.&#10;&#10;cleanup" />
     <MESSAGE value="split index2" />
     <MESSAGE value="undo first occurance hack." />
-    <option name="LAST_COMMIT_MESSAGE" value="undo first occurance hack." />
+    <MESSAGE value="error handling" />
+    <MESSAGE value="new wordmap layout&#10;&#10;distribute according to word count." />
+    <MESSAGE value="add new cast variants to make usage easier." />
+    <option name="LAST_COMMIT_MESSAGE" value="add new cast variants to make usage easier." />
   </component>
 </project>

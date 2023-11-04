@@ -2,7 +2,7 @@ use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
 use html5ever::tendril::{StrTendril, TendrilSink};
 use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
 use std::borrow::Cow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 

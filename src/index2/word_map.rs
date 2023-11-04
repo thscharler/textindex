@@ -1,10 +1,6 @@
-use crate::index2::{BlkIdx, FIdx, FileId, IndexError, WordBlockType, WordFileBlocks, BLOCK_SIZE};
-use blockfile2::{Error, FBErrorKind, Length, LogicalNr};
-use std::backtrace::Backtrace;
-use std::cmp::max;
+use crate::index2::{BlkIdx, FIdx, FileId, IndexError, WordBlockType, WordFileBlocks};
+use blockfile2::{Block, LogicalNr};
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
-use std::mem::size_of;
 
 pub struct WordMap {
     pub bag_nr: LogicalNr,
@@ -13,8 +9,6 @@ pub struct WordMap {
     pub last_tail_nr: [LogicalNr; BAG_LEN],
     pub last_tail_idx: [BlkIdx; BAG_LEN],
 }
-
-pub type RawWordMapList = [RawWordMap; BLOCK_SIZE / size_of::<RawWordMap>()];
 
 pub const FILE_ID_LEN: usize = 6;
 
@@ -137,7 +131,8 @@ impl WordMap {
 
             (self.last_head_nr[bag], self.last_head_idx[bag])
         } else {
-            if self.last_head_idx[bag] + 1 >= RawWordMapList::LEN as u32 {
+            if self.last_head_idx[bag] + 1 >= Block::len_array::<RawWordMap>(db.block_size()) as u32
+            {
                 let new_block_nr = db.alloc(Self::TY_LISTHEAD)?.block_nr();
 
                 self.last_head_nr[bag] = new_block_nr;
@@ -172,7 +167,8 @@ impl WordMap {
 
             (self.last_tail_nr[bag], self.last_tail_idx[bag])
         } else {
-            if self.last_tail_idx[bag] + 1 >= RawWordMapList::LEN as u32 {
+            if self.last_tail_idx[bag] + 1 >= Block::len_array::<RawWordMap>(db.block_size()) as u32
+            {
                 let new_block_nr = db.alloc(Self::TY_LISTTAIL)?.block_nr();
 
                 self.last_tail_nr[bag] = new_block_nr;
@@ -200,7 +196,7 @@ impl WordMap {
         let block = db.get_mut(new_blk_nr)?;
         block.set_dirty(true);
 
-        let word_map_list = block.cast_mut::<RawWordMapList>();
+        let word_map_list = block.cast_array_mut::<RawWordMap>();
         let word_map = &mut word_map_list[new_idx.as_usize()];
 
         word_map.file_id[0] = file_id;
@@ -226,7 +222,7 @@ impl WordMap {
 
             let block = db.get_mut(blk_nr)?;
             block.set_dirty(true);
-            let word_map_list = block.cast_mut::<RawWordMapList>();
+            let word_map_list = block.cast_array_mut::<RawWordMap>();
             let word_map = &mut word_map_list[blk_idx.as_usize()];
 
             if let Some(insert_pos) = word_map.file_id.iter().position(|v| *v == 0) {
@@ -246,7 +242,7 @@ impl WordMap {
                 // retire
                 let retire_block = db.get_mut(self.last_tail_nr[bag])?;
                 retire_block.set_dirty(true);
-                let retire_map_list = retire_block.cast_mut::<RawWordMapList>();
+                let retire_map_list = retire_block.cast_array_mut::<RawWordMap>();
                 let retire_map = &mut retire_map_list[retire_idx.as_usize()];
 
                 retire_map.file_id = retire_file_id;
@@ -302,7 +298,7 @@ impl<'a> Iterator for IterFileId<'a> {
 
         let file_id = loop {
             let map_list = match self.db.get(self.map_block_nr) {
-                Ok(block) => block.cast::<RawWordMapList>(),
+                Ok(block) => block.cast_array::<RawWordMap>(),
                 Err(err) => return Some(Err(err.into())),
             };
             let map = &map_list[self.map_idx.as_usize()];

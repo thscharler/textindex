@@ -1,32 +1,36 @@
-use blockfile2::Length;
+use blockfile2::{Block, Length};
 use std::mem::{align_of, size_of};
 use std::path::PathBuf;
 use std::str::FromStr;
 use textindex::error::AppError;
 use textindex::index2::ids::FileId;
-use textindex::index2::word_map::{RawBags, RawWordMap, RawWordMapList};
-use textindex::index2::words::{RawWord, RawWordList};
+use textindex::index2::word_map::{RawBags, RawWordMap};
+use textindex::index2::words::RawWord;
 use textindex::index2::Words;
 
 #[test]
 fn test_sizes() {
     const BLOCK_SIZE: usize = 4096;
-    println!("RawWordmapList {}", size_of::<RawWordMapList>());
-    println!("RawWordmapList {}", align_of::<RawWordMapList>());
-    println!("RawWordmapList::LEN {}", RawWordMapList::LEN);
+    println!("RawWordmapList {}", size_of::<[RawWordMap; 1]>());
+    println!("RawWordmapList {}", align_of::<[RawWordMap; 1]>());
+    println!(
+        "RawWordmapList::LEN {}",
+        Block::len_array::<RawWordMap>(BLOCK_SIZE)
+    );
     println!("RawWordMap {}", size_of::<RawWordMap>());
     println!("RawWordMap {}", align_of::<RawWordMap>());
-    println!("RawWordList {}", size_of::<RawWordList>());
-    println!("RawWordList {}", align_of::<RawWordList>());
-    println!("RawWordList::LEN {}", RawWordList::LEN);
+    println!("RawWordList {}", size_of::<[RawWord; 1]>());
+    println!("RawWordList {}", align_of::<[RawWord; 1]>());
+    println!(
+        "RawWordList::LEN {}",
+        Block::len_array::<RawWord>(BLOCK_SIZE)
+    );
     println!("RawWord {}", size_of::<RawWord>());
     println!("RawWord {}", align_of::<RawWord>());
     println!("RawBags {}", size_of::<RawBags>());
     println!("RawBags {}", align_of::<RawBags>());
 
-    assert_eq!(BLOCK_SIZE, size_of::<RawWordMapList>());
     assert_eq!(0, BLOCK_SIZE % size_of::<RawWordMap>());
-    assert_eq!(BLOCK_SIZE, size_of::<RawWordList>());
     assert_eq!(0, BLOCK_SIZE % size_of::<RawWord>());
 }
 
@@ -252,6 +256,25 @@ fn test_word4() -> Result<(), AppError> {
         &[13, 14, 15, 16, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6,]
     );
     // println!("{:#2?}", w);
+
+    Ok(())
+}
+
+#[test]
+fn test_word_utf8() -> Result<(), AppError> {
+    let path = PathBuf::from_str("tmp/word4.idx")?;
+
+    let mut w = Words::create(&path)?;
+    let fid = w.add_file("file0".into());
+    w.add_word("abcdefghijklmnopqrsü", 0, fid)?;
+    w.add_word("üüüüüüüüüüüüüüüüüüüü", 0, fid)?;
+    // println!("{:#2?}", w);
+    w.write()?;
+
+    let mut w = Words::read(&path)?;
+    for w in w.iter_words() {
+        dbg!(w);
+    }
 
     Ok(())
 }

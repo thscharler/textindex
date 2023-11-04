@@ -8,8 +8,8 @@ pub mod words;
 
 use crate::index2::files::{FileData, FileList};
 use crate::index2::tmp_index::TmpWords;
-use crate::index2::word_map::{RawBags, RawWordMapList, WordMap, BAG_LEN};
-use crate::index2::words::{RawWordList, WordData, WordList};
+use crate::index2::word_map::{RawBags, RawWordMap, WordMap, BAG_LEN};
+use crate::index2::words::{RawWord, WordData, WordList};
 use blockfile2::{BlockType, FileBlocks, UserBlockType};
 use ids::{BlkIdx, FIdx, FileId, WordId};
 use std::collections::{BTreeMap, BTreeSet};
@@ -123,10 +123,10 @@ impl UserBlockType for WordBlockType {
 
     fn align(self) -> usize {
         match self {
-            WordBlockType::WordList => align_of::<RawWordList>(),
-            WordBlockType::FileList => align_of::<[u8; 0]>(),
-            WordBlockType::WordMapHead => align_of::<RawWordMapList>(),
-            WordBlockType::WordMapTail => align_of::<RawWordMapList>(),
+            WordBlockType::WordList => align_of::<[RawWord; 1]>(),
+            WordBlockType::FileList => align_of::<[u8; 1]>(),
+            WordBlockType::WordMapHead => align_of::<[RawWordMap; 1]>(),
+            WordBlockType::WordMapTail => align_of::<[RawWordMap; 1]>(),
             WordBlockType::WordMapBags => align_of::<RawBags>(),
         }
     }
@@ -179,7 +179,7 @@ impl Debug for Words {
         for block in self.db.iter_blocks() {
             match WordBlockType::user_type(block.block_type()) {
                 Some(WordBlockType::WordList) => {
-                    let data = block.cast::<RawWordList>();
+                    let data = block.cast_array::<RawWord>();
                     writeln!(f, "WordList {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
@@ -201,7 +201,7 @@ impl Debug for Words {
                     }
                 }
                 Some(WordBlockType::WordMapHead) => {
-                    let data = block.cast::<RawWordMapList>();
+                    let data = block.cast_array::<RawWordMap>();
                     writeln!(f, "WordMapHead {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
@@ -210,7 +210,7 @@ impl Debug for Words {
                     }
                 }
                 Some(WordBlockType::WordMapTail) => {
-                    let data = block.cast::<RawWordMapList>();
+                    let data = block.cast_array::<RawWordMap>();
                     writeln!(f, "WordMapTail {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
@@ -431,10 +431,6 @@ impl Words {
         self.word_count += count;
     }
 
-    fn clamp(min: usize, max: usize, val: usize) -> usize {
-        usize::max(min, usize::min(val, max))
-    }
-
     /// Add a word and a file reference.
     /// It is not checked, if the reference was already inserted.
     /// Duplicates are acceptable.
@@ -452,7 +448,7 @@ impl Words {
             } else {
                 // a single word should hardly have more than 5% of total word count.
                 let v = (data.count * 256 * 20) / self.word_count;
-                Self::clamp(0, 255, v)
+                clamp(0, 255, v)
             };
             self.bag_stats[bag] += 1;
 
@@ -471,7 +467,7 @@ impl Words {
             } else {
                 // a single word should hardly have more than 5% of total word count.
                 let v = (count * 256 * 20) / self.word_count;
-                Self::clamp(0, 255, v)
+                clamp(0, 255, v)
             };
             self.bag_stats[bag] += 1;
 
@@ -540,36 +536,21 @@ fn copy_fix<const LEN: usize>(src: &[u8]) -> [u8; LEN] {
         dst[0..src.len()].copy_from_slice(src);
     } else {
         dst.copy_from_slice(&src[0..LEN]);
+        // trim incomplete utf8 sequence at end.
+        for i in (0..LEN).rev() {
+            if dst[i] >= 192 {
+                // clear start byte and stop
+                dst[i] = 0;
+                break;
+            } else if dst[i] >= 128 {
+                // clear followup byte
+                dst[i] = 0;
+            } else {
+                break;
+            }
+        }
     }
     dst
-}
-
-fn copy_fix_left<const LEN: usize>(src: &[u8]) -> [u8; LEN] {
-    let mut dst = [0u8; LEN];
-    if src.len() < LEN {
-        dst[0..src.len()].copy_from_slice(src);
-    } else {
-        let start = src.len() - LEN;
-        dst.copy_from_slice(&src[start..]);
-    }
-    dst
-}
-
-fn copy_clip(src: &[u8], dst: &mut [u8]) {
-    if src.len() < dst.len() {
-        dst[0..src.len()].copy_from_slice(src);
-    } else {
-        dst.copy_from_slice(&src[0..dst.len()]);
-    }
-}
-
-fn copy_clip_left(src: &[u8], dst: &mut [u8]) {
-    if src.len() < dst.len() {
-        dst[0..src.len()].copy_from_slice(src);
-    } else {
-        let start = src.len() - dst.len();
-        dst.copy_from_slice(&src[start..]);
-    }
 }
 
 fn byte_to_str<const N: usize>(src: &[u8; N]) -> Result<&str, IndexError> {
@@ -584,4 +565,8 @@ fn byte_to_string<const N: usize>(src: &[u8; N]) -> String {
     let word = String::from_utf8_lossy(src.as_ref()).to_string();
     let word = word.trim_end_matches('\0');
     word.to_string()
+}
+
+fn clamp(min: usize, max: usize, val: usize) -> usize {
+    usize::max(min, usize::min(val, max))
 }

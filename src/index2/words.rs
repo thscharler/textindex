@@ -1,13 +1,10 @@
 use crate::index2::{
-    byte_to_str, byte_to_string, copy_fix, BlkIdx, FileId, IndexError, WordBlockType,
-    WordFileBlocks, WordId, BLOCK_SIZE,
+    byte_to_str, copy_fix, BlkIdx, IndexError, WordBlockType, WordFileBlocks, WordId,
 };
-use blockfile2::{Length, LogicalNr};
+use blockfile2::{Block, LogicalNr};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
-use std::fs::OpenOptions;
 use std::io::Write;
-use std::mem::size_of;
 use std::str::from_utf8;
 
 #[derive(Debug)]
@@ -27,8 +24,6 @@ pub struct WordData {
     pub file_map_block_nr: LogicalNr,
     pub file_map_idx: BlkIdx,
 }
-
-pub type RawWordList = [RawWord; BLOCK_SIZE / size_of::<RawWord>()];
 
 #[derive(Clone, Copy, PartialEq)]
 #[repr(C)]
@@ -79,18 +74,10 @@ impl WordList {
         let empty = RawWord::default();
         for block_nr in blocks {
             let block = db.get(block_nr)?;
-            let raw = block.cast::<RawWordList>();
+            let raw = block.cast_array::<RawWord>();
             for (i, r) in raw.iter().enumerate() {
                 if r.word != empty.word {
-                    let word = match byte_to_str(&r.word) {
-                        Ok(v) => v.to_string(),
-                        Err(IndexError::Utf8Error(_b)) => {
-                            // we cut the words to 20 bytes, so there will be some
-                            // errors when reading the data.
-                            byte_to_string(&r.word)
-                        }
-                        Err(e) => return Err(e),
-                    };
+                    let word = byte_to_str(&r.word)?.to_string();
 
                     // remember
                     last_word_id = r.id;
@@ -113,9 +100,11 @@ impl WordList {
         }
 
         // Check overflow
-        if last_block_idx >= RawWordList::LEN as u32 {
-            last_block_nr = db.alloc(Self::TY)?.block_nr();
-            last_block_idx = BlkIdx(0);
+        if last_block_nr > 0 {
+            if last_block_idx >= Block::len_array::<RawWord>(db.block_size()) as u32 {
+                last_block_nr = db.alloc(Self::TY)?.block_nr();
+                last_block_idx = BlkIdx(0);
+            }
         }
 
         Ok(Self {
@@ -138,7 +127,7 @@ impl WordList {
 
             if word_data.block_nr != 0 {
                 let block = db.get_mut(word_data.block_nr)?;
-                let word_list = block.cast_mut::<RawWordList>();
+                let word_list = block.cast_array_mut::<RawWord>();
 
                 if word_list[word_data.block_idx.as_usize()] != w {
                     word_list[word_data.block_idx.as_usize()] = w;
@@ -152,13 +141,13 @@ impl WordList {
 
                 let block = db.get_mut(self.last_block_nr)?;
                 block.set_dirty(true);
-                // block.discard();
-                let word_list = block.cast_mut::<RawWordList>();
+
+                let word_list = block.cast_array_mut::<RawWord>();
                 word_list[self.last_block_idx.as_usize()] = w; //todo: XXS!
                 word_data.block_nr = self.last_block_nr;
                 word_data.block_idx = self.last_block_idx;
 
-                if self.last_block_idx + 1 == RawWordList::LEN as u32 {
+                if self.last_block_idx + 1 == Block::len_array::<RawWord>(db.block_size()) as u32 {
                     self.last_block_nr = db.alloc(Self::TY)?.block_nr();
                     self.last_block_idx = BlkIdx(0);
                 } else {
