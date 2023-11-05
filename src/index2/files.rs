@@ -28,6 +28,7 @@ impl FileList {
     pub(crate) fn load(db: &mut WordFileBlocks) -> Result<FileList, IndexError> {
         let mut list = BTreeMap::new();
         let mut last_file_id = FileId(0u32);
+        #[allow(unused_assignments)]
         let mut last_block_nr = LogicalNr(0u32);
 
         let mut r = db.read_stream(Self::TY)?;

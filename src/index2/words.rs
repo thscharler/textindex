@@ -4,7 +4,6 @@ use crate::index2::{
 use blockfile2::{Block, LogicalNr};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
-use std::io::Write;
 use std::str::from_utf8;
 
 #[derive(Debug)]

@@ -165,6 +165,12 @@ fn parse_cmd(
                     println!("    {}", line);
                 }
             }
+
+            found_guard.lines_idx += 20;
+
+            if found_guard.lines_idx <= found_guard.lines.len() {
+                println!("...");
+            }
         }
         BCommand::Next(Next::Next) => {
             let mut found_guard = data.found.lock()?;
@@ -180,7 +186,12 @@ fn parse_cmd(
                     println!("    {}", line);
                 }
             }
+
             found_guard.lines_idx += 20;
+
+            if found_guard.lines_idx <= found_guard.lines.len() {
+                println!("...");
+            }
         }
         BCommand::Summary(Summary::Files(v)) => {
             let found_guard = data.found.lock().expect("found");

@@ -8,19 +8,10 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="bug in write.&#10;&#10;debug output for streams.">
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/lib.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="change filename storage to stream.&#10;&#10;add next/first commands.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/cmds.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmds.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/files.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_1.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_index2.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -97,7 +88,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Test test_1">
+  <component name="RunManager" selected="Cargo.Release">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -234,9 +225,9 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_stream_2" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package blockfile2 --test test_blockmap test_stream_2 -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+    <configuration name="Test test_merge" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_1 test_merge -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
@@ -277,16 +268,16 @@
       <item itemvalue="Cargo.Test test_1" />
       <item itemvalue="Cargo.Test test_index2" />
       <item itemvalue="Cargo.Test test_init" />
-      <item itemvalue="Cargo.Test test_stream_2" />
+      <item itemvalue="Cargo.Test test_merge" />
       <item itemvalue="Cargo.Test test_word4" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test test_merge" />
         <item itemvalue="Cargo.Test test_1" />
         <item itemvalue="Cargo.Test test_index2" />
         <item itemvalue="Cargo.Test test_init" />
         <item itemvalue="Cargo.Test test_word4" />
-        <item itemvalue="Cargo.Test test_stream_2" />
       </list>
     </recent_temporary>
   </component>
@@ -570,7 +561,23 @@
       <option name="project" value="LOCAL" />
       <updated>1699182709758</updated>
     </task>
-    <option name="localTasksCounter" value="34" />
+    <task id="LOCAL-00034" summary="add BlockRead trait. Give access to block-nr+idx.&#10;&#10;iter_metadata_filter() now uses UserBlockType.">
+      <option name="closed" value="true" />
+      <created>1699188379560</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1699188379560</updated>
+    </task>
+    <task id="LOCAL-00035" summary="change filename storage to stream.&#10;&#10;add next/first commands.">
+      <option name="closed" value="true" />
+      <created>1699188508706</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1699188508706</updated>
+    </task>
+    <option name="localTasksCounter" value="36" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -614,8 +621,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="prepare for store.&#10;no need for predefined physical block-nr." />
-    <MESSAGE value="first store/load runs." />
     <MESSAGE value="compile fail" />
     <MESSAGE value="renaming stuff.&#10;testing write/read" />
     <MESSAGE value="error handling. &#10;almost no panics left.&#10;&#10;debug output ..." />
@@ -639,6 +644,8 @@
     <MESSAGE value="first impl streams" />
     <MESSAGE value="simplified write+read.&#10;it's not necessary to read/write the whole buffer at once, so this can be broken up along block boundaries." />
     <MESSAGE value="bug in write.&#10;&#10;debug output for streams." />
-    <option name="LAST_COMMIT_MESSAGE" value="bug in write.&#10;&#10;debug output for streams." />
+    <MESSAGE value="add BlockRead trait. Give access to block-nr+idx.&#10;&#10;iter_metadata_filter() now uses UserBlockType." />
+    <MESSAGE value="change filename storage to stream.&#10;&#10;add next/first commands." />
+    <option name="LAST_COMMIT_MESSAGE" value="change filename storage to stream.&#10;&#10;add next/first commands." />
   </component>
 </project>
