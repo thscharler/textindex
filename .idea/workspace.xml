@@ -8,14 +8,19 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="use new cast functions.">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="bug in write.&#10;&#10;debug output for streams.">
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/cmdlib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmdlib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/cmds.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/cmds.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/files.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_1.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_1.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_index2.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,6 +63,9 @@
   <component name="MacroExpansionManager">
     <option name="directoryName" value="qkrebnhw" />
   </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 7
 }</component>
@@ -89,7 +97,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Release">
+  <component name="RunManager" selected="Cargo.Test test_1">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -175,42 +183,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_blockmap" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package blockfile2 --test test_blockmap &quot;&quot;" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test test_size" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package blockfile2 --test test_blockmap test_size -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test test_sizes" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_index2 test_sizes -- --exact" />
+    <configuration name="Test test_1" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_1 &quot;&quot;" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -226,8 +200,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_word_utf8" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_index2 test_word_utf8 -- --exact" />
+    <configuration name="Test test_index2" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_index2 &quot;&quot;" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -243,8 +217,42 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Tests in 'tests'" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_1 --test test_index2 &quot;&quot;" />
+    <configuration name="Test test_init" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_index2 test_init -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test test_stream_2" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package blockfile2 --test test_blockmap test_stream_2 -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test test_word4" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_index2 test_word4 -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -266,19 +274,19 @@
       <item itemvalue="Cargo.Doc" />
       <item itemvalue="Cargo.Clippy" />
       <item itemvalue="Cargo.Release" />
-      <item itemvalue="Cargo.Test test_blockmap" />
-      <item itemvalue="Cargo.Test test_size" />
-      <item itemvalue="Cargo.Test test_word_utf8" />
-      <item itemvalue="Cargo.Tests in 'tests'" />
-      <item itemvalue="Cargo.Test test_sizes" />
+      <item itemvalue="Cargo.Test test_1" />
+      <item itemvalue="Cargo.Test test_index2" />
+      <item itemvalue="Cargo.Test test_init" />
+      <item itemvalue="Cargo.Test test_stream_2" />
+      <item itemvalue="Cargo.Test test_word4" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Cargo.Test test_sizes" />
-        <item itemvalue="Cargo.Test test_word_utf8" />
-        <item itemvalue="Cargo.Test test_blockmap" />
-        <item itemvalue="Cargo.Test test_size" />
-        <item itemvalue="Cargo.Tests in 'tests'" />
+        <item itemvalue="Cargo.Test test_1" />
+        <item itemvalue="Cargo.Test test_index2" />
+        <item itemvalue="Cargo.Test test_init" />
+        <item itemvalue="Cargo.Test test_word4" />
+        <item itemvalue="Cargo.Test test_stream_2" />
       </list>
     </recent_temporary>
   </component>
@@ -530,7 +538,39 @@
       <option name="project" value="LOCAL" />
       <updated>1699115851678</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="better find results">
+      <option name="closed" value="true" />
+      <created>1699125093471</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1699125093471</updated>
+    </task>
+    <task id="LOCAL-00031" summary="first impl streams">
+      <option name="closed" value="true" />
+      <created>1699178846005</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1699178846005</updated>
+    </task>
+    <task id="LOCAL-00032" summary="simplified write+read.&#10;it's not necessary to read/write the whole buffer at once, so this can be broken up along block boundaries.">
+      <option name="closed" value="true" />
+      <created>1699180728511</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1699180728511</updated>
+    </task>
+    <task id="LOCAL-00033" summary="bug in write.&#10;&#10;debug output for streams.">
+      <option name="closed" value="true" />
+      <created>1699182709758</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1699182709758</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -574,10 +614,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="init works." />
-    <MESSAGE value="LogicalNr and PhysicalNr as newtypes.&#10;&#10;Init free physical blocks." />
-    <MESSAGE value="manage free list in all? cases. &#10;&#10;add alloc and free.&#10;&#10;replace most panics with errors." />
-    <MESSAGE value="pub cleanup" />
     <MESSAGE value="prepare for store.&#10;no need for predefined physical block-nr." />
     <MESSAGE value="first store/load runs." />
     <MESSAGE value="compile fail" />
@@ -599,6 +635,10 @@
     <MESSAGE value="add new cast variants to make usage easier." />
     <MESSAGE value="split length calculation and layout verification." />
     <MESSAGE value="use new cast functions." />
-    <option name="LAST_COMMIT_MESSAGE" value="use new cast functions." />
+    <MESSAGE value="better find results" />
+    <MESSAGE value="first impl streams" />
+    <MESSAGE value="simplified write+read.&#10;it's not necessary to read/write the whole buffer at once, so this can be broken up along block boundaries." />
+    <MESSAGE value="bug in write.&#10;&#10;debug output for streams." />
+    <option name="LAST_COMMIT_MESSAGE" value="bug in write.&#10;&#10;debug output for streams." />
   </component>
 </project>

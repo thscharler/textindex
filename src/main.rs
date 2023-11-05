@@ -1,6 +1,6 @@
 extern crate core;
 
-use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Stats, Summary};
+use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Next, Stats, Summary};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::log::dump_diagnostics;
@@ -149,7 +149,24 @@ fn parse_cmd(
             found_guard.lines_idx = 0;
             found_guard.lines.clear();
         }
-        BCommand::Next() => {
+        BCommand::Next(Next::First) => {
+            let mut found_guard = data.found.lock()?;
+            found_guard.lines_idx = 0;
+
+            for (idx, (file, lines)) in found_guard
+                .lines
+                .iter()
+                .enumerate()
+                .skip(found_guard.lines_idx)
+                .take(20)
+            {
+                println!("  {}:{}", idx, file);
+                for line in lines {
+                    println!("    {}", line);
+                }
+            }
+        }
+        BCommand::Next(Next::Next) => {
             let mut found_guard = data.found.lock()?;
             for (idx, (file, lines)) in found_guard
                 .lines

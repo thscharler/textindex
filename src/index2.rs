@@ -14,16 +14,18 @@ use blockfile2::{BlockType, FileBlocks, UserBlockType};
 use ids::{BlkIdx, FIdx, FileId, WordId};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
-use std::fs;
 use std::mem::align_of;
 use std::path::Path;
 use std::str::from_utf8;
+use std::{fs, io, string};
 use wildmatch::WildMatch;
 
 #[derive(Debug)]
 pub enum IndexError {
     BlockFile(blockfile2::Error),
     Utf8Error(Vec<u8>),
+    FromUtf8Error(string::FromUtf8Error),
+    IOError(io::Error),
 }
 
 impl Display for IndexError {
@@ -31,6 +33,8 @@ impl Display for IndexError {
         match self {
             IndexError::BlockFile(e) => write!(f, "BlockFile {:?}", e),
             IndexError::Utf8Error(v) => write!(f, "Utf8Error {:?}", v),
+            IndexError::IOError(v) => write!(f, "IOError {:?}", v),
+            IndexError::FromUtf8Error(v) => write!(f, "FromUtf8Error {:?}", v),
         }
     }
 }
@@ -38,6 +42,18 @@ impl Display for IndexError {
 impl From<blockfile2::Error> for IndexError {
     fn from(value: blockfile2::Error) -> Self {
         IndexError::BlockFile(value)
+    }
+}
+
+impl From<io::Error> for IndexError {
+    fn from(value: io::Error) -> Self {
+        IndexError::IOError(value)
+    }
+}
+
+impl From<string::FromUtf8Error> for IndexError {
+    fn from(value: string::FromUtf8Error) -> Self {
+        IndexError::FromUtf8Error(value)
     }
 }
 
@@ -128,6 +144,13 @@ impl UserBlockType for WordBlockType {
             WordBlockType::WordMapHead => align_of::<[RawWordMap; 1]>(),
             WordBlockType::WordMapTail => align_of::<[RawWordMap; 1]>(),
             WordBlockType::WordMapBags => align_of::<RawBags>(),
+        }
+    }
+
+    fn is_stream(self) -> bool {
+        match self {
+            WordBlockType::FileList => true,
+            _ => false,
         }
     }
 }

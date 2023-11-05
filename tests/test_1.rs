@@ -115,8 +115,12 @@ fn test_index() -> Result<(), io::Error> {
 
 #[test]
 fn test_merge() -> Result<(), io::Error> {
-    let sample = "samples/index";
+    let sample = "../textindex_samples/index";
     let path = Path::new(sample);
+
+    if !path.exists() {
+        return Ok(());
+    }
 
     let mut words = Words::create(Path::new("tmp/merge.db")).unwrap();
 
@@ -156,7 +160,7 @@ fn test_merge() -> Result<(), io::Error> {
 
     words.write().unwrap();
 
-    println!("{:2?}", words);
+    // println!("{:2?}", words);
 
     Ok(())
 }

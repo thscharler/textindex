@@ -1,4 +1,4 @@
-use blockfile2::{Block, Length};
+use blockfile2::Block;
 use std::mem::{align_of, size_of};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -51,12 +51,12 @@ fn test_init() -> Result<(), AppError> {
     let path = PathBuf::from_str("tmp/init.idx")?;
 
     let mut w = Words::create(&path)?;
-    dbg!(&w);
     w.store_to_db()?;
-    dbg!(&w);
     w.write()?;
     let w = Words::read(&path)?;
-    dbg!(&w);
+
+    // just do it.
+
     Ok(())
 }
 
@@ -85,35 +85,37 @@ fn test_files2() -> Result<(), AppError> {
     let _fid = w.add_file("file3".into());
 
     w.store_to_db()?;
-    println!("{:#?}", w);
+    // println!("{:#?}", w);
     w.write()?;
 
     let w = Words::read(&path)?;
+
+    // println!("{:#?}", w);
 
     let mut it = w.files().iter();
     let f0 = it.next().unwrap();
     assert_eq!(*f0.0, 1);
     assert_eq!(f0.1.name, "file0");
-    assert_eq!(f0.1.block_nr, 3);
+    assert_eq!(f0.1.block_nr, 4);
     assert_eq!(f0.1.block_idx, 0);
 
     let f1 = it.next().unwrap();
     assert_eq!(*f1.0, 2);
     assert_eq!(f1.1.name, "file1");
-    assert_eq!(f1.1.block_nr, 3);
-    assert_eq!(f1.1.block_idx, 10);
+    assert_eq!(f1.1.block_nr, 4);
+    assert_eq!(f1.1.block_idx, 11);
 
     let f2 = it.next().unwrap();
     assert_eq!(*f2.0, 3);
     assert_eq!(f2.1.name, "file2");
-    assert_eq!(f2.1.block_nr, 3);
-    assert_eq!(f2.1.block_idx, 20);
+    assert_eq!(f2.1.block_nr, 4);
+    assert_eq!(f2.1.block_idx, 22);
 
     let f3 = it.next().unwrap();
     assert_eq!(*f3.0, 4);
     assert_eq!(f3.1.name, "file3");
-    assert_eq!(f3.1.block_nr, 3);
-    assert_eq!(f3.1.block_idx, 30);
+    assert_eq!(f3.1.block_nr, 4);
+    assert_eq!(f3.1.block_idx, 33);
 
     Ok(())
 }
@@ -131,7 +133,7 @@ fn test_word() -> Result<(), AppError> {
 
     assert!(w.words().get("alpha").is_some());
     if let Some(word) = w.words().get("alpha").cloned() {
-        assert_eq!(word.file_map_block_nr, 3);
+        assert_eq!(word.file_map_block_nr, 4);
         assert_eq!(word.file_map_idx, 0);
         assert_eq!(word.id, 1);
         let mut it = w.iter_word_files(word);
@@ -193,7 +195,7 @@ fn test_word3() -> Result<(), AppError> {
     assert!(w.words().get("epsilon").is_some());
 
     let wdata = w.words().get("alpha").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 3);
+    assert_eq!(wdata.file_map_block_nr, 4);
     assert_eq!(wdata.file_map_idx, 0);
     {
         let mut it = w.iter_word_files(wdata);
@@ -203,7 +205,7 @@ fn test_word3() -> Result<(), AppError> {
     }
 
     let wdata = w.words().get("beta").cloned().unwrap();
-    assert_eq!(wdata.file_map_block_nr, 3);
+    assert_eq!(wdata.file_map_block_nr, 4);
     assert_eq!(wdata.file_map_idx, 1);
     let mut it = w.iter_word_files(wdata);
     assert_eq!(it.next().unwrap()?, 1);
@@ -240,10 +242,11 @@ fn test_word4() -> Result<(), AppError> {
 
         let _wdata = w.words().get("gamma").cloned().unwrap();
     }
-    println!("{:#2?}", w);
+    // println!("{:#2?}", w);
     w.write()?;
 
     let mut w = Words::read(&path)?;
+    // println!("{:#2?}", w);
 
     let wdata = w.words().get("gamma").cloned().unwrap();
 
@@ -255,26 +258,28 @@ fn test_word4() -> Result<(), AppError> {
         fid.as_slice(),
         &[13, 14, 15, 16, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6,]
     );
-    // println!("{:#2?}", w);
 
     Ok(())
 }
 
 #[test]
 fn test_word_utf8() -> Result<(), AppError> {
-    let path = PathBuf::from_str("tmp/word4.idx")?;
+    let path = PathBuf::from_str("tmp/word_utf8.idx")?;
 
     let mut w = Words::create(&path)?;
     let fid = w.add_file("file0".into());
     w.add_word("abcdefghijklmnopqrsü", 0, fid)?;
     w.add_word("üüüüüüüüüüüüüüüüüüüü", 0, fid)?;
-    // println!("{:#2?}", w);
+
     w.write()?;
 
     let mut w = Words::read(&path)?;
-    for w in w.iter_words() {
-        dbg!(w);
-    }
+
+    let mut it = w.iter_words();
+    let word = it.next().expect("word");
+    assert_eq!(word.0, "abcdefghijklmnopqrs");
+    let word = it.next().expect("word");
+    assert_eq!(word.0, "üüüüüüüüü");
 
     Ok(())
 }

@@ -133,6 +133,7 @@ pub enum CCode {
     CFiles,
     CSummary,
     CNext,
+    CFirst,
     CFind,
     CHelp,
     CIndex,
@@ -184,6 +185,7 @@ impl CCode {
             CSummary => "summary",
             CNumber => "number",
             CNext => "next",
+            CFirst => "first",
         }
     }
 }
@@ -193,7 +195,7 @@ pub enum BCommand {
     Index(),
     Find(Find),
     Files(Files),
-    Next(),
+    Next(Next),
     Summary(Summary),
     Delete(Delete),
     Stats(Stats),
@@ -227,6 +229,7 @@ pub enum Summary {
 #[derive(Debug, Clone)]
 pub enum Next {
     Next,
+    First,
 }
 
 #[derive(Debug, Clone)]
@@ -245,7 +248,7 @@ pub fn parse_cmds(input: CSpan<'_>) -> CParserResult<'_, BCommand> {
 // -----------------------------------------------------------------------
 // -----------------------------------------------------------------------
 
-const ALL_PARSERS: CmdParse<BCommand, 12> = CmdParse {
+const ALL_PARSERS: CmdParse<BCommand, 13> = CmdParse {
     parse: [
         Cmd::P1("index", CIndex, BCommand::Index()),
         Cmd::P2(
@@ -263,7 +266,8 @@ const ALL_PARSERS: CmdParse<BCommand, 12> = CmdParse {
         Cmd::P1p("find", CFind, parse_find),
         Cmd::P1p("files", CFiles, parse_files),
         Cmd::P1p("summary", CSummary, parse_usize),
-        Cmd::P1("next", CNext, BCommand::Next()),
+        Cmd::P1("next", CNext, BCommand::Next(Next::Next)),
+        Cmd::P1("first", CFirst, BCommand::Next(Next::First)),
         Cmd::P1("store", CStore, BCommand::Store()),
         Cmd::P1("help", CHelp, BCommand::Help),
         Cmd::P1("?", CHelp, BCommand::Help),
