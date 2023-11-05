@@ -17,6 +17,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::mem::align_of;
 use std::path::Path;
 use std::str::from_utf8;
+use std::time::Instant;
 use std::{fs, io, string};
 use wildmatch::WildMatch;
 
@@ -69,6 +70,7 @@ pub struct Words {
     files: FileList,
     wordmap: WordMap,
     auto_save: u32,
+    save_time: Instant,
 }
 
 pub type WordFileBlocks = FileBlocks<WordBlockType>;
@@ -300,6 +302,8 @@ impl Words {
         println!("load wordmap");
         let wordmap = WordMap::load(&mut db)?;
 
+        Self::cleanup(&mut db)?;
+
         Ok(Self {
             db,
             words,
@@ -308,6 +312,7 @@ impl Words {
             files,
             wordmap,
             auto_save: 0,
+            save_time: Instant::now(),
         })
     }
 
@@ -323,28 +328,27 @@ impl Words {
         self.store_to_db()?;
         self.write_stats();
         self.db.store()?;
-        self.cleanup()?;
+        Self::cleanup(&mut self.db)?;
+        Ok(())
+    }
+
+    fn cleanup(db: &mut WordFileBlocks) -> Result<(), IndexError> {
+        // let generation = self.db.generation();
+
+        // retain some datablocks in memory.
+        db.retain(|_k, v| match WordBlockType::user_type(v.block_type()) {
+            Some(WordBlockType::WordList) => false,
+            Some(WordBlockType::FileList) => false,
+            Some(WordBlockType::WordMapHead) => false,
+            Some(WordBlockType::WordMapTail) => false,
+            Some(WordBlockType::WordMapBags) => true,
+            None => false, // doesn't matter
+        });
         Ok(())
     }
 
     pub fn compact_blocks(&mut self) {
         // todo: self.db.compact_to()
-    }
-
-    fn cleanup(&mut self) -> Result<(), IndexError> {
-        let generation = self.db.generation();
-
-        // retain some datablocks in memory.
-        self.db
-            .retain(|_k, v| match WordBlockType::user_type(v.block_type()) {
-                Some(WordBlockType::WordList) => v.generation() + 2 >= generation,
-                Some(WordBlockType::FileList) => false,
-                Some(WordBlockType::WordMapHead) => true,
-                Some(WordBlockType::WordMapTail) => v.generation() + 2 >= generation,
-                Some(WordBlockType::WordMapBags) => true,
-                None => false, // doesn't matter
-            });
-        Ok(())
     }
 
     fn write_stats(&mut self) {
@@ -549,6 +553,14 @@ impl Words {
         let names = collect.iter().flat_map(|v| self.file(*v)).collect();
 
         Ok(names)
+    }
+
+    pub fn set_save_time(&mut self) {
+        self.save_time = Instant::now();
+    }
+
+    pub fn save_time(&self) -> Instant {
+        self.save_time
     }
 
     pub fn should_auto_save(&mut self) -> bool {

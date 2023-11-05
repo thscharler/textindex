@@ -63,24 +63,17 @@ impl WordMap {
     pub const TY_LISTTAIL: WordBlockType = WordBlockType::WordMapTail;
 
     pub fn load(db: &mut WordFileBlocks) -> Result<WordMap, IndexError> {
-        for (block_nr, block_type) in db.iter_metadata() {
-            match block_type {
-                WordBlockType::WordMapBags => {
-                    let block = db.get(block_nr)?;
-                    let bags = block.cast::<RawBags>();
+        for (block_nr, _block_type) in db.iter_metadata_filter(|_nr, ty| ty == Self::TY_BAGS) {
+            let block = db.get(block_nr)?;
+            let bags = block.cast::<RawBags>();
 
-                    return Ok(Self {
-                        bag_nr: block_nr,
-                        last_head_nr: bags.head_nr,
-                        last_head_idx: bags.head_idx,
-                        last_tail_nr: bags.tail_nr,
-                        last_tail_idx: bags.tail_idx,
-                    });
-                }
-                _ => {
-                    // dont need this
-                }
-            }
+            return Ok(Self {
+                bag_nr: block_nr,
+                last_head_nr: bags.head_nr,
+                last_head_idx: bags.head_idx,
+                last_tail_nr: bags.tail_nr,
+                last_tail_idx: bags.tail_idx,
+            });
         }
 
         Ok(Self {
@@ -296,7 +289,8 @@ impl<'a> Iterator for IterFileId<'a> {
             return None;
         }
 
-        let file_id = loop {
+        let mut to_discard = LogicalNr(0);
+        let file_id = 'it: loop {
             let map_list = match self.db.get(self.map_block_nr) {
                 Ok(block) => block.cast_array::<RawWordMap>(),
                 Err(err) => return Some(Err(err.into())),
@@ -309,24 +303,35 @@ impl<'a> Iterator for IterFileId<'a> {
                 // next
                 self.file_idx += 1;
                 if self.file_idx >= map.file_id.len() as u32 {
+                    to_discard = self.map_block_nr;
                     self.map_block_nr = map.next_block_nr;
                     self.map_idx = map.next_idx;
                     self.file_idx = FIdx(0);
                 }
-                break Some(file_id);
+                break 'it Some(file_id);
             } else if self.file_idx + 1 < map.file_id.len() as u32 {
                 // recover can leave 0 in the middle of the list.
                 self.file_idx += 1;
             } else {
                 if map.next_block_nr != 0 {
+                    to_discard = self.map_block_nr;
                     self.map_block_nr = map.next_block_nr;
                     self.map_idx = map.next_idx;
                     self.file_idx = FIdx(0);
                 } else {
-                    break None;
+                    break 'it None;
                 }
             }
+
+            if to_discard != 0 {
+                self.db.discard(to_discard);
+                to_discard = LogicalNr(0);
+            }
         };
+
+        if to_discard != 0 {
+            self.db.discard(to_discard);
+        }
 
         file_id.map(Ok)
     }

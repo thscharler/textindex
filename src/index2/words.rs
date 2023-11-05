@@ -66,8 +66,7 @@ impl WordList {
         let mut last_word_id = WordId(0u32);
 
         let blocks: Vec<_> = db
-            .iter_metadata()
-            .filter(|v| v.1 == Self::TY)
+            .iter_metadata_filter(|_nr, ty| ty == Self::TY)
             .map(|v| v.0)
             .collect();
         let empty = RawWord::default();
@@ -125,13 +124,13 @@ impl WordList {
             };
 
             if word_data.block_nr != 0 {
-                let block = db.get_mut(word_data.block_nr)?;
-                let word_list = block.cast_array_mut::<RawWord>();
-
-                if word_list[word_data.block_idx.as_usize()] != w {
-                    word_list[word_data.block_idx.as_usize()] = w;
-                    block.set_dirty(true);
-                }
+                // let block = db.get_mut(word_data.block_nr)?;
+                // let word_list = block.cast_array_mut::<RawWord>();
+                //
+                // if word_list[word_data.block_idx.as_usize()] != w {
+                //     word_list[word_data.block_idx.as_usize()] = w;
+                //     block.set_dirty(true);
+                // }
             } else {
                 if self.last_block_nr == 0 {
                     self.last_block_nr = db.alloc(Self::TY)?.block_nr();

@@ -574,7 +574,14 @@ fn merge_words(
         state.lock().unwrap().state = 101;
         timing(printer, "merge", 100, || write.append(words_buffer))?;
         state.lock().unwrap().state = 102;
-        write.should_auto_save()
+
+        let auto_save = write.should_auto_save();
+        if auto_save {
+            let last = write.save_time();
+            print_(printer, format!("loop-time {:?}", last.elapsed()));
+            write.set_save_time();
+        }
+        auto_save
     };
 
     if do_auto_save {
