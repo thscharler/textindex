@@ -9,7 +9,7 @@ use std::io::Read;
 use std::io::Write;
 use std::iter::Flatten;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::{sleep, JoinHandle};
 use std::time::{Duration, Instant};

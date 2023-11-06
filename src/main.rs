@@ -18,7 +18,6 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
-use wildmatch::WildMatch;
 
 mod cmdlib;
 mod cmds;

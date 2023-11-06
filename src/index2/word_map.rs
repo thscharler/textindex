@@ -65,7 +65,7 @@ impl WordMap {
     pub fn load(db: &mut WordFileBlocks) -> Result<WordMap, IndexError> {
         for (block_nr, _block_type) in db.iter_metadata_filter(|_nr, ty| ty == Self::TY_BAGS) {
             let block = db.get(block_nr)?;
-            let bags = block.cast::<RawBags>();
+            let bags = unsafe { block.cast::<RawBags>() };
 
             return Ok(Self {
                 bag_nr: block_nr,
@@ -94,7 +94,7 @@ impl WordMap {
             block
         };
         block.set_dirty(true);
-        let bags = block.cast_mut::<RawBags>();
+        let bags = unsafe { block.cast_mut::<RawBags>() };
 
         bags.head_nr = self.last_head_nr;
         bags.head_idx = self.last_head_idx;
@@ -189,7 +189,7 @@ impl WordMap {
         let block = db.get_mut(new_blk_nr)?;
         block.set_dirty(true);
 
-        let word_map_list = block.cast_array_mut::<RawWordMap>();
+        let word_map_list = unsafe { block.cast_array_mut::<RawWordMap>() };
         let word_map = &mut word_map_list[new_idx.as_usize()];
 
         word_map.file_id[0] = file_id;
@@ -215,7 +215,7 @@ impl WordMap {
 
             let block = db.get_mut(blk_nr)?;
             block.set_dirty(true);
-            let word_map_list = block.cast_array_mut::<RawWordMap>();
+            let word_map_list = unsafe { block.cast_array_mut::<RawWordMap>() };
             let word_map = &mut word_map_list[blk_idx.as_usize()];
 
             if let Some(insert_pos) = word_map.file_id.iter().position(|v| *v == 0) {
@@ -235,7 +235,7 @@ impl WordMap {
                 // retire
                 let retire_block = db.get_mut(self.last_tail_nr[bag])?;
                 retire_block.set_dirty(true);
-                let retire_map_list = retire_block.cast_array_mut::<RawWordMap>();
+                let retire_map_list = unsafe { retire_block.cast_array_mut::<RawWordMap>() };
                 let retire_map = &mut retire_map_list[retire_idx.as_usize()];
 
                 retire_map.file_id = retire_file_id;
@@ -292,7 +292,7 @@ impl<'a> Iterator for IterFileId<'a> {
         let mut to_discard = LogicalNr(0);
         let file_id = 'it: loop {
             let map_list = match self.db.get(self.map_block_nr) {
-                Ok(block) => block.cast_array::<RawWordMap>(),
+                Ok(block) => unsafe { block.cast_array::<RawWordMap>() },
                 Err(err) => return Some(Err(err.into())),
             };
             let map = &map_list[self.map_idx.as_usize()];

@@ -8,10 +8,21 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock.">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="fix tests.">
       <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/tests/test_blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/tests/test_blockmap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block_io.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block_io.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/header.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/header.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/physical.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/physical.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/word_map.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -88,7 +99,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Tests in 'tests'">
+  <component name="RunManager" selected="Cargo.Build">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -191,42 +202,42 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_index2" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_index2 &quot;&quot;" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test test_init" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_index2 test_init -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
     <configuration name="Test test_merge" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="test --package textindex --test test_1 test_merge -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test test_recover" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package blockfile2 --test test_blockmap test_recover -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Tests in 'tests' (1)" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --test test_1 --test test_index2 &quot;&quot;" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -265,19 +276,19 @@
       <item itemvalue="Cargo.Doc" />
       <item itemvalue="Cargo.Clippy" />
       <item itemvalue="Cargo.Release" />
+      <item itemvalue="Cargo.Test test_recover" />
       <item itemvalue="Cargo.Tests in 'tests'" />
+      <item itemvalue="Cargo.Tests in 'tests' (1)" />
       <item itemvalue="Cargo.Test test_1" />
-      <item itemvalue="Cargo.Test test_index2" />
-      <item itemvalue="Cargo.Test test_init" />
       <item itemvalue="Cargo.Test test_merge" />
     </list>
     <recent_temporary>
       <list>
         <item itemvalue="Cargo.Tests in 'tests'" />
+        <item itemvalue="Cargo.Tests in 'tests' (1)" />
+        <item itemvalue="Cargo.Test test_recover" />
         <item itemvalue="Cargo.Test test_merge" />
         <item itemvalue="Cargo.Test test_1" />
-        <item itemvalue="Cargo.Test test_index2" />
-        <item itemvalue="Cargo.Test test_init" />
       </list>
     </recent_temporary>
   </component>
@@ -617,7 +628,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699251852621</updated>
     </task>
-    <option name="localTasksCounter" value="41" />
+    <task id="LOCAL-00041" summary="fix tests.">
+      <option name="closed" value="true" />
+      <created>1699252539214</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1699252539214</updated>
+    </task>
+    <option name="localTasksCounter" value="42" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -662,7 +681,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="minor fixes" />
     <MESSAGE value="adapt to blockfile2" />
     <MESSAGE value="clippy" />
     <MESSAGE value="doc" />
@@ -687,6 +705,7 @@
     <MESSAGE value="discard more radically." />
     <MESSAGE value="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()" />
     <MESSAGE value="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock." />
-    <option name="LAST_COMMIT_MESSAGE" value="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock." />
+    <MESSAGE value="fix tests." />
+    <option name="LAST_COMMIT_MESSAGE" value="fix tests." />
   </component>
 </project>

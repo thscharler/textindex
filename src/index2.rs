@@ -235,7 +235,7 @@ impl Debug for Words {
         for block in self.db.iter_blocks() {
             match WordBlockType::user_type(block.block_type()) {
                 Some(WordBlockType::WordList) => {
-                    let data = block.cast_array::<RawWord>();
+                    let data = unsafe { block.cast_array::<RawWord>() };
                     writeln!(f, "WordList {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
@@ -257,7 +257,7 @@ impl Debug for Words {
                     }
                 }
                 Some(WordBlockType::WordMapHead) => {
-                    let data = block.cast_array::<RawWordMap>();
+                    let data = unsafe { block.cast_array::<RawWordMap>() };
                     writeln!(f, "WordMapHead {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
@@ -266,7 +266,7 @@ impl Debug for Words {
                     }
                 }
                 Some(WordBlockType::WordMapTail) => {
-                    let data = block.cast_array::<RawWordMap>();
+                    let data = unsafe { block.cast_array::<RawWordMap>() };
                     writeln!(f, "WordMapTail {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for d in data.iter() {
@@ -275,7 +275,7 @@ impl Debug for Words {
                     }
                 }
                 Some(WordBlockType::WordMapBags) => {
-                    let data = block.cast::<RawBags>();
+                    let data = unsafe { block.cast::<RawBags>() };
                     writeln!(f, "WordMapBags {}", block.block_nr())?;
                     if f.width().unwrap_or(0) >= 1 {
                         for i in 0..BAG_LEN {

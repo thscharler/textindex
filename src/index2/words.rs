@@ -73,7 +73,7 @@ impl WordList {
         let empty = RawWord::default();
         for block_nr in blocks {
             let block = db.get(block_nr)?;
-            let raw = block.cast_array::<RawWord>();
+            let raw = unsafe { block.cast_array::<RawWord>() };
             for (i, r) in raw.iter().enumerate() {
                 if r.word != empty.word {
                     let word = byte_to_str(&r.word)
@@ -146,7 +146,7 @@ impl WordList {
                 let block = db.get_mut(self.last_block_nr)?;
                 block.set_dirty(true);
 
-                let word_list = block.cast_array_mut::<RawWord>();
+                let word_list = unsafe { block.cast_array_mut::<RawWord>() };
                 word_list[self.last_block_idx.as_usize()] = w; //todo: XXS!
                 word_data.block_nr = self.last_block_nr;
                 word_data.block_idx = self.last_block_idx;
