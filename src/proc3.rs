@@ -4,6 +4,7 @@ use crate::index2::Words;
 use crossbeam::channel::{bounded, Receiver, Sender, TryRecvError};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
+use std::cmp::min;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
 use std::io::Write;
@@ -33,6 +34,7 @@ pub enum Msg {
 pub enum FileFilter {
     Ignore,
     Inspect,
+    Dubious,
     Text,
     Html,
 }
@@ -413,7 +415,9 @@ fn load_proc(
                 state.lock().unwrap().state = 3;
                 last_count = count;
                 let (filter, txt) = load_file(filter, &absolute)?;
-                if filter != FileFilter::Ignore {
+                if filter == FileFilter::Dubious {
+                    print_(printer, format!("dubious file {}", relative));
+                } else if filter != FileFilter::Ignore {
                     send.send(Msg::Index(count, filter, absolute, relative, txt))?;
                 }
             }
@@ -500,6 +504,7 @@ pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> TmpWords {
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
+        FileFilter::Dubious => {}
     }
 
     words
@@ -676,7 +681,9 @@ pub fn name_filter(path: &Path) -> FileFilter {
 
     const EXT_IGNORE: &[&str] = &[
         "jpg", "pdf", "gif", "css", "png", "doc", "rtf", "js", "ico", "woff", "zip", "jpeg", "odt",
-        "docx", "lit", "xml",
+        "docx", "lit", "xml", "epub", "mobi", "exe", "mp3", "azw3", "bmp", "bak", "ccs", "css",
+        "dwt", "eot", "img", "pdb", "prc", "psc", "swf", "svg", "wmf", "wpd", "wav", "mso", "mid",
+        "thmx", "zblorb",
     ];
     const NAME_IGNORE: &[&str] = &[
         ".message.ftp.txt",
@@ -730,6 +737,12 @@ pub fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
     if HTML_RECOGNIZE.iter().any(|v| txt.starts_with(*v)) {
         FileFilter::Html
     } else {
+        let txt_part = &txt.as_bytes()[0..min(256, txt.len())];
+        for c in txt_part.iter().copied() {
+            if c >= 0 && c <= 8 || c >= 11 && c <= 12 || c >= 14 && c <= 31 {
+                return FileFilter::Dubious;
+            }
+        }
         FileFilter::Text
     }
 }
