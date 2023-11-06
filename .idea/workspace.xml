@@ -8,14 +8,12 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="discard more radically.">
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/word_map.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/files.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -93,7 +91,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Release">
+  <component name="RunManager" selected="Cargo.Build">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -590,7 +588,31 @@
       <option name="project" value="LOCAL" />
       <updated>1699210976132</updated>
     </task>
-    <option name="localTasksCounter" value="37" />
+    <task id="LOCAL-00037" summary="discard more radically.">
+      <option name="closed" value="true" />
+      <created>1699211089946</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1699211089946</updated>
+    </task>
+    <task id="LOCAL-00038" summary="discard more radically.">
+      <option name="closed" value="true" />
+      <created>1699211098629</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1699211098629</updated>
+    </task>
+    <task id="LOCAL-00039" summary="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()">
+      <option name="closed" value="true" />
+      <created>1699251507661</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1699251507661</updated>
+    </task>
+    <option name="localTasksCounter" value="40" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -635,7 +657,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="error handling. &#10;almost no panics left.&#10;&#10;debug output ..." />
     <MESSAGE value="debug for block.&#10;&#10;split off load_raw_0 for safety.&#10;&#10;freelist for types better.&#10;&#10;store_panic runs clean!! M8/10" />
     <MESSAGE value="minor fixes" />
     <MESSAGE value="adapt to blockfile2" />
@@ -660,6 +681,7 @@
     <MESSAGE value="change filename storage to stream.&#10;&#10;add next/first commands." />
     <MESSAGE value="automatically discard blocks for streams." />
     <MESSAGE value="discard more radically." />
-    <option name="LAST_COMMIT_MESSAGE" value="discard more radically." />
+    <MESSAGE value="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()" />
+    <option name="LAST_COMMIT_MESSAGE" value="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()" />
   </component>
 </project>

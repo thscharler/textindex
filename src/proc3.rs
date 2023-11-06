@@ -48,14 +48,14 @@ pub struct Found {
 }
 
 pub struct Data {
-    pub words: RwLock<Words>,
+    pub words: Mutex<Words>,
     pub found: Mutex<Found>,
     pub log: File,
 }
 
 impl Data {
     pub fn write(&'static self) -> Result<(), AppError> {
-        if let Ok(mut wrl) = self.words.write() {
+        if let Ok(mut wrl) = self.words.lock() {
             wrl.write()?;
             Ok(())
         } else {
@@ -72,7 +72,7 @@ impl Data {
         let words = Words::read(path)?;
 
         let data: &'static Data = Box::leak(Box::new(Data {
-            words: RwLock::new(words),
+            words: Mutex::new(words),
             found: Default::default(),
             log,
         }));
@@ -348,7 +348,7 @@ fn walk_proc(
 
                         let do_send = {
                             state.lock().unwrap().state = 102;
-                            let words = data.words.read()?;
+                            let words = data.words.lock()?;
                             !words.have_file(&relative)
                         };
                         if do_send {
@@ -570,7 +570,7 @@ fn merge_words(
 ) -> Result<(), AppError> {
     let do_auto_save = {
         state.lock().unwrap().state = 100;
-        let mut write = data.words.write()?;
+        let mut write = data.words.lock()?;
         state.lock().unwrap().state = 101;
         timing(printer, "merge", 100, || write.append(words_buffer))?;
         state.lock().unwrap().state = 102;
@@ -647,7 +647,7 @@ fn terminal_proc(
 
                 print_(printer, "*** final store ***");
 
-                let mut words = data.words.write()?;
+                let mut words = data.words.lock()?;
                 words.write()?;
                 words.compact_blocks();
 
@@ -747,7 +747,7 @@ fn delete_file(
     data: &'static Data,
     file: String,
 ) -> Result<(), AppError> {
-    let mut write = data.words.write()?;
+    let mut write = data.words.lock()?;
     write.remove_file(file);
 
     Ok(())

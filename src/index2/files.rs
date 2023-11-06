@@ -42,10 +42,6 @@ impl FileList {
                 break;
             }
             let file_id = FileId(u32::from_ne_bytes(buf_file_id));
-            if file_id == 0 {
-                last_block_nr = block_nr;
-                break;
-            }
             last_file_id = file_id;
 
             let mut buf_name_len = [0u8; 2];
@@ -56,6 +52,14 @@ impl FileList {
             buf_name.resize(name_len as usize, 0);
             r.read_exact(buf_name.as_mut())?;
             let name = String::from_utf8(buf_name)?;
+
+            debug_assert!(
+                file_id != 0,
+                "zero file {} at {} {}",
+                name,
+                r.block_nr(),
+                r.idx()
+            );
 
             list.insert(
                 file_id,

@@ -8,6 +8,7 @@ use crate::proc3::{
     auto_save, find_matched_lines, indexing, init_work, load_file, shut_down, Data, FileFilter,
     Msg, Work,
 };
+use blockfile2::LogicalNr;
 use kparse::prelude::*;
 use kparse::Track;
 use rustyline::error::ReadlineError;
@@ -59,7 +60,7 @@ fn main() -> Result<(), AppError> {
                 match parse_cmd(data, work, &txt_input, &mut rl) {
                     Ok(_) => {}
                     Err(e) => {
-                        eprintln!("parse_cmd {:?}", e);
+                        eprintln!("parse_cmd {:#?}", e);
                     }
                 }
             }
@@ -118,7 +119,7 @@ fn parse_cmd(
             work.send.send(Msg::WalkTree(path))?;
         }
         BCommand::Find(Find::Find(v)) => {
-            let mut words = data.words.write()?;
+            let mut words = data.words.lock()?;
 
             let find_terms = v.iter().map(|v| v.clone()).collect::<Vec<_>>();
             let found = words.find(find_terms.as_slice())?;
@@ -137,7 +138,7 @@ fn parse_cmd(
             found_guard.lines = found_lines;
         }
         BCommand::Files(Files::Files(v)) => {
-            let words = data.words.read()?;
+            let words = data.words.lock()?;
             let found = words.find_file(v.as_str());
             for (idx, file) in found.iter().enumerate() {
                 println!("  {}:{}", idx, file);
@@ -215,7 +216,7 @@ fn parse_cmd(
             }
         }
         BCommand::Delete(Delete::Delete(v)) => {
-            let words = data.words.read()?;
+            let words = data.words.lock()?;
 
             for file in words.find_file(v.as_str()) {
                 work.send.send(Msg::DeleteFile(file.clone()))?;
@@ -262,27 +263,21 @@ fn parse_cmd(
                 );
             }
 
-            let words = data.words.write()?;
+            let words = data.words.lock()?;
             println!("words: {}", words.words().len());
             println!("files: {}", words.files().len());
 
             work.send.send(Msg::Debug)?;
         }
         BCommand::Stats(Stats::Word(txt)) => {
-            let mut words = data.words.write()?;
+            let block_nr = txt.parse::<u32>()?;
+            let mut words = data.words.lock()?;
+            let block = words.db.get(LogicalNr(block_nr))?;
 
-            let match_find = WildMatch::new(txt.as_str());
-            let w: Vec<_> = words
-                .iter_words()
-                .filter(|(k, _)| match_find.matches(k))
-                .map(|(k, v)| (k, *v))
-                .collect();
-            for (k, v) in w {
-                println!("{}: [{}] -> {}", k, v.id, v.count);
-            }
+            println!("{:2?}", block);
         }
         BCommand::Stats(Stats::Debug) => {
-            let words = data.words.read()?;
+            let words = data.words.lock()?;
 
             let mut log = data.log.try_clone()?;
             writeln!(log, "{:#?}", *words)?;

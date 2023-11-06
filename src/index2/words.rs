@@ -1,9 +1,10 @@
 use crate::index2::{
     byte_to_str, copy_fix, BlkIdx, IndexError, WordBlockType, WordFileBlocks, WordId,
 };
-use blockfile2::{Block, LogicalNr};
+use blockfile2::{Block, LogicalNr, UserBlock};
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 use std::str::from_utf8;
 
 #[derive(Debug)]
@@ -75,7 +76,12 @@ impl WordList {
             let raw = block.cast_array::<RawWord>();
             for (i, r) in raw.iter().enumerate() {
                 if r.word != empty.word {
-                    let word = byte_to_str(&r.word)?.to_string();
+                    let word = byte_to_str(&r.word)
+                        .or_else(|v| {
+                            eprintln!("{:2?}", UserBlock::<WordBlockType>(block, PhantomData));
+                            Err(v)
+                        })?
+                        .to_string();
 
                     // remember
                     last_word_id = r.id;

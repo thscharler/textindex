@@ -12,6 +12,7 @@ use crate::index2::word_map::{RawBags, RawWordMap, WordMap, BAG_LEN};
 use crate::index2::words::{RawWord, WordData, WordList};
 use blockfile2::{BlockType, FileBlocks, UserBlockType};
 use ids::{BlkIdx, FIdx, FileId, WordId};
+use std::backtrace::Backtrace;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::align_of;
@@ -21,40 +22,70 @@ use std::time::Instant;
 use std::{fs, io, string};
 use wildmatch::WildMatch;
 
+pub struct IndexError {
+    pub kind: IndexKind,
+    pub backtrace: Backtrace,
+}
+
 #[derive(Debug)]
-pub enum IndexError {
+pub enum IndexKind {
     BlockFile(blockfile2::Error),
     Utf8Error(Vec<u8>),
     FromUtf8Error(string::FromUtf8Error),
     IOError(io::Error),
 }
 
-impl Display for IndexError {
+impl Display for IndexKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            IndexError::BlockFile(e) => write!(f, "BlockFile {:?}", e),
-            IndexError::Utf8Error(v) => write!(f, "Utf8Error {:?}", v),
-            IndexError::IOError(v) => write!(f, "IOError {:?}", v),
-            IndexError::FromUtf8Error(v) => write!(f, "FromUtf8Error {:?}", v),
+            IndexKind::BlockFile(e) => write!(f, "BlockFile {:?}", e),
+            IndexKind::Utf8Error(v) => write!(f, "Utf8Error {:?}", v),
+            IndexKind::IOError(v) => write!(f, "IOError {:?}", v),
+            IndexKind::FromUtf8Error(v) => write!(f, "FromUtf8Error {:?}", v),
         }
+    }
+}
+
+impl IndexError {
+    pub fn err(kind: IndexKind) -> Self {
+        Self {
+            kind,
+            backtrace: Backtrace::capture(),
+        }
+    }
+}
+
+impl Debug for IndexError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:#}", self.kind)?;
+        writeln!(f, "{:#}", self.backtrace)?;
+        Ok(())
+    }
+}
+
+impl Display for IndexError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{:#}", self.kind)?;
+        writeln!(f, "{:#}", self.backtrace)?;
+        Ok(())
     }
 }
 
 impl From<blockfile2::Error> for IndexError {
     fn from(value: blockfile2::Error) -> Self {
-        IndexError::BlockFile(value)
+        IndexError::err(IndexKind::BlockFile(value))
     }
 }
 
 impl From<io::Error> for IndexError {
     fn from(value: io::Error) -> Self {
-        IndexError::IOError(value)
+        IndexError::err(IndexKind::IOError(value))
     }
 }
 
 impl From<string::FromUtf8Error> for IndexError {
     fn from(value: string::FromUtf8Error) -> Self {
-        IndexError::FromUtf8Error(value)
+        IndexError::err(IndexKind::FromUtf8Error(value))
     }
 }
 
@@ -63,7 +94,7 @@ impl std::error::Error for IndexError {}
 const BLOCK_SIZE: usize = 4096;
 
 pub struct Words {
-    db: WordFileBlocks,
+    pub db: WordFileBlocks,
     words: WordList,
     word_count: usize,
     bag_stats: [usize; BAG_LEN],
@@ -594,7 +625,9 @@ fn copy_fix<const LEN: usize>(src: &[u8]) -> [u8; LEN] {
 
 fn byte_to_str<const N: usize>(src: &[u8; N]) -> Result<&str, IndexError> {
     let Ok(word) = from_utf8(src.as_ref()) else {
-        return Err(IndexError::Utf8Error(Vec::from(src.as_ref())));
+        return Err(IndexError::err(IndexKind::Utf8Error(Vec::from(
+            src.as_ref(),
+        ))));
     };
     let word = word.trim_end_matches('\0');
     Ok(word)
