@@ -342,7 +342,9 @@ fn walk_proc(
                         let filter = name_filter(absolute);
 
                         if filter == FileFilter::Ignore {
-                            // print_(&printer, format!("ignore {:?}", relative));
+                            //if let Ok(mut log) = data.log.try_clone() {
+                            //    let _ = writeln!(log, "ignore {:?}", relative);
+                            //}
                             continue;
                         } else {
                             // print_(&printer, format!("process {:?}", relative));
@@ -394,7 +396,7 @@ fn load_proc(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
     state: Arc<Mutex<WorkerState>>,
-    _data: &'static Data,
+    data: &'static Data,
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
     let mut last_count = 0;
@@ -416,7 +418,9 @@ fn load_proc(
                 last_count = count;
                 let (filter, txt) = load_file(filter, &absolute)?;
                 if filter == FileFilter::Dubious {
-                    print_(printer, format!("dubious file {}", relative));
+                    if let Ok(mut log) = data.log.try_clone() {
+                        let _ = writeln!(log, "dubious file {}", relative);
+                    }
                 } else if filter != FileFilter::Ignore {
                     send.send(Msg::Index(count, filter, absolute, relative, txt))?;
                 }
@@ -460,7 +464,7 @@ fn index_proc(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
     state: Arc<Mutex<WorkerState>>,
-    _data: &'static Data,
+    data: &'static Data,
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
     let mut last_count = 0;
@@ -480,8 +484,27 @@ fn index_proc(
             Msg::Index(count, filter, _absolute, relative, txt) => {
                 state.lock().unwrap().state = 3;
                 last_count = count;
-                let words = indexing(filter, &relative, &txt);
-                send.send(Msg::MergeWords(count, words))?;
+                let (filter, words) = indexing(filter, &relative, &txt);
+                match filter {
+                    FileFilter::Ignore => {
+                        if let Ok(mut log) = data.log.try_clone() {
+                            let _ = writeln!(log, "ignore {}", relative);
+                        }
+                    }
+                    FileFilter::Inspect => {
+                        if let Ok(mut log) = data.log.try_clone() {
+                            let _ = writeln!(log, "inspect {}", relative);
+                        }
+                    }
+                    FileFilter::Dubious => {
+                        if let Ok(mut log) = data.log.try_clone() {
+                            let _ = writeln!(log, "dubious {}", relative);
+                        }
+                    }
+                    FileFilter::Text | FileFilter::Html => {
+                        send.send(Msg::MergeWords(count, words))?;
+                    }
+                }
             }
             msg => {
                 state.lock().unwrap().state = 4;
@@ -492,7 +515,7 @@ fn index_proc(
     Ok(())
 }
 
-pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> TmpWords {
+pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> (FileFilter, TmpWords) {
     let mut words = TmpWords::new(relative);
 
     match filter {
@@ -507,7 +530,9 @@ pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> TmpWords {
         FileFilter::Dubious => {}
     }
 
-    words
+    let filter = word_filter(&words);
+
+    (filter, words)
 }
 
 fn spawn_merge_words(
@@ -683,7 +708,7 @@ pub fn name_filter(path: &Path) -> FileFilter {
         "jpg", "pdf", "gif", "css", "png", "doc", "rtf", "js", "ico", "woff", "zip", "jpeg", "odt",
         "docx", "lit", "xml", "epub", "mobi", "exe", "mp3", "azw3", "bmp", "bak", "ccs", "css",
         "dwt", "eot", "img", "pdb", "prc", "psc", "swf", "svg", "wmf", "wpd", "wav", "mso", "mid",
-        "thmx", "zblorb",
+        "thmx", "zblorb", "rm", "ttf", "woff2", "eot", "emz", "mht",
     ];
     const NAME_IGNORE: &[&str] = &[
         ".message.ftp.txt",
@@ -706,6 +731,7 @@ pub fn name_filter(path: &Path) -> FileFilter {
         "dec.html",
         "ctur_seven2^4.html",
         "my_hot_little_sister.html",
+        "kindergarten_manager.html",
     ];
     const PREFIX_IGNORE: &[&str] = &["week"];
 
@@ -726,6 +752,8 @@ pub fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
 
     const HTML_RECOGNIZE: &[&str] = &[
         "<!--ADULTSONLY",
+        "<--",
+        "<head",
         "<HTML",
         "<html",
         "<?xml",
@@ -734,17 +762,47 @@ pub fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
         "_<!DOCTYPE",
     ];
 
-    if HTML_RECOGNIZE.iter().any(|v| txt.starts_with(*v)) {
+    if HTML_RECOGNIZE
+        .iter()
+        .any(|v| txt.trim_start().starts_with(*v))
+    {
         FileFilter::Html
     } else {
         let txt_part = &txt.as_bytes()[0..min(256, txt.len())];
         for c in txt_part.iter().copied() {
+            #[allow(unused_comparisons)]
             if c >= 0 && c <= 8 || c >= 11 && c <= 12 || c >= 14 && c <= 31 {
                 return FileFilter::Dubious;
             }
         }
         FileFilter::Text
     }
+}
+
+pub fn word_filter(words: &TmpWords) -> FileFilter {
+    // let mut count_char_2 = 0;
+    //
+    // for word in words.words.keys() {
+    //     let mut it = word.chars();
+    //     it.next();
+    //     if let Some(v) = it.next() {
+    //         match v {
+    //             '+' | '=' | '!' | '"' | '#' | '$' | '%' | '&' | '(' | ')' | '[' | ']' | '*'
+    //             | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | ':' | ';' | '?'
+    //             | '@' | '\\' | '~' | '`' => {
+    //                 count_char_2 += 1;
+    //             }
+    //             _ => {}
+    //         }
+    //     }
+    // }
+
+    let mut filter = FileFilter::Text;
+    // if count_char_2 > 5 {
+    //     filter = FileFilter::Dubious;
+    // }
+
+    filter
 }
 
 pub fn auto_save(

@@ -30,6 +30,11 @@ impl TmpWords {
             return;
         }
 
+        // spurios tags
+        if word.as_ref().contains('<') || word.as_ref().contains(">") {
+            return;
+        }
+
         if self.words.contains_key(word.as_ref()) {
             *self.words.get_mut(word.as_ref()).expect("word") += 1;
         } else {
@@ -112,10 +117,21 @@ pub fn index_txt(tmp_words: &mut TmpWords, text: &str) -> usize {
         });
         for word in words {
             let word = trim_word(word);
-            if let Some(c) = word.chars().next() {
+            let mut it = word.chars();
+            if let Some(c) = it.next() {
                 // numeric data ignored
                 if c.is_numeric() {
                     continue;
+                }
+                if let Some(c) = it.next() {
+                    match c {
+                        '+' | '=' | '!' | '"' | '#' | '$' | '%' | '&' | '(' | ')' | '[' | ']'
+                        | '*' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | ':'
+                        | ';' | '?' | '@' | '\\' | '~' | '`' => {
+                            continue;
+                        }
+                        _ => {}
+                    }
                 }
             }
             if word.is_empty() {

@@ -8,21 +8,11 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="fix tests.">
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/block_io.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/block_io.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/blocktype.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/header.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/header.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/physical.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/physical.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/stream.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap/types.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/lib.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="extend file filter.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/word_map.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/word_map.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -55,12 +45,9 @@
         <entry key="$PROJECT_DIR$/../blockfile2" value="blockfile2" />
       </map>
     </option>
+    <option name="RECENT_COMMON_BRANCH" value="master" />
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../blockfile2" />
     <option name="ROOT_SYNC" value="DONT_SYNC" />
-  </component>
-  <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/../blockfile/src/core.rs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/../blockfile/src/fileblocks.rs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="qkrebnhw" />
@@ -87,7 +74,7 @@
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.0",
     "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "editor.preferences.folding"
+    "settings.editor.selected.configurable": "preferences.keymap"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -99,7 +86,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Release">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -294,6 +281,7 @@
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+    <option name="version" value="2" />
   </component>
   <component name="RustfmtProjectSettings">
     <option name="runRustfmtOnSave" value="true" />
