@@ -6,10 +6,14 @@
   <component name="CargoProjects">
     <cargoProject FILE="$PROJECT_DIR$/../blockfile2/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+    <cargoProject FILE="$PROJECT_DIR$/../../StableProjects/kparse/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="extend file filter.">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="cast* is now unsafe.">
+      <change afterPath="$PROJECT_DIR$/src/proc3/stop_words.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
@@ -45,9 +49,12 @@
         <entry key="$PROJECT_DIR$/../blockfile2" value="blockfile2" />
       </map>
     </option>
-    <option name="RECENT_COMMON_BRANCH" value="master" />
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../blockfile2" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="ROOT_SYNC" value="DONT_SYNC" />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$PROJECT_DIR$/../blockfile/src/core.rs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/../blockfile/src/fileblocks.rs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="qkrebnhw" />
@@ -69,12 +76,12 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/textindex",
+    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/targetdir/debug/deps/textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.0",
     "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "preferences.keymap"
+    "settings.editor.selected.configurable": "editor.preferences.folding"
   }
 }]]></component>
   <component name="RecentsManager">
@@ -86,7 +93,12 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Release">
+  <component name="RunAnythingCache">
+    <option name="myCommands">
+      <command value="C:\Users\stommy\Documents\IdeaProjects\targetdir\debug\deps\textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt" />
+    </option>
+  </component>
+  <component name="RunManager" selected="Cargo.Build">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -281,7 +293,6 @@
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
-    <option name="version" value="2" />
   </component>
   <component name="RustfmtProjectSettings">
     <option name="runRustfmtOnSave" value="true" />
@@ -624,7 +635,23 @@
       <option name="project" value="LOCAL" />
       <updated>1699252539214</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00042" summary="bug: append_blockmap() didn't set dirty.&#10;&#10;make cast* unsafe.&#10;&#10;doc+cleanup.&#10;&#10;merge block-types NotAllocated and Free to Free only.&#10;&#10;add more verification to load().&#10;&#10;move block_align() to fileblocks. want no U in blockmap.rs.">
+      <option name="closed" value="true" />
+      <created>1699284573547</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1699284573547</updated>
+    </task>
+    <task id="LOCAL-00043" summary="cast* is now unsafe.">
+      <option name="closed" value="true" />
+      <created>1699284630503</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1699284630503</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -648,14 +675,13 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="master" />
+                        <option value="github/master" />
                       </list>
                     </value>
                   </entry>
                   <entry key="roots">
                     <value>
                       <list>
-                        <option value="$PROJECT_DIR$/../blockfile2" />
                         <option value="$PROJECT_DIR$" />
                       </list>
                     </value>
@@ -669,8 +695,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="adapt to blockfile2" />
-    <MESSAGE value="clippy" />
     <MESSAGE value="doc" />
     <MESSAGE value="cleanup" />
     <MESSAGE value="change the index types to proper newtypes instead of type aliases." />
@@ -694,6 +718,8 @@
     <MESSAGE value="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()" />
     <MESSAGE value="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock." />
     <MESSAGE value="fix tests." />
-    <option name="LAST_COMMIT_MESSAGE" value="fix tests." />
+    <MESSAGE value="bug: append_blockmap() didn't set dirty.&#10;&#10;make cast* unsafe.&#10;&#10;doc+cleanup.&#10;&#10;merge block-types NotAllocated and Free to Free only.&#10;&#10;add more verification to load().&#10;&#10;move block_align() to fileblocks. want no U in blockmap.rs." />
+    <MESSAGE value="cast* is now unsafe." />
+    <option name="LAST_COMMIT_MESSAGE" value="cast* is now unsafe." />
   </component>
 </project>

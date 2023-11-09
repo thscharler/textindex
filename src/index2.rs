@@ -347,25 +347,20 @@ impl Words {
         })
     }
 
-    /// Write everything to FileBlocks but don't actually store anything.
-    pub fn store_to_db(&mut self) -> Result<(), IndexError> {
+    pub fn write(&mut self) -> Result<(), IndexError> {
         self.words.store(&mut self.db)?;
         self.files.store(&mut self.db)?;
         self.wordmap.store(&mut self.db)?;
-        Ok(())
-    }
 
-    pub fn write(&mut self) -> Result<(), IndexError> {
-        self.store_to_db()?;
         self.write_stats();
+
         self.db.store()?;
+
         Self::cleanup(&mut self.db)?;
         Ok(())
     }
 
     fn cleanup(db: &mut WordFileBlocks) -> Result<(), IndexError> {
-        // let generation = self.db.generation();
-
         // retain some datablocks in memory.
         db.retain(|_k, v| match WordBlockType::user_type(v.block_type()) {
             Some(WordBlockType::WordList) => false,

@@ -4,9 +4,9 @@ use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Next, Stats, Summar
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::log::dump_diagnostics;
+use crate::proc3::mt::init_work;
 use crate::proc3::{
-    auto_save, find_matched_lines, indexing, init_work, load_file, shut_down, Data, FileFilter,
-    Msg, Work,
+    auto_save, find_matched_lines, indexing, load_file, shut_down, Data, FileFilter, Msg, Work,
 };
 use blockfile2::LogicalNr;
 use kparse::prelude::*;
@@ -194,13 +194,15 @@ fn parse_cmd(
             }
         }
         BCommand::Summary(Summary::Files(v)) => {
+            let mut log = data.log.try_clone()?;
+
             let found_guard = data.found.lock().expect("found");
             if let Some(file) = found_guard.files.get(v) {
                 let path = PathBuf::from(".");
                 let path = path.join(file);
 
                 let (filter, txt) = load_file(FileFilter::Inspect, &path)?;
-                let (_, words) = indexing(filter, file, &txt);
+                let (_, words) = indexing(&mut log, filter, file, &txt)?;
                 let occurance = words.invert();
 
                 for (k, v) in occurance.iter().rev() {
