@@ -4,9 +4,9 @@ use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Next, Stats, Summar
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::log::dump_diagnostics;
+use crate::proc3::threads::{init_work, Msg, Work};
 use crate::proc3::{
-    auto_save, find_matched_lines, indexing, init_work, load_file, shut_down, Data, FileFilter,
-    Msg, Work,
+    auto_save, find_matched_lines, indexing, load_file, shut_down, Data, FileFilter,
 };
 use blockfile2::LogicalNr;
 use kparse::prelude::*;
