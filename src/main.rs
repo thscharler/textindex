@@ -200,7 +200,7 @@ fn parse_cmd(
                 let path = path.join(file);
 
                 let (filter, txt) = load_file(FileFilter::Inspect, &path)?;
-                let (_, words) = indexing(filter, file, &txt);
+                let (_, words) = indexing(filter, file, &txt)?;
                 let occurance = words.invert();
 
                 for (k, v) in occurance.iter().rev() {

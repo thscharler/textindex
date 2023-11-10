@@ -20,7 +20,7 @@ pub enum Msg {
     WalkTree(PathBuf),
     WalkFinished(PathBuf),
     Load(u32, FileFilter, PathBuf, String),
-    Index(u32, FileFilter, PathBuf, String, String),
+    Index(u32, FileFilter, PathBuf, String, Vec<u8>),
     MergeWords(u32, TmpWords),
     DeleteFile(String),
     Debug,
@@ -340,9 +340,9 @@ fn load_proc(
                 state.lock().unwrap().state = 3;
                 last_count = count;
                 let (filter, txt) = load_file(filter, &absolute)?;
-                if filter == FileFilter::Dubious {
+                if filter == FileFilter::Binary {
                     if let Ok(mut log) = data.log.try_clone() {
-                        let _ = writeln!(log, "dubious file {}", relative);
+                        let _ = writeln!(log, "maybe binary file {}", relative);
                     }
                 } else if filter != FileFilter::Ignore {
                     send.send(Msg::Index(count, filter, absolute, relative, txt))?;
@@ -398,26 +398,17 @@ fn index_proc(
             Msg::Index(count, filter, _absolute, relative, txt) => {
                 state.lock().unwrap().state = 3;
                 last_count = count;
-                let (filter, words) = indexing(filter, &relative, &txt);
+                let (filter, words) = indexing(filter, &relative, &txt)?;
                 match filter {
-                    FileFilter::Ignore => {
+                    FileFilter::Binary => {
                         if let Ok(mut log) = data.log.try_clone() {
-                            let _ = writeln!(log, "ignore {}", relative);
-                        }
-                    }
-                    FileFilter::Inspect => {
-                        if let Ok(mut log) = data.log.try_clone() {
-                            let _ = writeln!(log, "inspect {}", relative);
-                        }
-                    }
-                    FileFilter::Dubious => {
-                        if let Ok(mut log) = data.log.try_clone() {
-                            let _ = writeln!(log, "dubious {}", relative);
+                            let _ = writeln!(log, "binary {}", relative);
                         }
                     }
                     FileFilter::Text | FileFilter::Html => {
                         send.send(Msg::MergeWords(count, words))?;
                     }
+                    _ => {}
                 }
             }
             msg => {

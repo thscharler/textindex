@@ -7,6 +7,7 @@ use rustyline::ExternalPrinter;
 use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::{File, OpenOptions};
+use std::io;
 use std::io::Read;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -23,7 +24,7 @@ pub mod threads;
 pub enum FileFilter {
     Ignore,
     Inspect,
-    Dubious,
+    Binary,
     Text,
     Html,
 }
@@ -93,31 +94,40 @@ pub fn shut_down(work: &Work) {
     }
 }
 
-pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, String), AppError> {
+pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, Vec<u8>), AppError> {
     let mut buf = Vec::new();
     File::open(&absolute)?.read_to_end(&mut buf)?;
-    let str = String::from_utf8_lossy(buf.as_slice());
-    let filter = content_filter(filter, str.as_ref());
 
-    Ok((filter, str.into()))
+    let filter = if filter == FileFilter::Inspect {
+        content_filter(&buf)
+    } else {
+        filter
+    };
+
+    Ok((filter, buf))
 }
 
-pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> (FileFilter, TmpWords) {
+pub fn indexing(
+    filter: FileFilter,
+    relative: &str,
+    txt: &Vec<u8>,
+) -> Result<(FileFilter, TmpWords), io::Error> {
     let mut words = TmpWords::new(relative);
+    let txt = String::from_utf8_lossy(txt.as_ref());
 
     match filter {
         FileFilter::Text => {
-            index_txt(&mut words, txt);
+            index_txt(&mut words, txt.as_ref());
         }
         FileFilter::Html => {
-            index_html(&mut words, txt);
+            index_html(&mut words, txt.as_ref());
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
-        FileFilter::Dubious => {}
+        FileFilter::Binary => {}
     }
 
-    (filter, words)
+    Ok((filter, words))
 }
 
 pub fn merge_words(
@@ -203,34 +213,37 @@ pub fn name_filter(path: &Path) -> FileFilter {
     }
 }
 
-pub fn content_filter(filter: FileFilter, txt: &str) -> FileFilter {
-    if filter == FileFilter::Ignore {
-        return filter;
-    }
-
-    const HTML_RECOGNIZE: &[&str] = &[
-        "<!--ADULTSONLY",
-        "<--",
-        "<head",
-        "<HTML",
-        "<html",
-        "<?xml",
-        "<!DOCTYPE",
-        "<!doctype",
-        "_<!DOCTYPE",
+pub fn content_filter(txt: &Vec<u8>) -> FileFilter {
+    const HTML_RECOGNIZE: &[&[u8]] = &[
+        b"<!--ADULTSONLY",
+        b"<--",
+        b"<head",
+        b"<HTML",
+        b"<html",
+        b"<?xml",
+        b"<!DOCTYPE",
+        b"<!doctype",
+        b"_<!DOCTYPE",
     ];
 
-    if HTML_RECOGNIZE
-        .iter()
-        .any(|v| txt.trim_start().starts_with(*v))
-    {
+    // omit starting whitespace
+    let mut start_idx = 0;
+    for i in 0..256 {
+        if txt[i] != b' ' && txt[i] != b'\t' {
+            start_idx = i;
+            break;
+        }
+    }
+    // dont scan everything
+    let txt_part = &txt[start_idx..min(start_idx + 256, txt.len())];
+
+    if HTML_RECOGNIZE.iter().any(|v| txt_part.starts_with(*v)) {
         FileFilter::Html
     } else {
-        let txt_part = &txt.as_bytes()[0..min(256, txt.len())];
         for c in txt_part.iter().copied() {
             #[allow(unused_comparisons)]
             if c >= 0 && c <= 8 || c >= 11 && c <= 12 || c >= 14 && c <= 31 {
-                return FileFilter::Dubious;
+                return FileFilter::Binary;
             }
         }
         FileFilter::Text
@@ -308,6 +321,7 @@ pub fn find_matched_lines(
         let path = path.join(&file);
 
         let (_filter, txt) = load_file(FileFilter::Inspect, &path)?;
+        let txt = String::from_utf8_lossy(txt.as_ref());
         let mut text_lines = Vec::new();
         for line in txt.split('\n') {
             let mut print_line = false;
