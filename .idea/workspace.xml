@@ -8,8 +8,13 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="defer utf8 conversion.&#10;&#10;first content filter checks 256 bytes to decide on html/binary/text.">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="cut down filenames filtered.">
+      <change afterPath="$PROJECT_DIR$/src/proc3/txt_parse.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3/threads.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -653,7 +658,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699597817923</updated>
     </task>
-    <option name="localTasksCounter" value="46" />
+    <task id="LOCAL-00046" summary="cut down filenames filtered.">
+      <option name="closed" value="true" />
+      <created>1699597993154</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1699597993154</updated>
+    </task>
+    <option name="localTasksCounter" value="47" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -698,7 +711,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="change the index types to proper newtypes instead of type aliases." />
     <MESSAGE value="TryFrom for BlockType" />
     <MESSAGE value="bug with blocktypes.&#10;&#10;cleanup" />
     <MESSAGE value="split index2" />
@@ -723,6 +735,7 @@
     <MESSAGE value="move indexer to new module." />
     <MESSAGE value="clean up add_word" />
     <MESSAGE value="defer utf8 conversion.&#10;&#10;first content filter checks 256 bytes to decide on html/binary/text." />
-    <option name="LAST_COMMIT_MESSAGE" value="defer utf8 conversion.&#10;&#10;first content filter checks 256 bytes to decide on html/binary/text." />
+    <MESSAGE value="cut down filenames filtered." />
+    <option name="LAST_COMMIT_MESSAGE" value="cut down filenames filtered." />
   </component>
 </project>

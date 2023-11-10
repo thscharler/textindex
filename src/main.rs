@@ -1,5 +1,3 @@
-extern crate core;
-
 use crate::cmds::{parse_cmds, BCommand, CCode, Cmds, Delete, Next, Stats, Summary};
 use crate::cmds::{Files, Find};
 use crate::error::AppError;
@@ -194,13 +192,15 @@ fn parse_cmd(
             }
         }
         BCommand::Summary(Summary::Files(v)) => {
+            let mut log = data.log.try_clone()?;
+
             let found_guard = data.found.lock().expect("found");
             if let Some(file) = found_guard.files.get(v) {
                 let path = PathBuf::from(".");
                 let path = path.join(file);
 
                 let (filter, txt) = load_file(FileFilter::Inspect, &path)?;
-                let (_, words) = indexing(filter, file, &txt)?;
+                let (_, words) = indexing(&mut log, filter, file, &txt)?;
                 let occurance = words.invert();
 
                 for (k, v) in occurance.iter().rev() {

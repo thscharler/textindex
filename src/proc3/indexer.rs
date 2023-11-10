@@ -1,9 +1,16 @@
 use crate::index2::tmp_index::TmpWords;
 use crate::proc3::stop_words::STOP_WORDS;
+use crate::proc3::txt_parse;
+use crate::proc3::txt_parse::{TxtCode, TxtPart};
 use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
 use html5ever::tendril::{StrTendril, TendrilSink};
 use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
+use kparse::prelude::TrackProvider;
+use kparse::Track;
 use std::borrow::Cow;
+use std::fs::File;
+use std::io;
+use std::io::Write;
 use std::time::{Duration, Instant};
 
 pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
@@ -14,6 +21,12 @@ pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
 }
 
 pub fn index_txt(tmp_words: &mut TmpWords, text: &str) -> usize {
+pub fn index_txt(
+    _log: &mut File,
+    _relative: &str,
+    tmp_words: &mut TmpWords,
+    text: &str,
+) -> Result<usize, io::Error> {
     let mut n_words = 0usize;
 
     let mut base64_section = false;
@@ -104,14 +117,19 @@ pub fn index_txt(tmp_words: &mut TmpWords, text: &str) -> usize {
         }
     }
 
-    n_words
+    Ok(n_words)
 }
 
 fn trim_word(word: &str) -> &str {
     word.trim_matches(|c: char| !c.is_alphanumeric())
 }
 
-pub fn index_html(words: &mut TmpWords, buf: &str) {
+pub fn index_html(
+    log: &mut File,
+    relative: &str,
+    words: &mut TmpWords,
+    buf: &str,
+) -> Result<(), io::Error> {
     #[derive(Debug)]
     struct IdxSink {
         pub txt: String,
@@ -231,5 +249,7 @@ pub fn index_html(words: &mut TmpWords, buf: &str) {
     let p = parse_document(&mut s, ParseOpts::default());
     p.one(buf);
 
-    index_txt(words, s.txt.as_str());
+    index_txt(log, relative, words, s.txt.as_str())?;
+
+    Ok(())
 }

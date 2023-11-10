@@ -396,19 +396,24 @@ fn index_proc(
                 send.send(Msg::Debug)?;
             }
             Msg::Index(count, filter, _absolute, relative, txt) => {
+                let Ok(mut log) = data.log.try_clone() else {
+                    panic!();
+                };
+
                 state.lock().unwrap().state = 3;
                 last_count = count;
-                let (filter, words) = indexing(filter, &relative, &txt)?;
+                let (filter, words) = indexing(&mut log, filter, &relative, &txt)?;
                 match filter {
                     FileFilter::Binary => {
-                        if let Ok(mut log) = data.log.try_clone() {
-                            let _ = writeln!(log, "binary {}", relative);
-                        }
+                        let _ = writeln!(log, "binary file {}", relative);
+                        // send.send(Msg::MergeWords(count, words))?;
                     }
                     FileFilter::Text | FileFilter::Html => {
                         send.send(Msg::MergeWords(count, words))?;
                     }
-                    _ => {}
+                    _ => {
+                        unimplemented!()
+                    }
                 }
             }
             msg => {

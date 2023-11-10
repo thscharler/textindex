@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::index2::tmp_index::TmpWords;
 use crate::index2::Words;
-use crate::proc3::indexer::{index_html, index_txt};
+use crate::proc3::indexer::{index_html, index_txt, index_txt2};
 use crate::proc3::threads::{Msg, Work, WorkerState};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
@@ -19,6 +19,7 @@ use wildmatch::WildMatch;
 pub mod indexer;
 pub mod stop_words;
 pub mod threads;
+pub mod txt_parse;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum FileFilter {
@@ -108,6 +109,7 @@ pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, Vec
 }
 
 pub fn indexing(
+    log: &mut File,
     filter: FileFilter,
     relative: &str,
     txt: &Vec<u8>,
@@ -117,10 +119,10 @@ pub fn indexing(
 
     match filter {
         FileFilter::Text => {
-            index_txt(&mut words, txt.as_ref());
+            index_txt(log, relative, &mut words, txt.as_ref())?;
         }
         FileFilter::Html => {
-            index_html(&mut words, txt.as_ref());
+            index_html(log, relative, &mut words, txt.as_ref())?;
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
