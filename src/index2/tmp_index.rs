@@ -1,11 +1,11 @@
 use crate::proc3::stop_words::STOP_WORDS;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 
 #[derive(Debug)]
 pub struct TmpWords {
     pub file: String,
-    pub words: BTreeMap<String, usize>,
+    pub words: HashMap<String, usize>,
     pub count: usize,
 }
 
@@ -19,18 +19,6 @@ impl TmpWords {
     }
 
     pub fn add_word<S: AsRef<str>>(&mut self, word: S) {
-        if STOP_WORDS
-            .binary_search_by(|probe| (*probe).cmp(word.as_ref()))
-            .is_ok()
-        {
-            return;
-        }
-
-        // spurios tags
-        if word.as_ref().contains('<') || word.as_ref().contains(">") {
-            return;
-        }
-
         if self.words.contains_key(word.as_ref()) {
             *self.words.get_mut(word.as_ref()).expect("word") += 1;
         } else {
