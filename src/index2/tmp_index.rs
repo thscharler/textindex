@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
-use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub struct TmpWords {
