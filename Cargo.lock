@@ -278,8 +278,6 @@ dependencies = [
 [[package]]
 name = "kparse"
 version = "3.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9f65da69815dd048095c5b95a6d3e16d7d2b788e52ea4913a565df9c143971e"
 dependencies = [
  "bytecount",
  "memchr",

@@ -6,15 +6,18 @@
   <component name="CargoProjects">
     <cargoProject FILE="$PROJECT_DIR$/../blockfile2/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+    <cargoProject FILE="$PROJECT_DIR$/../../StableProjects/kparse/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="cut down filenames filtered.">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="new text indexer based on nom.">
       <change afterPath="$PROJECT_DIR$/src/proc3/txt_parse.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3/threads.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,11 +74,11 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "before__293",
-    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/textindex",
+    "last_opened_file_path": "C:/Users/stommy/Documents/StableProjects/kparse",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
+    "project.structure.proportion": "0.15078124",
+    "project.structure.side.proportion": "0.2",
     "settings.editor.selected.configurable": "preferences.keymap"
   }
 }]]></component>
@@ -88,7 +91,7 @@
       <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
     </key>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Release">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -666,7 +669,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699597993154</updated>
     </task>
-    <option name="localTasksCounter" value="47" />
+    <task id="LOCAL-00047" summary="start rebuild as nom parser.">
+      <option name="closed" value="true" />
+      <created>1699599383459</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1699599383459</updated>
+    </task>
+    <option name="localTasksCounter" value="48" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -711,8 +722,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="TryFrom for BlockType" />
-    <MESSAGE value="bug with blocktypes.&#10;&#10;cleanup" />
     <MESSAGE value="split index2" />
     <MESSAGE value="undo first occurance hack." />
     <MESSAGE value="error handling" />
@@ -736,6 +745,8 @@
     <MESSAGE value="clean up add_word" />
     <MESSAGE value="defer utf8 conversion.&#10;&#10;first content filter checks 256 bytes to decide on html/binary/text." />
     <MESSAGE value="cut down filenames filtered." />
-    <option name="LAST_COMMIT_MESSAGE" value="cut down filenames filtered." />
+    <MESSAGE value="start rebuild as nom parser." />
+    <MESSAGE value="new text indexer based on nom." />
+    <option name="LAST_COMMIT_MESSAGE" value="new text indexer based on nom." />
   </component>
 </project>

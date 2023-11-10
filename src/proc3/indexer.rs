@@ -20,7 +20,66 @@ pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
     result
 }
 
-pub fn index_txt(tmp_words: &mut TmpWords, text: &str) -> usize {
+pub fn index_txt2(
+    log: &mut File,
+    relative: &str,
+    tmp_words: &mut TmpWords,
+    text: &str,
+) -> Result<usize, io::Error> {
+    let mut n_words = 0usize;
+
+    let tracker = Track::new_tracker::<TxtCode, _>();
+    let mut input = Track::new_span(&tracker, text);
+    // let mut input = text;
+    'l: loop {
+        match txt_parse::parse_txt(input) {
+            Ok((rest, v)) => {
+                match v {
+                    TxtPart::Text(v) => {
+                        n_words += 1;
+                        let word = v.to_lowercase();
+                        if STOP_WORDS
+                            .binary_search_by(|probe| (*probe).cmp(word.as_ref()))
+                            .is_ok()
+                        {
+                            continue 'l;
+                        }
+                        // spurios tags
+                        // if word.contains('<') || word.contains(">") {
+                        //     continue 'l;
+                        // }
+                        tmp_words.add_word(word);
+                    }
+                    TxtPart::Eof => {
+                        break 'l;
+                    }
+                    TxtPart::Tag => {}
+                    TxtPart::Pgp => {}
+                    TxtPart::Base64 => {}
+                    TxtPart::KeyValue => {}
+                    TxtPart::NonText => {}
+                    TxtPart::NewLine => {}
+                }
+                // let r = tracker.results();
+                // writeln!(log, "{:#?}", r)?;
+
+                input = rest;
+            }
+            Err(e) => {
+                let r = tracker.results();
+                println!("{}", relative);
+                println!("{:#?}", e);
+                println!("{:#?}", r);
+                writeln!(log, "{}", relative)?;
+                writeln!(log, "{:#?}", e)?;
+                writeln!(log, "{:#?}", r)?;
+            }
+        }
+    }
+
+    Ok(n_words)
+}
+
 pub fn index_txt(
     _log: &mut File,
     _relative: &str,

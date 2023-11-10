@@ -119,7 +119,7 @@ pub fn indexing(
 
     match filter {
         FileFilter::Text => {
-            index_txt(log, relative, &mut words, txt.as_ref())?;
+            index_txt2(log, relative, &mut words, txt.as_ref())?;
         }
         FileFilter::Html => {
             index_html(log, relative, &mut words, txt.as_ref())?;
