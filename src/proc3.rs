@@ -182,31 +182,11 @@ pub fn name_filter(path: &Path) -> FileFilter {
         ".message.ftp.txt",
         "history.txt",
         ".stored",
-        ".tmp_stored",
+        "log.txt",
         "thumbs.db",
-        "index.html",
-        "jan.html",
-        "feb.html",
-        "mar.html",
-        "apr.html",
-        "may.html",
-        "jun.html",
-        "jul.html",
-        "aug.html",
-        "sep.html",
-        "oct.html",
-        "nov.html",
-        "dec.html",
-        "ctur_seven2^4.html",
-        "my_hot_little_sister.html",
-        "kindergarten_manager.html",
     ];
-    const PREFIX_IGNORE: &[&str] = &["week"];
 
-    if EXT_IGNORE.contains(&ext.as_str())
-        || NAME_IGNORE.contains(&name.as_str())
-        || PREFIX_IGNORE.iter().any(|v| name.starts_with(*v))
-    {
+    if EXT_IGNORE.contains(&ext.as_str()) || NAME_IGNORE.contains(&name.as_str()) {
         FileFilter::Ignore
     } else {
         FileFilter::Inspect
