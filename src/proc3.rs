@@ -1,6 +1,7 @@
 use crate::error::AppError;
-use crate::index2::tmp_index::{index_html, index_txt, TmpWords};
+use crate::index2::tmp_index::TmpWords;
 use crate::index2::Words;
+use crate::proc3::indexer::{index_html, index_txt};
 use crate::proc3::threads::{Msg, Work, WorkerState};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
@@ -14,6 +15,8 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 use wildmatch::WildMatch;
 
+pub mod indexer;
+pub mod stop_words;
 pub mod threads;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -117,7 +120,7 @@ pub fn indexing(filter: FileFilter, relative: &str, txt: &str) -> (FileFilter, T
     (filter, words)
 }
 
-fn merge_words(
+pub fn merge_words(
     data: &'static Data,
     state: &Arc<Mutex<WorkerState>>,
     words_buffer: TmpWords,
@@ -273,7 +276,7 @@ fn print_err_(
     }
 }
 
-pub fn timing<S: AsRef<str>, R>(
+fn timing<S: AsRef<str>, R>(
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
     name: S,
     threshold: u64,

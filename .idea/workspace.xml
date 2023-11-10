@@ -8,10 +8,11 @@
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="extend file filter.">
-      <change afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="split off threading into separate module">
+      <change afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/proc3/stop_words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -624,7 +625,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699252539214</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00042" summary="split off threading into separate module">
+      <option name="closed" value="true" />
+      <created>1699595658635</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1699595658636</updated>
+    </task>
+    <option name="localTasksCounter" value="43" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -648,7 +657,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="master" />
+                        <option value="before_293" />
                       </list>
                     </value>
                   </entry>
@@ -669,7 +678,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="adapt to blockfile2" />
     <MESSAGE value="clippy" />
     <MESSAGE value="doc" />
     <MESSAGE value="cleanup" />
@@ -694,6 +702,7 @@
     <MESSAGE value="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()" />
     <MESSAGE value="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock." />
     <MESSAGE value="fix tests." />
-    <option name="LAST_COMMIT_MESSAGE" value="fix tests." />
+    <MESSAGE value="split off threading into separate module" />
+    <option name="LAST_COMMIT_MESSAGE" value="split off threading into separate module" />
   </component>
 </project>
