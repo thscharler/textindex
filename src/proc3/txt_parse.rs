@@ -5,7 +5,7 @@ use kparse::{define_span, Code, ErrInto, ParseSpan, TokenizerError, Track, Track
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1, take_while_m_n};
 use nom::character::complete::one_of;
-use nom::combinator::recognize;
+use nom::combinator::{opt, recognize};
 use nom::sequence::{preceded, terminated, tuple};
 use nom::{InputIter, InputTake, Slice};
 use std::fmt::{Debug, Display, Formatter};
@@ -74,8 +74,8 @@ pub fn parse_txt(input: Span<'_>) -> ParserResult<'_, TxtPart> {
     let rest = input;
 
     // at beginning of line
-    let (rest, v) = newline(rest).err_into().track()?;
-    let (rest, v) = if !v.is_empty() {
+    let (rest, v) = opt(newline)(rest).err_into().track()?;
+    let (rest, v) = if v.is_some() {
         let (rest, _) = whitespace(rest).err_into()?;
         match alt((parse_pgp, parse_base64, parse_key_value))(rest) {
             Ok((rest, v)) => (rest, Some(v)),
@@ -180,7 +180,7 @@ pub fn tok_non_word0(input: Span<'_>) -> TokenizerResult<'_> {
 #[inline]
 pub fn parse_pgp(input: Span<'_>) -> ParserResult<'_, TxtPart> {
     Track.enter(TxtCode::Pgp, input);
-    let (rest, v) = recognize(tuple((
+    let (rest, _v) = recognize(tuple((
         tag("-----BEGIN PGP SIGNATURE-----"),
         tok_any_until_new_line,
         newline,
@@ -288,7 +288,7 @@ pub fn tok_base64_end(input: Span<'_>) -> TokenizerResult<'_> {
 
 #[inline]
 pub fn parse_key_value(input: Span<'_>) -> ParserResult<'_, TxtPart> {
-    let (rest, v) = track(
+    let (rest, _v) = track(
         TxtCode::KeyValue,
         recognize(tuple((tok_key, pchar(':'), tok_any_until_new_line))),
     )(input)

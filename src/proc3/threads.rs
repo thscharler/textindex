@@ -340,7 +340,7 @@ fn load_proc(
                 state.lock().unwrap().state = 3;
                 last_count = count;
                 let (filter, txt) = load_file(filter, &absolute)?;
-                if filter == FileFilter::Binary {
+                if filter == FileFilter::Ignore {
                     if let Ok(mut log) = data.log.try_clone() {
                         let _ = writeln!(log, "maybe binary file {}", relative);
                     }
@@ -404,7 +404,7 @@ fn index_proc(
                 last_count = count;
                 let (filter, words) = indexing(&mut log, filter, &relative, &txt)?;
                 match filter {
-                    FileFilter::Binary => {
+                    FileFilter::Ignore => {
                         let _ = writeln!(log, "binary file {}", relative);
                         // send.send(Msg::MergeWords(count, words))?;
                     }

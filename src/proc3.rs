@@ -8,8 +8,7 @@ use std::borrow::Cow;
 use std::cmp::min;
 use std::fs::{File, OpenOptions};
 use std::io;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
@@ -25,7 +24,6 @@ pub mod txt_parse;
 pub enum FileFilter {
     Ignore,
     Inspect,
-    Binary,
     Text,
     Html,
 }
@@ -99,13 +97,25 @@ pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, Vec
     let mut buf = Vec::new();
     File::open(&absolute)?.read_to_end(&mut buf)?;
 
-    let filter = if filter == FileFilter::Inspect {
-        content_filter(&buf)
-    } else {
-        filter
-    };
+    if filter == FileFilter::Inspect {
+        let mut buf = [0u8; 256];
 
-    Ok((filter, buf))
+        let mut file = File::open(&absolute)?;
+        file.read_exact(&mut buf)?;
+        match content_filter(buf.as_ref()) {
+            FileFilter::Ignore => Ok((FileFilter::Ignore, Vec::new())),
+            f => {
+                file.seek(SeekFrom::Start(0))?;
+                let mut buf = Vec::new();
+                file.read_to_end(&mut buf)?;
+                Ok((f, buf))
+            }
+        }
+    } else {
+        let mut buf = Vec::new();
+        File::open(&absolute)?.read_to_end(&mut buf)?;
+        Ok((filter, buf))
+    }
 }
 
 pub fn indexing(
@@ -126,7 +136,6 @@ pub fn indexing(
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
-        FileFilter::Binary => {}
     }
 
     Ok((filter, words))
@@ -195,7 +204,7 @@ pub fn name_filter(path: &Path) -> FileFilter {
     }
 }
 
-pub fn content_filter(txt: &Vec<u8>) -> FileFilter {
+pub fn content_filter(txt: &[u8]) -> FileFilter {
     const HTML_RECOGNIZE: &[&[u8]] = &[
         b"<!--ADULTSONLY",
         b"<--",
@@ -211,7 +220,7 @@ pub fn content_filter(txt: &Vec<u8>) -> FileFilter {
     // omit starting whitespace
     let mut start_idx = 0;
     for i in 0..256 {
-        if txt[i] != b' ' && txt[i] != b'\t' {
+        if txt[i] != b' ' && txt[i] != b'\t' && txt[i] != b'\n' && txt[i] != b'\r' {
             start_idx = i;
             break;
         }
@@ -225,7 +234,7 @@ pub fn content_filter(txt: &Vec<u8>) -> FileFilter {
         for c in txt_part.iter().copied() {
             #[allow(unused_comparisons)]
             if c >= 0 && c <= 8 || c >= 11 && c <= 12 || c >= 14 && c <= 31 {
-                return FileFilter::Binary;
+                return FileFilter::Ignore;
             }
         }
         FileFilter::Text
@@ -302,8 +311,11 @@ pub fn find_matched_lines(
         let path = PathBuf::from(".");
         let path = path.join(&file);
 
-        let (_filter, txt) = load_file(FileFilter::Inspect, &path)?;
+        let mut txt = Vec::new();
+        File::open(&path)?.read_to_end(&mut txt)?;
+
         let txt = String::from_utf8_lossy(txt.as_ref());
+
         let mut text_lines = Vec::new();
         for line in txt.split('\n') {
             let mut print_line = false;

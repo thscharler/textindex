@@ -10,13 +10,20 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="cast* is now unsafe.">
-      <change afterPath="$PROJECT_DIR$/src/proc3/stop_words.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/files.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3/threads.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3/txt_parse.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/txt_parse.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/parser_error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/parser_error.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -76,7 +83,7 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/targetdir/debug/deps/textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt",
+    "last_opened_file_path": "C:/Users/stommy/Documents/StableProjects/kparse",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.0",
@@ -98,7 +105,7 @@
       <command value="C:\Users\stommy\Documents\IdeaProjects\targetdir\debug\deps\textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt" />
     </option>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Release">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -675,7 +682,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="github/master" />
+                        <option value="origin/before_293" />
                       </list>
                     </value>
                   </entry>
