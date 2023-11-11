@@ -1,5 +1,4 @@
 use kparse::combinators::{pchar, track};
-use kparse::spans::SpanFragment;
 use kparse::KParseError;
 use kparse::{define_span, Code, ErrInto, ParseSpan, TokenizerError, Track, TrackResult};
 use nom::branch::alt;
@@ -24,6 +23,8 @@ pub enum TxtCode {
 
     WordTok,
     NonWord,
+    Base64Begin2,
+    Base64End2,
     Base64Begin,
     Base64Line,
     Base64Stop,
@@ -77,7 +78,7 @@ pub fn parse_txt(input: Span<'_>) -> ParserResult<'_, TxtPart> {
     let (rest, v) = opt(newline)(rest).err_into().track()?;
     let (rest, v) = if v.is_some() {
         let (rest, _) = whitespace(rest).err_into()?;
-        match alt((parse_pgp, parse_base64, parse_key_value))(rest) {
+        match alt((parse_pgp, parse_base64, parse_base64_v2, parse_key_value))(rest) {
             Ok((rest, v)) => (rest, Some(v)),
             Err(_) => (rest, None),
         }
@@ -221,6 +222,51 @@ pub fn tok_pgp_text(input: Span<'_>) -> TokenizerResult<'_> {
             }
         }
     }
+}
+
+#[inline]
+pub fn parse_base64_v2(input: Span<'_>) -> ParserResult<'_, TxtPart> {
+    let rest = input;
+
+    let (rest, _v) = tok_base64_begin_v2(rest).err_into()?;
+
+    let mut rest2 = rest;
+    loop {
+        let (rest3, v) = alt((
+            preceded(newline, tok_base64_end_v2),
+            preceded(newline, tok_base64_line),
+        ))(rest2)
+        .err_into()?;
+
+        rest2 = rest3;
+
+        if *v.fragment() == "END" {
+            break;
+        }
+    }
+    let rest = rest2;
+
+    Ok((rest, TxtPart::Base64))
+}
+
+#[inline]
+pub fn tok_base64_begin_v2(input: Span<'_>) -> TokenizerResult<'_> {
+    track(
+        TxtCode::Base64Begin2,
+        recognize(tuple((tag("BEGIN"), tok_any_until_new_line))),
+    )(input)
+    .with_code(TxtCode::Base64Begin2)
+}
+
+#[inline]
+pub fn tok_base64_end_v2(input: Span<'_>) -> TokenizerResult<'_> {
+    let (rest, (r0, r1)) = track(
+        TxtCode::Base64End2,
+        tuple((tag("END"), tok_any_until_new_line)),
+    )(input)
+    .with_code(TxtCode::Base64End2)?;
+
+    Ok((rest, r0))
 }
 
 #[inline]

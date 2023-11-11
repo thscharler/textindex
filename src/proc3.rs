@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::index2::tmp_index::TmpWords;
 use crate::index2::Words;
-use crate::proc3::indexer::{index_html, index_txt, index_txt2};
+use crate::proc3::indexer::{index_html, index_txt2};
 use crate::proc3::threads::{Msg, Work, WorkerState};
 use rustyline::ExternalPrinter;
 use std::borrow::Cow;
@@ -101,8 +101,8 @@ pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, Vec
         let mut buf = [0u8; 256];
 
         let mut file = File::open(&absolute)?;
-        file.read_exact(&mut buf)?;
-        match content_filter(buf.as_ref()) {
+        let n = file.read(&mut buf)?;
+        match content_filter(&buf[..n]) {
             FileFilter::Ignore => Ok((FileFilter::Ignore, Vec::new())),
             f => {
                 file.seek(SeekFrom::Start(0))?;
@@ -192,7 +192,7 @@ pub fn name_filter(path: &Path) -> FileFilter {
     const NAME_IGNORE: &[&str] = &[
         ".message.ftp.txt",
         "history.txt",
-        ".stored",
+        "stored.idx",
         "log.txt",
         "thumbs.db",
     ];
@@ -219,14 +219,14 @@ pub fn content_filter(txt: &[u8]) -> FileFilter {
 
     // omit starting whitespace
     let mut start_idx = 0;
-    for i in 0..256 {
+    for i in 0..txt.len() {
         if txt[i] != b' ' && txt[i] != b'\t' && txt[i] != b'\n' && txt[i] != b'\r' {
             start_idx = i;
             break;
         }
     }
     // dont scan everything
-    let txt_part = &txt[start_idx..min(start_idx + 256, txt.len())];
+    let txt_part = &txt[start_idx..min(start_idx + txt.len(), txt.len())];
 
     if HTML_RECOGNIZE.iter().any(|v| txt_part.starts_with(*v)) {
         FileFilter::Html

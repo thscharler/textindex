@@ -30,10 +30,14 @@ pub fn index_txt2(
 
     let tracker = Track::new_tracker::<TxtCode, _>();
     let mut input = Track::new_span(&tracker, text);
-    // let mut input = text;
     'l: loop {
         match txt_parse::parse_txt(input) {
             Ok((rest, v)) => {
+                input = rest;
+
+                // let r = tracker.results();
+                // writeln!(log, "{:#?}", r)?;
+
                 match v {
                     TxtPart::Text(v) => {
                         n_words += 1;
@@ -44,10 +48,6 @@ pub fn index_txt2(
                         {
                             continue 'l;
                         }
-                        // spurios tags
-                        // if word.contains('<') || word.contains(">") {
-                        //     continue 'l;
-                        // }
                         tmp_words.add_word(word);
                     }
                     TxtPart::Eof => {
@@ -60,127 +60,23 @@ pub fn index_txt2(
                     TxtPart::NonText => {}
                     TxtPart::NewLine => {}
                 }
-                // let r = tracker.results();
-                // writeln!(log, "{:#?}", r)?;
-
-                input = rest;
             }
             Err(e) => {
                 let r = tracker.results();
                 println!("{}", relative);
                 println!("{:#?}", e);
                 println!("{:#?}", r);
+
                 writeln!(log, "{}", relative)?;
                 writeln!(log, "{:#?}", e)?;
                 writeln!(log, "{:#?}", r)?;
+
+                break 'l;
             }
         }
     }
 
     Ok(n_words)
-}
-
-pub fn index_txt(
-    _log: &mut File,
-    _relative: &str,
-    tmp_words: &mut TmpWords,
-    text: &str,
-) -> Result<usize, io::Error> {
-    let mut n_words = 0usize;
-
-    let mut base64_section = false;
-    let mut pgp_section = false;
-
-    for line in text.split('\n') {
-        // skip headers like:
-        // Subject: some subject ...
-        if let Some(header) = line.split_once(|c: char| c == ':') {
-            if header
-                .0
-                .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '*')
-                .is_none()
-            {
-                continue;
-            }
-        }
-        if let Some(c) = line.chars().next() {
-            // text-frames ignored
-            if c == '|' || c == '+' {
-                continue;
-            }
-        }
-        if line.starts_with("begin") {
-            base64_section = true;
-        }
-        if base64_section && line.starts_with("end") {
-            base64_section = false;
-        }
-        if base64_section && line.starts_with('M') {
-            continue;
-        }
-        if line.contains("-----BEGIN PGP SIGNATURE-----") {
-            pgp_section = true;
-        }
-        if pgp_section && line.contains("-----END PGP SIGNATURE-----") {
-            pgp_section = false;
-        }
-        if pgp_section {
-            continue;
-        }
-
-        // split at white
-        let words = line.split(|c: char| {
-            c as u32 <= 32
-                || c == '_'
-                || c == ','
-                || c == '.'
-                || c == '-'
-                || c == '\u{FFFD}'
-                || c.is_whitespace()
-        });
-        for word in words {
-            let word = trim_word(word);
-            let mut it = word.chars();
-            if let Some(c) = it.next() {
-                // numeric data ignored
-                if c.is_numeric() {
-                    continue;
-                }
-                if let Some(c) = it.next() {
-                    match c {
-                        '+' | '=' | '!' | '"' | '#' | '$' | '%' | '&' | '(' | ')' | '[' | ']'
-                        | '*' | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | ':'
-                        | ';' | '?' | '@' | '\\' | '~' | '`' => {
-                            continue;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            if STOP_WORDS
-                .binary_search_by(|probe| (*probe).cmp(word))
-                .is_ok()
-            {
-                continue;
-            }
-            // spurios tags
-            if word.contains('<') || word.contains(">") {
-                continue;
-            }
-            if word.is_empty() {
-                continue;
-            }
-
-            n_words += 1;
-            tmp_words.add_word(word.to_lowercase());
-        }
-    }
-
-    Ok(n_words)
-}
-
-fn trim_word(word: &str) -> &str {
-    word.trim_matches(|c: char| !c.is_alphanumeric())
 }
 
 pub fn index_html(
@@ -308,7 +204,7 @@ pub fn index_html(
     let p = parse_document(&mut s, ParseOpts::default());
     p.one(buf);
 
-    index_txt(log, relative, words, s.txt.as_str())?;
+    index_txt2(log, relative, words, s.txt.as_str())?;
 
     Ok(())
 }

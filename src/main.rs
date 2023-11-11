@@ -12,7 +12,6 @@ use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
-use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
@@ -20,19 +19,13 @@ use std::process::exit;
 mod cmdlib;
 mod cmds;
 mod error;
-// mod index;
 pub mod index2;
 mod log;
 pub mod proc3;
 
 fn main() -> Result<(), AppError> {
-    let tmp = PathBuf::from(".tmp_stored");
-    if tmp.exists() {
-        fs::remove_file(tmp)?;
-    }
-
     println!("loading");
-    let stored = PathBuf::from(".stored");
+    let stored = PathBuf::from("stored.idx");
     let data = match Data::read(&stored) {
         Ok(v) => v,
         Err(e) => {

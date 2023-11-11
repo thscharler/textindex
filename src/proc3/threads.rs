@@ -263,14 +263,8 @@ fn walk_proc(
                             .to_string();
 
                         let filter = name_filter(absolute);
-
                         if filter == FileFilter::Ignore {
-                            //if let Ok(mut log) = data.log.try_clone() {
-                            //    let _ = writeln!(log, "ignore {:?}", relative);
-                            //}
                             continue;
-                        } else {
-                            // print_(&printer, format!("process {:?}", relative));
                         }
 
                         let do_send = {
