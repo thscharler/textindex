@@ -5,6 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/TextIndex.iml" filepath="$PROJECT_DIR$/TextIndex.iml" />
       <module fileurl="file://$PROJECT_DIR$/../blockfile2/blockfile2.iml" filepath="$PROJECT_DIR$/../blockfile2/blockfile2.iml" />
       <module fileurl="file://$PROJECT_DIR$/../../StableProjects/kparse/kparse.iml" filepath="$PROJECT_DIR$/../../StableProjects/kparse/kparse.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" filepath="$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" />
     </modules>
   </component>
 </project>

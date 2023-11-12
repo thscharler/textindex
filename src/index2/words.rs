@@ -130,6 +130,8 @@ impl WordList {
             };
 
             if word_data.block_nr != 0 {
+                // no updates necessary
+
                 // let block = db.get_mut(word_data.block_nr)?;
                 // let word_list = block.cast_array_mut::<RawWord>();
                 //
@@ -147,7 +149,7 @@ impl WordList {
                 block.set_dirty(true);
 
                 let word_list = unsafe { block.cast_array_mut::<RawWord>() };
-                word_list[self.last_block_idx.as_usize()] = w; //todo: XXS!
+                word_list[self.last_block_idx.as_usize()] = w;
                 word_data.block_nr = self.last_block_nr;
                 word_data.block_idx = self.last_block_idx;
 

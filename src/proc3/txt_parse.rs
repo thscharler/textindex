@@ -1,5 +1,7 @@
 use kparse::combinators::{pchar, track};
+use kparse::spans::SpanFragment;
 use kparse::KParseError;
+#[allow(unused_imports)]
 use kparse::{define_span, Code, ErrInto, ParseSpan, TokenizerError, Track, TrackResult};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while, take_while1, take_while_m_n};
@@ -62,8 +64,8 @@ pub enum TxtPart<'s> {
     Eof,
 }
 
-define_span!(Span = TxtCode, str);
-// type Span<'a> = &'a str;
+// define_span!(pub Span = TxtCode, str);
+pub type Span<'a> = &'a str;
 pub type ParserResult<'s, O> = kparse::ParserResult<TxtCode, Span<'s>, O>;
 pub type TokenizerResult<'s> = kparse::TokenizerResult<TxtCode, Span<'s>, Span<'s>>;
 pub type NomResult<'s> = kparse::ParserResult<TxtCode, Span<'s>, Span<'s>>;
@@ -260,7 +262,7 @@ pub fn tok_base64_begin_v2(input: Span<'_>) -> TokenizerResult<'_> {
 
 #[inline]
 pub fn tok_base64_end_v2(input: Span<'_>) -> TokenizerResult<'_> {
-    let (rest, (r0, r1)) = track(
+    let (rest, (r0, _r1)) = track(
         TxtCode::Base64End2,
         tuple((tag("END"), tok_any_until_new_line)),
     )(input)

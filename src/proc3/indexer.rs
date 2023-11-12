@@ -1,11 +1,14 @@
 use crate::index2::tmp_index::TmpWords;
 use crate::proc3::stop_words::STOP_WORDS;
 use crate::proc3::txt_parse;
-use crate::proc3::txt_parse::{TxtCode, TxtPart};
+#[allow(unused_imports)]
+use crate::proc3::txt_parse::{Span, TxtCode, TxtPart};
 use html5ever::interface::{ElementFlags, NodeOrText, QuirksMode, TreeSink};
 use html5ever::tendril::{StrTendril, TendrilSink};
 use html5ever::{parse_document, Attribute, ExpandedName, ParseOpts, QualName};
+#[allow(unused_imports)]
 use kparse::prelude::TrackProvider;
+#[allow(unused_imports)]
 use kparse::Track;
 use std::borrow::Cow;
 use std::fs::File;
@@ -28,8 +31,9 @@ pub fn index_txt2(
 ) -> Result<usize, io::Error> {
     let mut n_words = 0usize;
 
-    let tracker = Track::new_tracker::<TxtCode, _>();
-    let mut input = Track::new_span(&tracker, text);
+    // let tracker = Track::new_tracker::<TxtCode, _>();
+    // let mut input = Track::new_span(&tracker, text);
+    let mut input = text;
     'l: loop {
         match txt_parse::parse_txt(input) {
             Ok((rest, v)) => {
@@ -62,14 +66,14 @@ pub fn index_txt2(
                 }
             }
             Err(e) => {
-                let r = tracker.results();
                 println!("{}", relative);
                 println!("{:#?}", e);
-                println!("{:#?}", r);
 
                 writeln!(log, "{}", relative)?;
                 writeln!(log, "{:#?}", e)?;
-                writeln!(log, "{:#?}", r)?;
+
+                // let r = tracker.results();
+                // writeln!(log, "{:#?}", r)?;
 
                 break 'l;
             }
@@ -197,7 +201,7 @@ pub fn index_html(
     }
 
     let mut s = IdxSink {
-        txt: String::default(),
+        txt: String::with_capacity(buf.len()),
         elem: Vec::default(),
     };
 

@@ -7,23 +7,21 @@
     <cargoProject FILE="$PROJECT_DIR$/../blockfile2/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/../../StableProjects/kparse/Cargo.toml" />
+    <cargoProject FILE="$PROJECT_DIR$/../tracking-allocator/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="cast* is now unsafe.">
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/blockmap.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../blockfile2/src/fileblocks.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="tracking-allocator">
+      <change afterPath="$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/files.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/files.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/index2/words.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/words.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/threads.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/txt_parse.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/txt_parse.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/parser_error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/parser_error.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -57,6 +55,7 @@
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="MIXED" />
     <option name="ROOT_SYNC" value="DONT_SYNC" />
   </component>
   <component name="HighlightingSettingsPerFile">
@@ -83,11 +82,11 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/stommy/Documents/StableProjects/kparse",
+    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/tracking-allocator",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
+    "project.structure.proportion": "0.15078124",
+    "project.structure.side.proportion": "0.2",
     "settings.editor.selected.configurable": "editor.preferences.folding"
   }
 }]]></component>
@@ -658,7 +657,39 @@
       <option name="project" value="LOCAL" />
       <updated>1699284630503</updated>
     </task>
-    <option name="localTasksCounter" value="44" />
+    <task id="LOCAL-00044" summary="add backtrace to ParserError. only when debug_assertions are active.">
+      <option name="closed" value="true" />
+      <created>1699735354685</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1699735354685</updated>
+    </task>
+    <task id="LOCAL-00045" summary="remove FileFilter::Binary&#10;&#10;bug in new parser.&#10;&#10;load_file optimized. don't load whole file for inspect.">
+      <option name="closed" value="true" />
+      <created>1699735619040</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1699735619040</updated>
+    </task>
+    <task id="LOCAL-00046" summary="bug in index_txt2 main-loop.&#10;&#10;add parse_base64_v2 for a variation of this.">
+      <option name="closed" value="true" />
+      <created>1699742842556</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1699742842556</updated>
+    </task>
+    <task id="LOCAL-00047" summary="tracking-allocator">
+      <option name="closed" value="true" />
+      <created>1699806929922</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1699806929922</updated>
+    </task>
+    <option name="localTasksCounter" value="48" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -682,13 +713,15 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="origin/before_293" />
+                        <option value="master" />
                       </list>
                     </value>
                   </entry>
                   <entry key="roots">
                     <value>
                       <list>
+                        <option value="$PROJECT_DIR$/../blockfile2" />
+                        <option value="$PROJECT_DIR$/../../StableProjects/kparse" />
                         <option value="$PROJECT_DIR$" />
                       </list>
                     </value>
@@ -702,10 +735,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="doc" />
-    <MESSAGE value="cleanup" />
-    <MESSAGE value="change the index types to proper newtypes instead of type aliases." />
-    <MESSAGE value="TryFrom for BlockType" />
     <MESSAGE value="bug with blocktypes.&#10;&#10;cleanup" />
     <MESSAGE value="split index2" />
     <MESSAGE value="undo first occurance hack." />
@@ -727,6 +756,10 @@
     <MESSAGE value="fix tests." />
     <MESSAGE value="bug: append_blockmap() didn't set dirty.&#10;&#10;make cast* unsafe.&#10;&#10;doc+cleanup.&#10;&#10;merge block-types NotAllocated and Free to Free only.&#10;&#10;add more verification to load().&#10;&#10;move block_align() to fileblocks. want no U in blockmap.rs." />
     <MESSAGE value="cast* is now unsafe." />
-    <option name="LAST_COMMIT_MESSAGE" value="cast* is now unsafe." />
+    <MESSAGE value="add backtrace to ParserError. only when debug_assertions are active." />
+    <MESSAGE value="remove FileFilter::Binary&#10;&#10;bug in new parser.&#10;&#10;load_file optimized. don't load whole file for inspect." />
+    <MESSAGE value="bug in index_txt2 main-loop.&#10;&#10;add parse_base64_v2 for a variation of this." />
+    <MESSAGE value="tracking-allocator" />
+    <option name="LAST_COMMIT_MESSAGE" value="tracking-allocator" />
   </component>
 </project>

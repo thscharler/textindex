@@ -432,7 +432,7 @@ fn spawn_merge_words(
             data.log.try_clone().unwrap(),
             "merge_words",
             merge_words_proc(recv, send, state, data, &printer),
-        )
+        );
     })
 }
 

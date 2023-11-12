@@ -3,6 +3,7 @@ use crate::cmds::{Files, Find};
 use crate::error::AppError;
 use crate::log::dump_diagnostics;
 use crate::proc3::threads::{init_work, Msg, Work};
+#[allow(unused_imports)]
 use crate::proc3::{
     auto_save, find_matched_lines, indexing, load_file, shut_down, Data, FileFilter,
 };
@@ -184,29 +185,7 @@ fn parse_cmd(
                 println!("...");
             }
         }
-        BCommand::Summary(Summary::Files(v)) => {
-            let mut log = data.log.try_clone()?;
-
-            let found_guard = data.found.lock().expect("found");
-            if let Some(file) = found_guard.files.get(v) {
-                let path = PathBuf::from(".");
-                let path = path.join(file);
-
-                let (filter, txt) = load_file(FileFilter::Inspect, &path)?;
-                let (_, words) = indexing(&mut log, filter, file, &txt)?;
-                let occurance = words.invert();
-
-                for (k, v) in occurance.iter().rev() {
-                    println!("{}:", k);
-                    for s in v {
-                        print!("{} ", s);
-                    }
-                    println!();
-                }
-            } else {
-                println!("Invalid index {}", v);
-            }
-        }
+        BCommand::Summary(Summary::Files(_v)) => {}
         BCommand::Delete(Delete::Delete(v)) => {
             let words = data.words.lock()?;
 
