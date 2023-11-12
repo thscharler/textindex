@@ -15,6 +15,7 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::time::{Duration, Instant};
+use tracking_allocator::AllocationGroupToken;
 
 pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
     let now = Instant::now();
@@ -25,11 +26,15 @@ pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
 
 pub fn index_txt2(
     log: &mut File,
+    tok_txt: &mut AllocationGroupToken,
+    tok_tmpwords: &mut AllocationGroupToken,
     relative: &str,
     tmp_words: &mut TmpWords,
     text: &str,
 ) -> Result<usize, io::Error> {
     let mut n_words = 0usize;
+
+    let guard = tok_txt.enter();
 
     // let tracker = Track::new_tracker::<TxtCode, _>();
     // let mut input = Track::new_span(&tracker, text);
@@ -52,7 +57,9 @@ pub fn index_txt2(
                         {
                             continue 'l;
                         }
+                        let guard = tok_tmpwords.enter();
                         tmp_words.add_word(word);
+                        drop(guard);
                     }
                     TxtPart::Eof => {
                         break 'l;
@@ -80,11 +87,16 @@ pub fn index_txt2(
         }
     }
 
+    drop(guard);
+
     Ok(n_words)
 }
 
 pub fn index_html(
     log: &mut File,
+    tok_txt: &mut AllocationGroupToken,
+    tok_html: &mut AllocationGroupToken,
+    tok_tmpwords: &mut AllocationGroupToken,
     relative: &str,
     words: &mut TmpWords,
     buf: &str,
@@ -93,6 +105,7 @@ pub fn index_html(
     struct IdxSink {
         pub txt: String,
         pub elem: Vec<QualName>,
+        pub relative: String,
         // pub comment: Vec<StrTendril>,
         // pub pi: Vec<(StrTendril, StrTendril)>,
     }
@@ -132,6 +145,9 @@ pub fn index_html(
             _attrs: Vec<Attribute>,
             _flags: ElementFlags,
         ) -> Self::Handle {
+            if self.elem.len() > 0 && self.elem.len() % 10000 == 0 {
+                println!("html elem={} {}", self.elem.len(), self.relative);
+            }
             let handle = self.elem.len();
             self.elem.push(name);
             IdxHandle::Elem(handle)
@@ -200,15 +216,20 @@ pub fn index_html(
         fn reparent_children(&mut self, _node: &Self::Handle, _new_parent: &Self::Handle) {}
     }
 
+    let guard = tok_html.enter();
+
     let mut s = IdxSink {
         txt: String::with_capacity(buf.len()),
         elem: Vec::default(),
+        relative: relative.to_string(),
     };
 
     let p = parse_document(&mut s, ParseOpts::default());
     p.one(buf);
 
-    index_txt2(log, relative, words, s.txt.as_str())?;
+    drop(guard);
+
+    index_txt2(log, tok_txt, tok_tmpwords, relative, words, s.txt.as_str())?;
 
     Ok(())
 }

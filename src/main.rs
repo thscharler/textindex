@@ -13,9 +13,12 @@ use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
+use std::alloc::System;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tracking_allocator::{AllocationGroupId, AllocationRegistry, AllocationTracker, Allocator};
 
 mod cmdlib;
 mod cmds;
@@ -24,7 +27,81 @@ pub mod index2;
 mod log;
 pub mod proc3;
 
+#[global_allocator]
+static GLOBAL: Allocator<System> = Allocator::system();
+
+struct StdoutTracker {
+    n: AtomicUsize,
+    accu: [AtomicUsize; 20],
+}
+
+// This is our tracker implementation.  You will always need to create an implementation of `AllocationTracker` in order
+// to actually handle allocation events.  The interface is straightforward: you're notified when an allocation occurs,
+// and when a deallocation occurs.
+impl AllocationTracker for StdoutTracker {
+    fn allocated(
+        &self,
+        _addr: usize,
+        _object_size: usize,
+        wrapped_size: usize,
+        group_id: AllocationGroupId,
+    ) {
+        let n = self.n.fetch_add(1, Ordering::Acquire);
+        self.accu[group_id.as_usize().get()].fetch_add(wrapped_size, Ordering::Acquire);
+
+        AllocationRegistry::untracked(|| {
+            if n % 1000000 == 0 {
+                for i in 0..self.accu.len() {
+                    let v = self.accu[i].load(Ordering::Relaxed);
+                    if v > 0 {
+                        print!(" {}={}MB", i, v / 1_000_000);
+                    }
+                }
+                println!();
+            }
+        });
+    }
+
+    fn deallocated(
+        &self,
+        _addr: usize,
+        _object_size: usize,
+        wrapped_size: usize,
+        source_group_id: AllocationGroupId,
+        _current_group_id: AllocationGroupId,
+    ) {
+        self.accu[source_group_id.as_usize().get()].fetch_sub(wrapped_size, Ordering::Acquire);
+    }
+}
+
 fn main() -> Result<(), AppError> {
+    let trk = StdoutTracker {
+        n: AtomicUsize::new(0),
+        accu: [
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+            AtomicUsize::new(0),
+        ],
+    };
+    let _ = AllocationRegistry::set_global_tracker(trk).expect("global-tracker");
+
     println!("loading");
     let stored = PathBuf::from("stored.idx");
     let data = match Data::read(&stored) {
@@ -41,6 +118,9 @@ fn main() -> Result<(), AppError> {
 
     println!("spinup");
     let work: &'static Work = Box::leak(Box::new(init_work(rl.create_external_printer()?, data)));
+
+    println!("enable_tracking");
+    AllocationRegistry::enable_tracking();
 
     let mut break_flag = false;
     loop {

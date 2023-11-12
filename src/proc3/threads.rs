@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
+use tracking_allocator::AllocationGroupToken;
 use walkdir::WalkDir;
 
 #[derive(Debug)]
@@ -62,6 +63,10 @@ pub fn init_work<P: ExternalPrinter + Send + Sync + 'static>(
     printer: P,
     data: &'static Data,
 ) -> Work {
+    let mut local_token = AllocationGroupToken::register().expect("token");
+    println!("init_work gid={}", local_token.id().as_usize().get());
+    let local_guard = local_token.enter();
+
     let printer = Arc::new(Mutex::new(printer));
 
     let (s0, r1) = bounded::<Msg>(10);
@@ -137,6 +142,8 @@ pub fn init_work<P: ExternalPrinter + Send + Sync + 'static>(
     let st5 = Arc::new(Mutex::new(WorkerState::default()));
     let h5 = spawn_terminal(r5.clone(), Arc::clone(&st5), data, printer.clone());
 
+    drop(local_guard);
+
     Work {
         send: s0,
         recv_send: [(r1, s1), (r2, s2), (r3, s3), (r4, s4)],
@@ -163,12 +170,18 @@ fn spawn_walking(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        let mut local_token = AllocationGroupToken::register().expect("token");
+        println!("walking gid={}", local_token.id().as_usize().get());
+        let local_guard = local_token.enter();
+
         print_err_(
             &printer,
             data.log.try_clone().unwrap(),
             "walker",
             walk_proc(recv, send, state, data, &printer),
         );
+
+        drop(local_guard);
     })
 }
 
@@ -300,12 +313,18 @@ fn spawn_loading(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        let mut local_token = AllocationGroupToken::register().expect("token");
+        println!("loading gid={}", local_token.id().as_usize().get());
+        let local_guard = local_token.enter();
+
         print_err_(
             &printer,
             data.log.try_clone().unwrap(),
             "loading",
             load_proc(recv, send, state, data, &printer),
         );
+
+        drop(local_guard);
     })
 }
 
@@ -359,11 +378,30 @@ fn spawn_indexing(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        let mut tok_txt = AllocationGroupToken::register().expect("token");
+        let mut tok_html = AllocationGroupToken::register().expect("token");
+        let mut tok_tmpwords = AllocationGroupToken::register().expect("token");
+        println!("indexing txt gid={}", tok_txt.id().as_usize().get());
+        println!("indexing html gid={}", tok_html.id().as_usize().get());
+        println!(
+            "indexing tmpwords gid={}",
+            tok_tmpwords.id().as_usize().get()
+        );
+
         print_err_(
             &printer,
             data.log.try_clone().unwrap(),
             "indexing",
-            index_proc(recv, send, state, data, &printer),
+            index_proc(
+                recv,
+                send,
+                state,
+                &mut tok_txt,
+                &mut tok_html,
+                &mut tok_tmpwords,
+                data,
+                &printer,
+            ),
         );
     })
 }
@@ -372,6 +410,9 @@ fn index_proc(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
     state: Arc<Mutex<WorkerState>>,
+    tok_txt: &mut AllocationGroupToken,
+    tok_html: &mut AllocationGroupToken,
+    tok_tmpwords: &mut AllocationGroupToken,
     data: &'static Data,
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
@@ -396,7 +437,15 @@ fn index_proc(
 
                 state.lock().unwrap().state = 3;
                 last_count = count;
-                let (filter, words) = indexing(&mut log, filter, &relative, &txt)?;
+                let (filter, words) = indexing(
+                    &mut log,
+                    tok_txt,
+                    tok_html,
+                    tok_tmpwords,
+                    filter,
+                    &relative,
+                    &txt,
+                )?;
                 match filter {
                     FileFilter::Ignore => {
                         let _ = writeln!(log, "binary file {}", relative);
@@ -427,12 +476,18 @@ fn spawn_merge_words(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        let mut local_token = AllocationGroupToken::register().expect("token");
+        println!("merge_words gid={}", local_token.id().as_usize().get());
+        let local_guard = local_token.enter();
+
         print_err_(
             &printer,
             data.log.try_clone().unwrap(),
             "merge_words",
             merge_words_proc(recv, send, state, data, &printer),
         );
+
+        drop(local_guard);
     })
 }
 
@@ -483,12 +538,18 @@ fn spawn_terminal(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        let mut local_token = AllocationGroupToken::register().expect("token");
+        println!("terminal gid={}", local_token.id().as_usize().get());
+        let local_guard = local_token.enter();
+
         print_err_(
             &printer,
             data.log.try_clone().unwrap(),
             "terminal",
             terminal_proc(&recv, state, data, &printer),
         );
+
+        drop(local_guard);
     })
 }
 

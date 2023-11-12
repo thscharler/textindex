@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+use tracking_allocator::AllocationGroupToken;
 use wildmatch::WildMatch;
 
 pub mod indexer;
@@ -120,6 +121,9 @@ pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, Vec
 
 pub fn indexing(
     log: &mut File,
+    tok_txt: &mut AllocationGroupToken,
+    tok_html: &mut AllocationGroupToken,
+    tok_tmpwords: &mut AllocationGroupToken,
     filter: FileFilter,
     relative: &str,
     txt: &Vec<u8>,
@@ -129,10 +133,25 @@ pub fn indexing(
 
     match filter {
         FileFilter::Text => {
-            index_txt2(log, relative, &mut words, txt.as_ref())?;
+            index_txt2(
+                log,
+                tok_txt,
+                tok_tmpwords,
+                relative,
+                &mut words,
+                txt.as_ref(),
+            )?;
         }
         FileFilter::Html => {
-            index_html(log, relative, &mut words, txt.as_ref())?;
+            index_html(
+                log,
+                tok_txt,
+                tok_html,
+                tok_tmpwords,
+                relative,
+                &mut words,
+                txt.as_ref(),
+            )?;
         }
         FileFilter::Ignore => {}
         FileFilter::Inspect => {}
@@ -151,6 +170,7 @@ pub fn merge_words(
         state.lock().unwrap().state = 100;
         let mut write = data.words.lock()?;
         state.lock().unwrap().state = 101;
+
         timing(printer, "merge", 100, || write.append(words_buffer))?;
         state.lock().unwrap().state = 102;
 
@@ -195,6 +215,71 @@ pub fn name_filter(path: &Path) -> FileFilter {
         "stored.idx",
         "log.txt",
         "thumbs.db",
+        "jan.html",
+        "feb.html",
+        "mar.html",
+        "apr.html",
+        "may.html",
+        "jun.html",
+        "jul.html",
+        "aug.html",
+        "sep.html",
+        "oct.html",
+        "nov.html",
+        "dec.html",
+        "week1.html",
+        "week2.html",
+        "week3.html",
+        "week4.html",
+        "week5.html",
+        "week6.html",
+        "week7.html",
+        "week8.html",
+        "week9.html",
+        "week10.html",
+        "week11.html",
+        "week12.html",
+        "week13.html",
+        "week14.html",
+        "week15.html",
+        "week16.html",
+        "week17.html",
+        "week18.html",
+        "week19.html",
+        "week20.html",
+        "week21.html",
+        "week22.html",
+        "week23.html",
+        "week24.html",
+        "week25.html",
+        "week26.html",
+        "week27.html",
+        "week28.html",
+        "week29.html",
+        "week30.html",
+        "week31.html",
+        "week32.html",
+        "week33.html",
+        "week34.html",
+        "week35.html",
+        "week36.html",
+        "week37.html",
+        "week38.html",
+        "week39.html",
+        "week40.html",
+        "week41.html",
+        "week42.html",
+        "week43.html",
+        "week44.html",
+        "week45.html",
+        "week46.html",
+        "week47.html",
+        "week48.html",
+        "week49.html",
+        "week50.html",
+        "week51.html",
+        "week52.html",
+        "week53.html",
     ];
 
     if EXT_IGNORE.contains(&ext.as_str()) || NAME_IGNORE.contains(&name.as_str()) {
