@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+#[cfg(feature = "allocator")]
 use tracking_allocator::AllocationGroupToken;
 use wildmatch::WildMatch;
 
@@ -121,9 +122,9 @@ pub fn load_file(filter: FileFilter, absolute: &Path) -> Result<(FileFilter, Vec
 
 pub fn indexing(
     log: &mut File,
-    tok_txt: &mut AllocationGroupToken,
-    tok_html: &mut AllocationGroupToken,
-    tok_tmpwords: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_txt: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_html: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_tmpwords: &mut AllocationGroupToken,
     filter: FileFilter,
     relative: &str,
     txt: &Vec<u8>,
@@ -135,7 +136,9 @@ pub fn indexing(
         FileFilter::Text => {
             index_txt2(
                 log,
+                #[cfg(feature = "allocator")]
                 tok_txt,
+                #[cfg(feature = "allocator")]
                 tok_tmpwords,
                 relative,
                 &mut words,
@@ -145,8 +148,11 @@ pub fn indexing(
         FileFilter::Html => {
             index_html(
                 log,
+                #[cfg(feature = "allocator")]
                 tok_txt,
+                #[cfg(feature = "allocator")]
                 tok_html,
+                #[cfg(feature = "allocator")]
                 tok_tmpwords,
                 relative,
                 &mut words,

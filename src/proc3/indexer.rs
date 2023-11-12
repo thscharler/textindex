@@ -15,6 +15,7 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::time::{Duration, Instant};
+#[cfg(feature = "allocator")]
 use tracking_allocator::AllocationGroupToken;
 
 pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
@@ -26,14 +27,15 @@ pub fn timingr<R>(dur: &mut Duration, fun: impl FnOnce() -> R) -> R {
 
 pub fn index_txt2(
     log: &mut File,
-    tok_txt: &mut AllocationGroupToken,
-    tok_tmpwords: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_txt: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_tmpwords: &mut AllocationGroupToken,
     relative: &str,
     tmp_words: &mut TmpWords,
     text: &str,
 ) -> Result<usize, io::Error> {
     let mut n_words = 0usize;
 
+    #[cfg(feature = "allocator")]
     let guard = tok_txt.enter();
 
     // let tracker = Track::new_tracker::<TxtCode, _>();
@@ -57,8 +59,10 @@ pub fn index_txt2(
                         {
                             continue 'l;
                         }
+                        #[cfg(feature = "allocator")]
                         let guard = tok_tmpwords.enter();
                         tmp_words.add_word(word);
+                        #[cfg(feature = "allocator")]
                         drop(guard);
                     }
                     TxtPart::Eof => {
@@ -87,6 +91,7 @@ pub fn index_txt2(
         }
     }
 
+    #[cfg(feature = "allocator")]
     drop(guard);
 
     Ok(n_words)
@@ -94,9 +99,9 @@ pub fn index_txt2(
 
 pub fn index_html(
     log: &mut File,
-    tok_txt: &mut AllocationGroupToken,
-    tok_html: &mut AllocationGroupToken,
-    tok_tmpwords: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_txt: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_html: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_tmpwords: &mut AllocationGroupToken,
     relative: &str,
     words: &mut TmpWords,
     buf: &str,
@@ -216,6 +221,7 @@ pub fn index_html(
         fn reparent_children(&mut self, _node: &Self::Handle, _new_parent: &Self::Handle) {}
     }
 
+    #[cfg(feature = "allocator")]
     let guard = tok_html.enter();
 
     let mut s = IdxSink {
@@ -227,9 +233,19 @@ pub fn index_html(
     let p = parse_document(&mut s, ParseOpts::default());
     p.one(buf);
 
+    #[cfg(feature = "allocator")]
     drop(guard);
 
-    index_txt2(log, tok_txt, tok_tmpwords, relative, words, s.txt.as_str())?;
+    index_txt2(
+        log,
+        #[cfg(feature = "allocator")]
+        tok_txt,
+        #[cfg(feature = "allocator")]
+        tok_tmpwords,
+        relative,
+        words,
+        s.txt.as_str(),
+    )?;
 
     Ok(())
 }

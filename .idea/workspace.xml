@@ -10,16 +10,14 @@
     <cargoProject FILE="$PROJECT_DIR$/../tracking-allocator/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="small optimizations">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="tracking-allocator">
       <change afterPath="$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/index2/tmp_index.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/index2/tmp_index.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/threads.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/parser_error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/parser_error.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -310,14 +308,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1698785429740</updated>
-    </task>
-    <task id="LOCAL-00001" summary="init works.">
-      <option name="closed" value="true" />
-      <created>1698827578028</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1698827578028</updated>
     </task>
     <task id="LOCAL-00002" summary="LogicalNr and PhysicalNr as newtypes.&#10;&#10;Init free physical blocks.">
       <option name="closed" value="true" />
@@ -695,7 +685,23 @@
       <option name="project" value="LOCAL" />
       <updated>1699807305486</updated>
     </task>
-    <option name="localTasksCounter" value="49" />
+    <task id="LOCAL-00049" summary="backtrace">
+      <option name="closed" value="true" />
+      <created>1699811927515</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1699811927531</updated>
+    </task>
+    <task id="LOCAL-00050" summary="tracking-allocator">
+      <option name="closed" value="true" />
+      <created>1699812016675</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1699812016680</updated>
+    </task>
+    <option name="localTasksCounter" value="51" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -739,7 +745,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="split index2" />
     <MESSAGE value="undo first occurance hack." />
     <MESSAGE value="error handling" />
     <MESSAGE value="new wordmap layout&#10;&#10;distribute according to word count." />
@@ -762,8 +767,9 @@
     <MESSAGE value="add backtrace to ParserError. only when debug_assertions are active." />
     <MESSAGE value="remove FileFilter::Binary&#10;&#10;bug in new parser.&#10;&#10;load_file optimized. don't load whole file for inspect." />
     <MESSAGE value="bug in index_txt2 main-loop.&#10;&#10;add parse_base64_v2 for a variation of this." />
-    <MESSAGE value="tracking-allocator" />
     <MESSAGE value="small optimizations" />
-    <option name="LAST_COMMIT_MESSAGE" value="small optimizations" />
+    <MESSAGE value="backtrace" />
+    <MESSAGE value="tracking-allocator" />
+    <option name="LAST_COMMIT_MESSAGE" value="tracking-allocator" />
   </component>
 </project>

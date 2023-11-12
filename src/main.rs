@@ -13,11 +13,14 @@ use kparse::Track;
 use rustyline::error::ReadlineError;
 use rustyline::history::FileHistory;
 use rustyline::Editor;
+#[cfg(feature = "allocator")]
 use std::alloc::System;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
+#[cfg(feature = "allocator")]
 use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(feature = "allocator")]
 use tracking_allocator::{AllocationGroupId, AllocationRegistry, AllocationTracker, Allocator};
 
 mod cmdlib;
@@ -27,9 +30,11 @@ pub mod index2;
 mod log;
 pub mod proc3;
 
+#[cfg(feature = "allocator")]
 #[global_allocator]
 static GLOBAL: Allocator<System> = Allocator::system();
 
+#[cfg(feature = "allocator")]
 struct StdoutTracker {
     n: AtomicUsize,
     accu: [AtomicUsize; 20],
@@ -38,6 +43,7 @@ struct StdoutTracker {
 // This is our tracker implementation.  You will always need to create an implementation of `AllocationTracker` in order
 // to actually handle allocation events.  The interface is straightforward: you're notified when an allocation occurs,
 // and when a deallocation occurs.
+#[cfg(feature = "allocator")]
 impl AllocationTracker for StdoutTracker {
     fn allocated(
         &self,
@@ -75,6 +81,7 @@ impl AllocationTracker for StdoutTracker {
 }
 
 fn main() -> Result<(), AppError> {
+    #[cfg(feature = "allocator")]
     let trk = StdoutTracker {
         n: AtomicUsize::new(0),
         accu: [
@@ -100,6 +107,7 @@ fn main() -> Result<(), AppError> {
             AtomicUsize::new(0),
         ],
     };
+    #[cfg(feature = "allocator")]
     let _ = AllocationRegistry::set_global_tracker(trk).expect("global-tracker");
 
     println!("loading");
@@ -120,6 +128,7 @@ fn main() -> Result<(), AppError> {
     let work: &'static Work = Box::leak(Box::new(init_work(rl.create_external_printer()?, data)));
 
     println!("enable_tracking");
+    #[cfg(feature = "allocator")]
     AllocationRegistry::enable_tracking();
 
     let mut break_flag = false;

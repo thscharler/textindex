@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::thread::JoinHandle;
+#[cfg(feature = "allocator")]
 use tracking_allocator::AllocationGroupToken;
 use walkdir::WalkDir;
 
@@ -63,8 +64,11 @@ pub fn init_work<P: ExternalPrinter + Send + Sync + 'static>(
     printer: P,
     data: &'static Data,
 ) -> Work {
+    #[cfg(feature = "allocator")]
     let mut local_token = AllocationGroupToken::register().expect("token");
+    #[cfg(feature = "allocator")]
     println!("init_work gid={}", local_token.id().as_usize().get());
+    #[cfg(feature = "allocator")]
     let local_guard = local_token.enter();
 
     let printer = Arc::new(Mutex::new(printer));
@@ -142,6 +146,7 @@ pub fn init_work<P: ExternalPrinter + Send + Sync + 'static>(
     let st5 = Arc::new(Mutex::new(WorkerState::default()));
     let h5 = spawn_terminal(r5.clone(), Arc::clone(&st5), data, printer.clone());
 
+    #[cfg(feature = "allocator")]
     drop(local_guard);
 
     Work {
@@ -170,8 +175,11 @@ fn spawn_walking(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        #[cfg(feature = "allocator")]
         let mut local_token = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         println!("walking gid={}", local_token.id().as_usize().get());
+        #[cfg(feature = "allocator")]
         let local_guard = local_token.enter();
 
         print_err_(
@@ -181,6 +189,7 @@ fn spawn_walking(
             walk_proc(recv, send, state, data, &printer),
         );
 
+        #[cfg(feature = "allocator")]
         drop(local_guard);
     })
 }
@@ -313,8 +322,11 @@ fn spawn_loading(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        #[cfg(feature = "allocator")]
         let mut local_token = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         println!("loading gid={}", local_token.id().as_usize().get());
+        #[cfg(feature = "allocator")]
         let local_guard = local_token.enter();
 
         print_err_(
@@ -324,6 +336,7 @@ fn spawn_loading(
             load_proc(recv, send, state, data, &printer),
         );
 
+        #[cfg(feature = "allocator")]
         drop(local_guard);
     })
 }
@@ -378,11 +391,17 @@ fn spawn_indexing(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        #[cfg(feature = "allocator")]
         let mut tok_txt = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         let mut tok_html = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         let mut tok_tmpwords = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         println!("indexing txt gid={}", tok_txt.id().as_usize().get());
+        #[cfg(feature = "allocator")]
         println!("indexing html gid={}", tok_html.id().as_usize().get());
+        #[cfg(feature = "allocator")]
         println!(
             "indexing tmpwords gid={}",
             tok_tmpwords.id().as_usize().get()
@@ -396,8 +415,11 @@ fn spawn_indexing(
                 recv,
                 send,
                 state,
+                #[cfg(feature = "allocator")]
                 &mut tok_txt,
+                #[cfg(feature = "allocator")]
                 &mut tok_html,
+                #[cfg(feature = "allocator")]
                 &mut tok_tmpwords,
                 data,
                 &printer,
@@ -410,9 +432,9 @@ fn index_proc(
     recv: Receiver<Msg>,
     send: Sender<Msg>,
     state: Arc<Mutex<WorkerState>>,
-    tok_txt: &mut AllocationGroupToken,
-    tok_html: &mut AllocationGroupToken,
-    tok_tmpwords: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_txt: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_html: &mut AllocationGroupToken,
+    #[cfg(feature = "allocator")] tok_tmpwords: &mut AllocationGroupToken,
     data: &'static Data,
     printer: &Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> Result<(), AppError> {
@@ -439,8 +461,11 @@ fn index_proc(
                 last_count = count;
                 let (filter, words) = indexing(
                     &mut log,
+                    #[cfg(feature = "allocator")]
                     tok_txt,
+                    #[cfg(feature = "allocator")]
                     tok_html,
+                    #[cfg(feature = "allocator")]
                     tok_tmpwords,
                     filter,
                     &relative,
@@ -476,8 +501,11 @@ fn spawn_merge_words(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        #[cfg(feature = "allocator")]
         let mut local_token = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         println!("merge_words gid={}", local_token.id().as_usize().get());
+        #[cfg(feature = "allocator")]
         let local_guard = local_token.enter();
 
         print_err_(
@@ -487,6 +515,7 @@ fn spawn_merge_words(
             merge_words_proc(recv, send, state, data, &printer),
         );
 
+        #[cfg(feature = "allocator")]
         drop(local_guard);
     })
 }
@@ -538,8 +567,11 @@ fn spawn_terminal(
     printer: Arc<Mutex<dyn ExternalPrinter + Send>>,
 ) -> JoinHandle<()> {
     thread::spawn(move || {
+        #[cfg(feature = "allocator")]
         let mut local_token = AllocationGroupToken::register().expect("token");
+        #[cfg(feature = "allocator")]
         println!("terminal gid={}", local_token.id().as_usize().get());
+        #[cfg(feature = "allocator")]
         let local_guard = local_token.enter();
 
         print_err_(
@@ -549,6 +581,7 @@ fn spawn_terminal(
             terminal_proc(&recv, state, data, &printer),
         );
 
+        #[cfg(feature = "allocator")]
         drop(local_guard);
     })
 }
