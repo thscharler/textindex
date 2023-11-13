@@ -24,6 +24,7 @@ pub enum HtmlCode {
     CData,
     DocType,
     CharRef,
+    Xml,
     Eof,
 
     DashDash,
@@ -48,6 +49,7 @@ pub enum HtmlPart<'s> {
     CData(Span<'s>),
     CharRef(Span<'s>),
     Comment(Span<'s>),
+    Xml(Span<'s>),
     Eof,
 }
 
@@ -65,6 +67,7 @@ pub fn parse_html(input: Span<'_>) -> ParserResult<'_, HtmlPart> {
             parse_charref,
             parse_comment,
             parse_cdata,
+            parse_xmlheader,
             parse_doctype,
             parse_endtag,
             parse_starttag,
@@ -116,13 +119,31 @@ pub fn parse_endtag(input: Span<'_>) -> ParserResult<'_, HtmlPart> {
     Ok((rest, HtmlPart::EndTag(v)))
 }
 
+pub fn parse_xmlheader(input: Span<'_>) -> ParserResult<'_, HtmlPart> {
+    let (rest, v) = track(
+        HtmlCode::Xml,
+        recognize(tuple((
+            pchar('<'),
+            pchar('?'),
+            pchar('x'),
+            pchar('m'),
+            pchar('l'),
+            many0(tok_not_question_greater),
+            pchar('?'),
+            pchar('>'),
+        ))),
+    )(input)
+    .with_code(HtmlCode::Xml)?;
+
+    Ok((rest, HtmlPart::Xml(v)))
+}
+
 pub fn parse_doctype(input: Span<'_>) -> ParserResult<'_, HtmlPart> {
     let (rest, v) = track(
         HtmlCode::DocType,
         recognize(tuple((
             pchar('<'),
-            pchar('-'),
-            pchar('-'),
+            pchar('!'),
             tag_no_case("doctype"),
             take_while1(|c: char| c != '>'),
         ))),
@@ -159,6 +180,7 @@ pub fn parse_cdata(input: Span<'_>) -> ParserResult<'_, HtmlPart> {
             pchar('-'),
             tag_no_case("[cdata["),
             take_while1(|c: char| c != ']'),
+            pchar(']'),
             pchar(']'),
         ))),
     )(input)
@@ -231,6 +253,17 @@ pub fn tok_not_dash_dash_greater(input: Span<'_>) -> ParserResult<'_, Span<'_>> 
     if input.len() < 1 {
         return Err(nom::Err::Error(ParserError::new(HtmlCode::Eof, input)));
     } else if input.starts_with("-->") {
+        return Err(nom::Err::Error(ParserError::new(HtmlCode::DashDash, input)));
+    } else {
+        Ok(input.take_split(1))
+    }
+}
+
+#[inline]
+pub fn tok_not_question_greater(input: Span<'_>) -> ParserResult<'_, Span<'_>> {
+    if input.len() < 1 {
+        return Err(nom::Err::Error(ParserError::new(HtmlCode::Eof, input)));
+    } else if input.starts_with("?>") {
         return Err(nom::Err::Error(ParserError::new(HtmlCode::DashDash, input)));
     } else {
         Ok(input.take_split(1))

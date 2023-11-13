@@ -10,11 +10,12 @@
     <cargoProject FILE="$PROJECT_DIR$/../tracking-allocator/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="tracking-allocator behind feature gate.">
-      <change afterPath="$PROJECT_DIR$/src/proc3/html_parse.rs" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="minimal htmlparser">
       <change afterPath="$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3/html_parse.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/html_parse.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -98,7 +99,7 @@
       <command value="C:\Users\stommy\Documents\IdeaProjects\targetdir\debug\deps\textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt" />
     </option>
   </component>
-  <component name="RunManager" selected="Cargo.Build">
+  <component name="RunManager" selected="Cargo.Release">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -306,14 +307,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1698785429740</updated>
-    </task>
-    <task id="LOCAL-00003" summary="manage free list in all? cases. &#10;&#10;add alloc and free.&#10;&#10;replace most panics with errors.">
-      <option name="closed" value="true" />
-      <created>1698859843952</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1698859843952</updated>
     </task>
     <task id="LOCAL-00004" summary="pub cleanup">
       <option name="closed" value="true" />
@@ -699,7 +692,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699812943170</updated>
     </task>
-    <option name="localTasksCounter" value="52" />
+    <task id="LOCAL-00052" summary="minimal htmlparser">
+      <option name="closed" value="true" />
+      <created>1699860810267</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1699860810267</updated>
+    </task>
+    <option name="localTasksCounter" value="53" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -745,7 +746,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="error handling" />
     <MESSAGE value="new wordmap layout&#10;&#10;distribute according to word count." />
     <MESSAGE value="add new cast variants to make usage easier." />
     <MESSAGE value="split length calculation and layout verification." />
@@ -770,6 +770,7 @@
     <MESSAGE value="backtrace" />
     <MESSAGE value="tracking-allocator" />
     <MESSAGE value="tracking-allocator behind feature gate." />
-    <option name="LAST_COMMIT_MESSAGE" value="tracking-allocator behind feature gate." />
+    <MESSAGE value="minimal htmlparser" />
+    <option name="LAST_COMMIT_MESSAGE" value="minimal htmlparser" />
   </component>
 </project>
