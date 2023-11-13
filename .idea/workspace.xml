@@ -10,14 +10,12 @@
     <cargoProject FILE="$PROJECT_DIR$/../tracking-allocator/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="tracking-allocator">
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="tracking-allocator behind feature gate.">
+      <change afterPath="$PROJECT_DIR$/src/proc3/html_parse.rs" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3/threads.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/threads.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -100,7 +98,7 @@
       <command value="C:\Users\stommy\Documents\IdeaProjects\targetdir\debug\deps\textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt" />
     </option>
   </component>
-  <component name="RunManager" selected="Cargo.Release">
+  <component name="RunManager" selected="Cargo.Build">
     <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
@@ -186,8 +184,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_1" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_1 &quot;&quot;" />
+    <configuration name="Test proc3::html_parse::tests::test_comment" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --bin textindex proc3::html_parse::tests::test_comment -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -277,19 +275,19 @@
       <item itemvalue="Cargo.Doc" />
       <item itemvalue="Cargo.Clippy" />
       <item itemvalue="Cargo.Release" />
+      <item itemvalue="Cargo.Test proc3::html_parse::tests::test_comment" />
       <item itemvalue="Cargo.Test test_recover" />
       <item itemvalue="Cargo.Tests in 'tests'" />
       <item itemvalue="Cargo.Tests in 'tests' (1)" />
-      <item itemvalue="Cargo.Test test_1" />
       <item itemvalue="Cargo.Test test_merge" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Cargo.Test proc3::html_parse::tests::test_comment" />
         <item itemvalue="Cargo.Tests in 'tests'" />
         <item itemvalue="Cargo.Tests in 'tests' (1)" />
         <item itemvalue="Cargo.Test test_recover" />
         <item itemvalue="Cargo.Test test_merge" />
-        <item itemvalue="Cargo.Test test_1" />
       </list>
     </recent_temporary>
   </component>
@@ -308,14 +306,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1698785429740</updated>
-    </task>
-    <task id="LOCAL-00002" summary="LogicalNr and PhysicalNr as newtypes.&#10;&#10;Init free physical blocks.">
-      <option name="closed" value="true" />
-      <created>1698849282250</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1698849282250</updated>
     </task>
     <task id="LOCAL-00003" summary="manage free list in all? cases. &#10;&#10;add alloc and free.&#10;&#10;replace most panics with errors.">
       <option name="closed" value="true" />
@@ -701,7 +691,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699812016680</updated>
     </task>
-    <option name="localTasksCounter" value="51" />
+    <task id="LOCAL-00051" summary="tracking-allocator behind feature gate.">
+      <option name="closed" value="true" />
+      <created>1699812943170</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1699812943170</updated>
+    </task>
+    <option name="localTasksCounter" value="52" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -732,6 +730,8 @@
                   <entry key="roots">
                     <value>
                       <list>
+                        <option value="$PROJECT_DIR$/../blockfile2" />
+                        <option value="$PROJECT_DIR$/../../StableProjects/kparse" />
                         <option value="$PROJECT_DIR$" />
                       </list>
                     </value>
@@ -745,7 +745,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="undo first occurance hack." />
     <MESSAGE value="error handling" />
     <MESSAGE value="new wordmap layout&#10;&#10;distribute according to word count." />
     <MESSAGE value="add new cast variants to make usage easier." />
@@ -770,6 +769,7 @@
     <MESSAGE value="small optimizations" />
     <MESSAGE value="backtrace" />
     <MESSAGE value="tracking-allocator" />
-    <option name="LAST_COMMIT_MESSAGE" value="tracking-allocator" />
+    <MESSAGE value="tracking-allocator behind feature gate." />
+    <option name="LAST_COMMIT_MESSAGE" value="tracking-allocator behind feature gate." />
   </component>
 </project>
