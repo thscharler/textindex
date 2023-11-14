@@ -18,7 +18,9 @@ use tracking_allocator::AllocationGroupToken;
 use wildmatch::WildMatch;
 
 pub mod html_parse;
+mod html_parse2;
 pub mod indexer;
+mod named_char;
 pub mod stop_words;
 pub mod threads;
 pub mod txt_parse;

@@ -274,17 +274,3 @@ pub fn tok_not_question_greater(input: Span<'_>) -> ParserResult<'_, Span<'_>> {
 pub fn tok_empty(input: Span<'_>) -> ParserResult<'_, Span<'_>> {
     Ok(input.take_split(0))
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::proc3::html_parse::{not_dash_dash, parse_comment, HtmlCode};
-    use kparse::Track;
-
-    #[test]
-    fn test_comment() {
-        let tracker = Track::new_tracker::<HtmlCode, _>();
-        let mut input = Track::new_span(&tracker, "<!--asdf -->");
-
-        dbg!(parse_comment(input));
-    }
-}

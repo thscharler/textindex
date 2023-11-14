@@ -1,14 +1,13 @@
 use crate::index2::tmp_index::TmpWords;
-use crate::proc3::html_parse::{HtmlCode, HtmlPart};
+use crate::proc3::html_parse2::{HtmlCode, HtmlPart};
 use crate::proc3::stop_words::STOP_WORDS;
 use crate::proc3::txt_parse::TxtPart;
-use crate::proc3::{html_parse, txt_parse};
+use crate::proc3::{html_parse2, txt_parse};
 #[allow(unused_imports)]
 use kparse::prelude::TrackProvider;
 #[allow(unused_imports)]
 use kparse::spans::SpanFragment;
 use kparse::Track;
-use std::borrow::Cow;
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -107,11 +106,13 @@ pub fn index_html2(
     #[cfg(feature = "allocator")]
     let guard = tok_html.enter();
 
+    let mut buf = String::with_capacity(text.len());
+
     let tracker = Track::new_tracker::<HtmlCode, _>();
     let mut input = Track::new_span(&tracker, text);
     // let mut input = text;
     'l: loop {
-        match html_parse::parse_html(input) {
+        match html_parse2::parse_html(input) {
             Ok((rest, v)) => {
                 input = rest;
 
@@ -120,29 +121,25 @@ pub fn index_html2(
 
                 match v {
                     HtmlPart::Text(v) => {
-                        index_txt2(
-                            log,
-                            #[cfg(feature = "allocator")]
-                            tok_txt,
-                            #[cfg(feature = "allocator")]
-                            tok_tmpwords,
-                            relative,
-                            words,
-                            v.fragment(),
-                        )?;
+                        buf.push_str(*v.fragment());
                     }
                     HtmlPart::StartTag(_)
                     | HtmlPart::EndTag(_)
-                    | HtmlPart::Xml(_)
                     | HtmlPart::DocType(_)
                     | HtmlPart::Comment(_)
-                    | HtmlPart::CData(_)
-                    | HtmlPart::CharRef(_) => {
+                    | HtmlPart::CData(_) => {
                         // ignore
+                    }
+                    HtmlPart::CharRef(v) => {
+                        buf.push(v);
+                    }
+                    HtmlPart::CharRefStr(v) => {
+                        buf.push_str(v);
                     }
                     HtmlPart::Eof => {
                         break 'l;
                     }
+                    HtmlPart::ParseError(_) => {}
                 }
             }
             Err(e) => {
@@ -160,6 +157,17 @@ pub fn index_html2(
             }
         }
     }
+
+    index_txt2(
+        log,
+        #[cfg(feature = "allocator")]
+        tok_txt,
+        #[cfg(feature = "allocator")]
+        tok_tmpwords,
+        relative,
+        words,
+        buf.as_str(),
+    )?;
 
     Ok(())
 }

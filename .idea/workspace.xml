@@ -10,13 +10,16 @@
     <cargoProject FILE="$PROJECT_DIR$/../tracking-allocator/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="minimal htmlparser">
-      <change afterPath="$PROJECT_DIR$/../tracking-allocator/tracking-allocator.iml" afterDir="false" />
+    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="xml-header missing.&#10;bug: doctype corrected.">
+      <change afterPath="$PROJECT_DIR$/src/proc3/html_parse2.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/proc3/named_char.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/html_parse.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/html_parse.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/combinators.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/combinators.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -185,8 +188,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test proc3::html_parse::tests::test_comment" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --bin textindex proc3::html_parse::tests::test_comment -- --exact" />
+    <configuration name="Test html_parse2::tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -202,8 +205,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_merge" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_1 test_merge -- --exact" />
+    <configuration name="Test proc3::html_parse2::tests::test_endtag" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_endtag -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -219,25 +222,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test test_recover" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package blockfile2 --test test_blockmap test_recover -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Tests in 'tests' (1)" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --test test_1 --test test_index2 &quot;&quot;" />
+    <configuration name="Test proc3::html_parse2::tests::test_html" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_html -- --exact" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -253,9 +239,26 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Tests in 'tests'" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package blockfile2 --test test_blockmap &quot;&quot;" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
+    <configuration name="Test proc3::html_parse2::tests::test_starttag" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_starttag -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <option name="emulateTerminal" value="false" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <envs />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test proc3::html_parse2::tests::test_text" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_text -- --exact" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
@@ -276,19 +279,19 @@
       <item itemvalue="Cargo.Doc" />
       <item itemvalue="Cargo.Clippy" />
       <item itemvalue="Cargo.Release" />
-      <item itemvalue="Cargo.Test proc3::html_parse::tests::test_comment" />
-      <item itemvalue="Cargo.Test test_recover" />
-      <item itemvalue="Cargo.Tests in 'tests'" />
-      <item itemvalue="Cargo.Tests in 'tests' (1)" />
-      <item itemvalue="Cargo.Test test_merge" />
+      <item itemvalue="Cargo.Test html_parse2::tests" />
+      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_endtag" />
+      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_html" />
+      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_starttag" />
+      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_text" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Cargo.Test proc3::html_parse::tests::test_comment" />
-        <item itemvalue="Cargo.Tests in 'tests'" />
-        <item itemvalue="Cargo.Tests in 'tests' (1)" />
-        <item itemvalue="Cargo.Test test_recover" />
-        <item itemvalue="Cargo.Test test_merge" />
+        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_html" />
+        <item itemvalue="Cargo.Test html_parse2::tests" />
+        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_endtag" />
+        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_text" />
+        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_starttag" />
       </list>
     </recent_temporary>
   </component>
@@ -307,14 +310,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1698785429740</updated>
-    </task>
-    <task id="LOCAL-00004" summary="pub cleanup">
-      <option name="closed" value="true" />
-      <created>1698864576577</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1698864576577</updated>
     </task>
     <task id="LOCAL-00005" summary="prepare for store.&#10;no need for predefined physical block-nr.">
       <option name="closed" value="true" />
@@ -700,7 +695,15 @@
       <option name="project" value="LOCAL" />
       <updated>1699860810267</updated>
     </task>
-    <option name="localTasksCounter" value="53" />
+    <task id="LOCAL-00053" summary="xml-header missing.&#10;bug: doctype corrected.">
+      <option name="closed" value="true" />
+      <created>1699891072891</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1699891072891</updated>
+    </task>
+    <option name="localTasksCounter" value="54" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -746,7 +749,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="new wordmap layout&#10;&#10;distribute according to word count." />
     <MESSAGE value="add new cast variants to make usage easier." />
     <MESSAGE value="split length calculation and layout verification." />
     <MESSAGE value="use new cast functions." />
@@ -771,6 +773,10 @@
     <MESSAGE value="tracking-allocator" />
     <MESSAGE value="tracking-allocator behind feature gate." />
     <MESSAGE value="minimal htmlparser" />
-    <option name="LAST_COMMIT_MESSAGE" value="minimal htmlparser" />
+    <MESSAGE value="xml-header missing.&#10;bug: doctype corrected." />
+    <option name="LAST_COMMIT_MESSAGE" value="xml-header missing.&#10;bug: doctype corrected." />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/textindex$Test_html_parse2__tests.info" NAME="Test html_parse2::tests Coverage Results" MODIFIED="1699979383573" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="RsCoverageRunner" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" CONTEXT_FILE_PATH="C:\Users\stommy\Documents\IdeaProjects\textindex" />
   </component>
 </project>
