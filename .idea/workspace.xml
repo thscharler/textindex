@@ -4,73 +4,33 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="CargoProjects">
-    <cargoProject FILE="$PROJECT_DIR$/../blockfile2/Cargo.toml" />
     <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
-    <cargoProject FILE="$PROJECT_DIR$/../../StableProjects/kparse/Cargo.toml" />
-    <cargoProject FILE="$PROJECT_DIR$/../tracking-allocator/Cargo.toml" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="xml-header missing.&#10;bug: doctype corrected.">
-      <change afterPath="$PROJECT_DIR$/src/proc3/html_parse2.rs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/proc3/named_char.rs" afterDir="false" />
+    <list default="true" id="451cd503-0fc0-4d01-b7e3-2a88d195242a" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3/html_parse.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/html_parse.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/proc3/indexer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/proc3/indexer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/combinators.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/combinators.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../StableProjects/kparse/src/debug/error.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TextIndex.iml" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
-  <component name="ChangesViewManager">
-    <option name="groupingKeys">
-      <option value="directory" />
-      <option value="module" />
-      <option value="repository" />
-    </option>
-  </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Rust File" />
-      </list>
-    </option>
-  </component>
   <component name="Git.Settings">
-    <option name="PUSH_TAGS">
-      <GitPushTagMode>
-        <option name="argument" value="--tags" />
-        <option name="title" value="All" />
-      </GitPushTagMode>
-    </option>
-    <option name="RECENT_BRANCH_BY_REPOSITORY">
-      <map>
-        <entry key="$PROJECT_DIR$/../blockfile2" value="blockfile2" />
-      </map>
-    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
-    <option name="RESET_MODE" value="MIXED" />
-    <option name="ROOT_SYNC" value="DONT_SYNC" />
-  </component>
-  <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/../blockfile/src/core.rs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/../blockfile/src/fileblocks.rs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MacroExpansionManager">
-    <option name="directoryName" value="qkrebnhw" />
-  </component>
-  <component name="MarkdownSettingsMigration">
-    <option name="stateVersion" value="1" />
+    <option name="directoryName" value="9w2ikm31" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 7
 }</component>
-  <component name="ProjectId" id="2XXpl9Qws8INQuSDEa0hLkcV4X5" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectId" id="2YUdt6BDBlTReiBFH85dlHH6AO5" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -80,101 +40,19 @@
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "C:/Users/stommy/Documents/IdeaProjects/tracking-allocator",
+    "last_opened_file_path": "C:/Users/stommy/Documents/StableProjects/blockfile2",
     "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
     "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15078124",
-    "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "editor.preferences.folding"
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
-  <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\Users\stommy\Documents\IdeaProjects\textindex\src\index2" />
-      <recent name="C:\Users\stommy\Documents\IdeaProjects\blockfile2\src\blockmap" />
-    </key>
-  </component>
-  <component name="RunAnythingCache">
-    <option name="myCommands">
-      <command value="C:\Users\stommy\Documents\IdeaProjects\targetdir\debug\deps\textindex-7e3696ae99ac522c.long-type-1657907274149202568.txt" />
-    </option>
-  </component>
-  <component name="RunManager" selected="Cargo.Release">
-    <configuration name="Build 2" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-      <option name="command" value="build" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Build" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-      <option name="command" value="build" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-      <option name="command" value="clippy" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Doc" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-      <option name="command" value="doc" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$/../blockfile2" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
+  <component name="RunManager" selected="Cargo.update [textindex]">
     <configuration name="Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="command" value="build --release" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
+      <option name="emulateTerminal" value="true" />
       <option name="channel" value="DEFAULT" />
       <option name="requiredFeatures" value="true" />
       <option name="allFeatures" value="false" />
@@ -188,8 +66,8 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test html_parse2::tests" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests" />
+    <configuration name="update [textindex]" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
+      <option name="command" value="update" />
       <option name="workingDirectory" value="file://$PROJECT_DIR$" />
       <option name="emulateTerminal" value="false" />
       <option name="channel" value="DEFAULT" />
@@ -205,578 +83,29 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Test proc3::html_parse2::tests::test_endtag" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_endtag -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test proc3::html_parse2::tests::test_html" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_html -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test proc3::html_parse2::tests::test_starttag" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_starttag -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="Test proc3::html_parse2::tests::test_text" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
-      <option name="command" value="test --package textindex --bin textindex proc3::html_parse2::tests::test_text -- --exact" />
-      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-      <option name="emulateTerminal" value="false" />
-      <option name="channel" value="DEFAULT" />
-      <option name="requiredFeatures" value="true" />
-      <option name="allFeatures" value="false" />
-      <option name="withSudo" value="false" />
-      <option name="buildTarget" value="REMOTE" />
-      <option name="backtrace" value="SHORT" />
-      <envs />
-      <option name="isRedirectInput" value="false" />
-      <option name="redirectInputPath" value="" />
-      <method v="2">
-        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
-      </method>
-    </configuration>
-    <list>
-      <item itemvalue="Cargo.Build 2" />
-      <item itemvalue="Cargo.Build" />
-      <item itemvalue="Cargo.Doc" />
-      <item itemvalue="Cargo.Clippy" />
-      <item itemvalue="Cargo.Release" />
-      <item itemvalue="Cargo.Test html_parse2::tests" />
-      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_endtag" />
-      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_html" />
-      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_starttag" />
-      <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_text" />
-    </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_html" />
-        <item itemvalue="Cargo.Test html_parse2::tests" />
-        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_endtag" />
-        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_text" />
-        <item itemvalue="Cargo.Test proc3::html_parse2::tests::test_starttag" />
+        <item itemvalue="Cargo.update [textindex]" />
       </list>
     </recent_temporary>
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
   </component>
-  <component name="RustfmtProjectSettings">
-    <option name="runRustfmtOnSave" value="true" />
-    <option name="useRustfmt" value="true" />
-  </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="30c5ca93-cbed-41d4-867b-82424f7594c9" name="Changes" comment="" />
-      <created>1698785429740</created>
+      <changelist id="451cd503-0fc0-4d01-b7e3-2a88d195242a" name="Changes" comment="" />
+      <created>1700584303221</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1698785429740</updated>
+      <updated>1700584303221</updated>
+      <workItem from="1700584305104" duration="15000" />
+      <workItem from="1700584323734" duration="159000" />
     </task>
-    <task id="LOCAL-00005" summary="prepare for store.&#10;no need for predefined physical block-nr.">
-      <option name="closed" value="true" />
-      <created>1698865427146</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1698865427146</updated>
-    </task>
-    <task id="LOCAL-00006" summary="first store/load runs.">
-      <option name="closed" value="true" />
-      <created>1698894500632</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1698894500632</updated>
-    </task>
-    <task id="LOCAL-00007" summary="compile fail">
-      <option name="closed" value="true" />
-      <created>1698896790160</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1698896790160</updated>
-    </task>
-    <task id="LOCAL-00008" summary="renaming stuff.&#10;testing write/read">
-      <option name="closed" value="true" />
-      <created>1698896911704</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1698896911704</updated>
-    </task>
-    <task id="LOCAL-00009" summary="error handling. &#10;almost no panics left.&#10;&#10;debug output ...">
-      <option name="closed" value="true" />
-      <created>1698906433526</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1698906433526</updated>
-    </task>
-    <task id="LOCAL-00010" summary="debug for block.&#10;&#10;split off load_raw_0 for safety.&#10;&#10;freelist for types better.&#10;&#10;store_panic runs clean!! M8/10">
-      <option name="closed" value="true" />
-      <created>1698913021744</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1698913021744</updated>
-    </task>
-    <task id="LOCAL-00011" summary="minor fixes">
-      <option name="closed" value="true" />
-      <created>1698938513682</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1698938513682</updated>
-    </task>
-    <task id="LOCAL-00012" summary="adapt to blockfile2">
-      <option name="closed" value="true" />
-      <created>1698938648879</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1698938648879</updated>
-    </task>
-    <task id="LOCAL-00013" summary="clippy">
-      <option name="closed" value="true" />
-      <created>1698941557991</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1698941557991</updated>
-    </task>
-    <task id="LOCAL-00014" summary="clippy">
-      <option name="closed" value="true" />
-      <created>1698941582272</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1698941582272</updated>
-    </task>
-    <task id="LOCAL-00015" summary="doc">
-      <option name="closed" value="true" />
-      <created>1698947316877</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1698947316877</updated>
-    </task>
-    <task id="LOCAL-00016" summary="cleanup">
-      <option name="closed" value="true" />
-      <created>1698947355194</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1698947355194</updated>
-    </task>
-    <task id="LOCAL-00017" summary="cleanup">
-      <option name="closed" value="true" />
-      <created>1698949288046</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1698949288046</updated>
-    </task>
-    <task id="LOCAL-00018" summary="change the index types to proper newtypes instead of type aliases.">
-      <option name="closed" value="true" />
-      <created>1698949328821</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1698949328821</updated>
-    </task>
-    <task id="LOCAL-00019" summary="change the index types to proper newtypes instead of type aliases.">
-      <option name="closed" value="true" />
-      <created>1698949412726</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1698949412726</updated>
-    </task>
-    <task id="LOCAL-00020" summary="TryFrom for BlockType">
-      <option name="closed" value="true" />
-      <created>1698952673578</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1698952673578</updated>
-    </task>
-    <task id="LOCAL-00021" summary="bug with blocktypes.&#10;&#10;cleanup">
-      <option name="closed" value="true" />
-      <created>1698952726792</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
-      <option name="project" value="LOCAL" />
-      <updated>1698952726792</updated>
-    </task>
-    <task id="LOCAL-00022" summary="split index2">
-      <option name="closed" value="true" />
-      <created>1698953213506</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1698953213506</updated>
-    </task>
-    <task id="LOCAL-00023" summary="undo first occurance hack.">
-      <option name="closed" value="true" />
-      <created>1698956341762</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1698956341762</updated>
-    </task>
-    <task id="LOCAL-00024" summary="error handling">
-      <option name="closed" value="true" />
-      <created>1699034008172</created>
-      <option name="number" value="00024" />
-      <option name="presentableId" value="LOCAL-00024" />
-      <option name="project" value="LOCAL" />
-      <updated>1699034008172</updated>
-    </task>
-    <task id="LOCAL-00025" summary="new wordmap layout&#10;&#10;distribute according to word count.">
-      <option name="closed" value="true" />
-      <created>1699034057848</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
-      <option name="project" value="LOCAL" />
-      <updated>1699034057848</updated>
-    </task>
-    <task id="LOCAL-00026" summary="add new cast variants to make usage easier.">
-      <option name="closed" value="true" />
-      <created>1699109814019</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1699109814019</updated>
-    </task>
-    <task id="LOCAL-00027" summary="add new cast variants to make usage easier.">
-      <option name="closed" value="true" />
-      <created>1699111293341</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
-      <option name="project" value="LOCAL" />
-      <updated>1699111293341</updated>
-    </task>
-    <task id="LOCAL-00028" summary="split length calculation and layout verification.">
-      <option name="closed" value="true" />
-      <created>1699115784194</created>
-      <option name="number" value="00028" />
-      <option name="presentableId" value="LOCAL-00028" />
-      <option name="project" value="LOCAL" />
-      <updated>1699115784194</updated>
-    </task>
-    <task id="LOCAL-00029" summary="use new cast functions.">
-      <option name="closed" value="true" />
-      <created>1699115851678</created>
-      <option name="number" value="00029" />
-      <option name="presentableId" value="LOCAL-00029" />
-      <option name="project" value="LOCAL" />
-      <updated>1699115851678</updated>
-    </task>
-    <task id="LOCAL-00030" summary="better find results">
-      <option name="closed" value="true" />
-      <created>1699125093471</created>
-      <option name="number" value="00030" />
-      <option name="presentableId" value="LOCAL-00030" />
-      <option name="project" value="LOCAL" />
-      <updated>1699125093471</updated>
-    </task>
-    <task id="LOCAL-00031" summary="first impl streams">
-      <option name="closed" value="true" />
-      <created>1699178846005</created>
-      <option name="number" value="00031" />
-      <option name="presentableId" value="LOCAL-00031" />
-      <option name="project" value="LOCAL" />
-      <updated>1699178846005</updated>
-    </task>
-    <task id="LOCAL-00032" summary="simplified write+read.&#10;it's not necessary to read/write the whole buffer at once, so this can be broken up along block boundaries.">
-      <option name="closed" value="true" />
-      <created>1699180728511</created>
-      <option name="number" value="00032" />
-      <option name="presentableId" value="LOCAL-00032" />
-      <option name="project" value="LOCAL" />
-      <updated>1699180728511</updated>
-    </task>
-    <task id="LOCAL-00033" summary="bug in write.&#10;&#10;debug output for streams.">
-      <option name="closed" value="true" />
-      <created>1699182709758</created>
-      <option name="number" value="00033" />
-      <option name="presentableId" value="LOCAL-00033" />
-      <option name="project" value="LOCAL" />
-      <updated>1699182709758</updated>
-    </task>
-    <task id="LOCAL-00034" summary="add BlockRead trait. Give access to block-nr+idx.&#10;&#10;iter_metadata_filter() now uses UserBlockType.">
-      <option name="closed" value="true" />
-      <created>1699188379560</created>
-      <option name="number" value="00034" />
-      <option name="presentableId" value="LOCAL-00034" />
-      <option name="project" value="LOCAL" />
-      <updated>1699188379560</updated>
-    </task>
-    <task id="LOCAL-00035" summary="change filename storage to stream.&#10;&#10;add next/first commands.">
-      <option name="closed" value="true" />
-      <created>1699188508706</created>
-      <option name="number" value="00035" />
-      <option name="presentableId" value="LOCAL-00035" />
-      <option name="project" value="LOCAL" />
-      <updated>1699188508706</updated>
-    </task>
-    <task id="LOCAL-00036" summary="automatically discard blocks for streams.">
-      <option name="closed" value="true" />
-      <created>1699210976132</created>
-      <option name="number" value="00036" />
-      <option name="presentableId" value="LOCAL-00036" />
-      <option name="project" value="LOCAL" />
-      <updated>1699210976132</updated>
-    </task>
-    <task id="LOCAL-00037" summary="discard more radically.">
-      <option name="closed" value="true" />
-      <created>1699211089946</created>
-      <option name="number" value="00037" />
-      <option name="presentableId" value="LOCAL-00037" />
-      <option name="project" value="LOCAL" />
-      <updated>1699211089946</updated>
-    </task>
-    <task id="LOCAL-00038" summary="discard more radically.">
-      <option name="closed" value="true" />
-      <created>1699211098629</created>
-      <option name="number" value="00038" />
-      <option name="presentableId" value="LOCAL-00038" />
-      <option name="project" value="LOCAL" />
-      <updated>1699211098629</updated>
-    </task>
-    <task id="LOCAL-00039" summary="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()">
-      <option name="closed" value="true" />
-      <created>1699251507661</created>
-      <option name="number" value="00039" />
-      <option name="presentableId" value="LOCAL-00039" />
-      <option name="project" value="LOCAL" />
-      <updated>1699251507661</updated>
-    </task>
-    <task id="LOCAL-00040" summary="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock.">
-      <option name="closed" value="true" />
-      <created>1699251852621</created>
-      <option name="number" value="00040" />
-      <option name="presentableId" value="LOCAL-00040" />
-      <option name="project" value="LOCAL" />
-      <updated>1699251852621</updated>
-    </task>
-    <task id="LOCAL-00041" summary="fix tests.">
-      <option name="closed" value="true" />
-      <created>1699252539214</created>
-      <option name="number" value="00041" />
-      <option name="presentableId" value="LOCAL-00041" />
-      <option name="project" value="LOCAL" />
-      <updated>1699252539214</updated>
-    </task>
-    <task id="LOCAL-00042" summary="bug: append_blockmap() didn't set dirty.&#10;&#10;make cast* unsafe.&#10;&#10;doc+cleanup.&#10;&#10;merge block-types NotAllocated and Free to Free only.&#10;&#10;add more verification to load().&#10;&#10;move block_align() to fileblocks. want no U in blockmap.rs.">
-      <option name="closed" value="true" />
-      <created>1699284573547</created>
-      <option name="number" value="00042" />
-      <option name="presentableId" value="LOCAL-00042" />
-      <option name="project" value="LOCAL" />
-      <updated>1699284573547</updated>
-    </task>
-    <task id="LOCAL-00043" summary="cast* is now unsafe.">
-      <option name="closed" value="true" />
-      <created>1699284630503</created>
-      <option name="number" value="00043" />
-      <option name="presentableId" value="LOCAL-00043" />
-      <option name="project" value="LOCAL" />
-      <updated>1699284630503</updated>
-    </task>
-    <task id="LOCAL-00044" summary="add backtrace to ParserError. only when debug_assertions are active.">
-      <option name="closed" value="true" />
-      <created>1699735354685</created>
-      <option name="number" value="00044" />
-      <option name="presentableId" value="LOCAL-00044" />
-      <option name="project" value="LOCAL" />
-      <updated>1699735354685</updated>
-    </task>
-    <task id="LOCAL-00045" summary="remove FileFilter::Binary&#10;&#10;bug in new parser.&#10;&#10;load_file optimized. don't load whole file for inspect.">
-      <option name="closed" value="true" />
-      <created>1699735619040</created>
-      <option name="number" value="00045" />
-      <option name="presentableId" value="LOCAL-00045" />
-      <option name="project" value="LOCAL" />
-      <updated>1699735619040</updated>
-    </task>
-    <task id="LOCAL-00046" summary="bug in index_txt2 main-loop.&#10;&#10;add parse_base64_v2 for a variation of this.">
-      <option name="closed" value="true" />
-      <created>1699742842556</created>
-      <option name="number" value="00046" />
-      <option name="presentableId" value="LOCAL-00046" />
-      <option name="project" value="LOCAL" />
-      <updated>1699742842556</updated>
-    </task>
-    <task id="LOCAL-00047" summary="tracking-allocator">
-      <option name="closed" value="true" />
-      <created>1699806929922</created>
-      <option name="number" value="00047" />
-      <option name="presentableId" value="LOCAL-00047" />
-      <option name="project" value="LOCAL" />
-      <updated>1699806929922</updated>
-    </task>
-    <task id="LOCAL-00048" summary="small optimizations">
-      <option name="closed" value="true" />
-      <created>1699807305486</created>
-      <option name="number" value="00048" />
-      <option name="presentableId" value="LOCAL-00048" />
-      <option name="project" value="LOCAL" />
-      <updated>1699807305486</updated>
-    </task>
-    <task id="LOCAL-00049" summary="backtrace">
-      <option name="closed" value="true" />
-      <created>1699811927515</created>
-      <option name="number" value="00049" />
-      <option name="presentableId" value="LOCAL-00049" />
-      <option name="project" value="LOCAL" />
-      <updated>1699811927531</updated>
-    </task>
-    <task id="LOCAL-00050" summary="tracking-allocator">
-      <option name="closed" value="true" />
-      <created>1699812016675</created>
-      <option name="number" value="00050" />
-      <option name="presentableId" value="LOCAL-00050" />
-      <option name="project" value="LOCAL" />
-      <updated>1699812016680</updated>
-    </task>
-    <task id="LOCAL-00051" summary="tracking-allocator behind feature gate.">
-      <option name="closed" value="true" />
-      <created>1699812943170</created>
-      <option name="number" value="00051" />
-      <option name="presentableId" value="LOCAL-00051" />
-      <option name="project" value="LOCAL" />
-      <updated>1699812943170</updated>
-    </task>
-    <task id="LOCAL-00052" summary="minimal htmlparser">
-      <option name="closed" value="true" />
-      <created>1699860810267</created>
-      <option name="number" value="00052" />
-      <option name="presentableId" value="LOCAL-00052" />
-      <option name="project" value="LOCAL" />
-      <updated>1699860810267</updated>
-    </task>
-    <task id="LOCAL-00053" summary="xml-header missing.&#10;bug: doctype corrected.">
-      <option name="closed" value="true" />
-      <created>1699891072891</created>
-      <option name="number" value="00053" />
-      <option name="presentableId" value="LOCAL-00053" />
-      <option name="project" value="LOCAL" />
-      <updated>1699891072891</updated>
-    </task>
-    <option name="localTasksCounter" value="54" />
     <servers />
   </component>
-  <component name="Vcs.Log.History.Properties">
-    <option name="COLUMN_ID_ORDER">
-      <list>
-        <option value="Default.Root" />
-        <option value="Default.Author" />
-        <option value="Default.Date" />
-        <option value="Default.Subject" />
-      </list>
-    </option>
-  </component>
-  <component name="Vcs.Log.Tabs.Properties">
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State>
-              <option name="FILTERS">
-                <map>
-                  <entry key="branch">
-                    <value>
-                      <list>
-                        <option value="master" />
-                      </list>
-                    </value>
-                  </entry>
-                  <entry key="roots">
-                    <value>
-                      <list>
-                        <option value="$PROJECT_DIR$/../blockfile2" />
-                        <option value="$PROJECT_DIR$/../../StableProjects/kparse" />
-                        <option value="$PROJECT_DIR$" />
-                      </list>
-                    </value>
-                  </entry>
-                </map>
-              </option>
-            </State>
-          </value>
-        </entry>
-      </map>
-    </option>
-  </component>
-  <component name="VcsManagerConfiguration">
-    <MESSAGE value="add new cast variants to make usage easier." />
-    <MESSAGE value="split length calculation and layout verification." />
-    <MESSAGE value="use new cast functions." />
-    <MESSAGE value="better find results" />
-    <MESSAGE value="first impl streams" />
-    <MESSAGE value="simplified write+read.&#10;it's not necessary to read/write the whole buffer at once, so this can be broken up along block boundaries." />
-    <MESSAGE value="bug in write.&#10;&#10;debug output for streams." />
-    <MESSAGE value="add BlockRead trait. Give access to block-nr+idx.&#10;&#10;iter_metadata_filter() now uses UserBlockType." />
-    <MESSAGE value="change filename storage to stream.&#10;&#10;add next/first commands." />
-    <MESSAGE value="automatically discard blocks for streams." />
-    <MESSAGE value="discard more radically." />
-    <MESSAGE value="bug: HeaderArray not repr(C).&#10;&#10;bug: BlockMap::append_stream() must set the first block dirty on init. Doesn't happen later when writing.&#10;&#10;doubly ensure that FileBlocks is !Sync. Which it isn't. Send is fine.&#10;&#10;new UserBlock for Debug.&#10;make all User* public.&#10;&#10;separate store_raw_0 too.&#10;&#10;Physical::verify() for startup assertions.&#10;&#10;remove Physical::free_block() &#10;&#10;iter_dirty uses filter and only returns LogicalNr's.&#10;&#10;Types::free_block replaced with push_free()&#10;&#10;simplify BlockMap::store(). Use new iter_dirty() design. Don't check for pnr==0. Those should be dirty anyway.&#10;&#10;redesign BlockMap::free_block()" />
-    <MESSAGE value="file_id can't be 0 anymore. streams make this obsolete.&#10;&#10;redesign IndexError. Backtrace is nice.&#10;&#10;better use for stats nnn. dumping block-data.&#10;&#10;put Words behind a Mutex instead of a RwLock." />
-    <MESSAGE value="fix tests." />
-    <MESSAGE value="bug: append_blockmap() didn't set dirty.&#10;&#10;make cast* unsafe.&#10;&#10;doc+cleanup.&#10;&#10;merge block-types NotAllocated and Free to Free only.&#10;&#10;add more verification to load().&#10;&#10;move block_align() to fileblocks. want no U in blockmap.rs." />
-    <MESSAGE value="cast* is now unsafe." />
-    <MESSAGE value="add backtrace to ParserError. only when debug_assertions are active." />
-    <MESSAGE value="remove FileFilter::Binary&#10;&#10;bug in new parser.&#10;&#10;load_file optimized. don't load whole file for inspect." />
-    <MESSAGE value="bug in index_txt2 main-loop.&#10;&#10;add parse_base64_v2 for a variation of this." />
-    <MESSAGE value="small optimizations" />
-    <MESSAGE value="backtrace" />
-    <MESSAGE value="tracking-allocator" />
-    <MESSAGE value="tracking-allocator behind feature gate." />
-    <MESSAGE value="minimal htmlparser" />
-    <MESSAGE value="xml-header missing.&#10;bug: doctype corrected." />
-    <option name="LAST_COMMIT_MESSAGE" value="xml-header missing.&#10;bug: doctype corrected." />
-  </component>
-  <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/textindex$Test_html_parse2__tests.info" NAME="Test html_parse2::tests Coverage Results" MODIFIED="1699979383573" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="RsCoverageRunner" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" CONTEXT_FILE_PATH="C:\Users\stommy\Documents\IdeaProjects\textindex" />
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
   </component>
 </project>

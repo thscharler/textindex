@@ -34,8 +34,9 @@ version = "4.0"
 
 [dependencies.kparse]
 version = "3.0.4"
-path = "../../StableProjects/kparse"
+#path = "../../StableProjects/kparse"
 
 [dependencies.blockfile2]
 version = "1.0"
-path = "../blockfile2"
+git = "C:/Users/stommy/Documents/GitRepositories/blockfile2"
+#path = "../blockfile2"
