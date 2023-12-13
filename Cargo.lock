@@ -38,7 +38,6 @@ checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 [[package]]
 name = "blockfile2"
 version = "1.0.0"
-source = "git+c:/Users/stommy/Documents/GitRepositories/blockfile2#b8a5e2620f4c56ee49482c9578e30400e3f12d28"
 dependencies = [
  "bit-set",
 ]
